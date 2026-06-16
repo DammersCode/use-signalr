@@ -1,6 +1,6 @@
 {
   "name": "@dammers/use-signalr",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fully-typed multi-hub SignalR provider + hooks for React: auto-reconnect, invoke retry, lazy hubs, live status.",
   "author": "Dammers",
   "license": "MIT",
@@ -17,7 +17,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -26,7 +28,14 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["react", "signalr", "hooks", "typescript", "realtime", "websocket"],
+  "keywords": [
+    "react",
+    "signalr",
+    "hooks",
+    "typescript",
+    "realtime",
+    "websocket"
+  ],
   "peerDependencies": {
     "@microsoft/signalr": ">=8",
     "react": ">=19",

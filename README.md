@@ -24,7 +24,7 @@ One factory call gives you a provider and a set of hooks, every one of them type
 - 💤 **Lazy hubs.** Connect on first use, disconnect (after a grace period) on last unmount. Ref-counted and StrictMode-safe.
 - 🟢 **Live per-hub status.** Subscribe to a hub's connection state; components re-render only when *that* hub changes.
 - 🔄 **Reconnect hooks.** Run a callback after a hub reconnects — e.g. refetch state that went stale.
-- 🔑 **Auth via props.** Pass `baseUrl` + `accessTokenFactory` + `enabled`; the token is re-read on every negotiate, so rotation needs no rebuild.
+- 🔑 **Auth via props.** Pass `baseUrl` + `accessTokenFactory` (gate with the optional `enabled`); the token is re-read on every negotiate, so rotation needs no rebuild.
 - 🪶 **Zero runtime deps.** Only peer deps: `react`, `react-dom`, `@microsoft/signalr`.
 
 ## 📦 Install
@@ -86,7 +86,7 @@ import { SignalRProvider } from "./signalr";
 <SignalRProvider
   baseUrl={serverUrl}                          // e.g. "https://api.example.com"
   accessTokenFactory={() => getAccessToken()}  // sync or async; read on every (re)negotiate
-  enabled={isAuthenticated}                    // false -> stops + clears all connections
+  enabled={isAuthenticated}                    // optional, default true; false -> stops + clears all connections
   connectionKey={accessToken}                  // optional: forces reconnect when it changes (re-login)
   onError={(hub, err) => toast.error(`Connection to ${hub} failed`)}
   onStatusChange={(hub, status) => {
@@ -186,7 +186,7 @@ Business errors (a `HubException` thrown while still connected) are **never** re
 
 ### Provider props
 
-`baseUrl`, `accessTokenFactory`, `enabled` (required); `connectionKey`, `onStatusChange`, `onError` (optional). Connection behavior (`lazy`, `reconnect`, `maxConnectRetries`, `logLevel`, per-hub overrides) lives in the **config** passed to `createSignalRClient`, not on the provider.
+`baseUrl`, `accessTokenFactory` (required); `enabled` (optional, default `true`), `connectionKey`, `onStatusChange`, `onError` (optional). Connection behavior (`lazy`, `reconnect`, `maxConnectRetries`, `logLevel`, per-hub overrides) lives in the **config** passed to `createSignalRClient`, not on the provider.
 
 ## 📝 Notes
 

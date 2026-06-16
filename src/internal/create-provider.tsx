@@ -24,7 +24,7 @@ export function createSignalRProvider<T extends SignalRContract>(
     children,
     baseUrl,
     accessTokenFactory,
-    enabled,
+    enabled = true,
     connectionKey,
     onStatusChange,
     onError,

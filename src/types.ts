@@ -132,8 +132,8 @@ export interface SignalRProviderProps {
   /** Returns the bearer token. Read on every (re)negotiate, so token rotation
    *  works without rebuilding the connection. */
   accessTokenFactory: () => string | Promise<string>;
-  /** When false, all connections stop and clear. */
-  enabled: boolean;
+  /** When false, all connections stop and clear. Default true. */
+  enabled?: boolean;
   /** Optional rebuild trigger. Pass the access token (or any value) to force a
    *  reconnect when it changes — e.g. re-login on the same server. */
   connectionKey?: string | number;

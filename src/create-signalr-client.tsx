@@ -42,13 +42,50 @@ export function createSignalRClient<T extends SignalRContract>(
   const hooks = createSignalRHooks<T>(Context);
 
   return {
+    /**
+     * Provider that builds, starts, retries and auto-reconnects every configured
+     * hub, exposing them to the hooks via context. Takes no `hubs` prop — it
+     * already knows them from the config. Pass `baseUrl` + `accessTokenFactory`
+     * (gate with `enabled`); rebuilds when `baseUrl`, `enabled` or `connectionKey`
+     * change. Mount it once near the root.
+     */
     SignalRProvider,
+    /**
+     * Escape hatch to the raw SignalR context (`getConnection`, `getStatus`,
+     * `isHubConnected`, …). Prefer the typed hooks below; use this only for the
+     * underlying `HubConnection` or a non-reactive point read.
+     */
     useSignalR: hooks.useSignalR,
+    /**
+     * Keep a (possibly lazy) hub connected for the component's lifetime without
+     * subscribing to events or status. Acquires on mount, releases on unmount.
+     */
     useHubConsumer: hooks.useHubConsumer,
+    /**
+     * Subscribe to a typed server event for the component's lifetime. Handler
+     * args are inferred from your contract; re-attaches across reconnects.
+     */
     useSignalREffect: hooks.useSignalREffect,
+    /**
+     * Typed invoker that waits for the connection and resolves with the method's
+     * return value. Fails fast by default; opt-in retry (idempotent methods only).
+     */
     useSignalRInvoke: hooks.useSignalRInvoke,
+    /**
+     * Typed fire-and-forget sender. Does not wait for connection: dropped
+     * (resolves `false`) if not connected, else dispatched (`true`). Safe in
+     * unmount cleanups.
+     */
     useSignalRSend: hooks.useSignalRSend,
+    /**
+     * Live connection status of a hub. Re-renders only when THIS hub's status
+     * changes. Also keeps a lazy hub connected while mounted.
+     */
     useHubStatus: hooks.useHubStatus,
+    /**
+     * Run a callback after each reconnect (not the first connect) — e.g. to
+     * refetch state that went stale while offline.
+     */
     useOnReconnected: hooks.useOnReconnected,
   };
 }

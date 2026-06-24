@@ -30,6 +30,18 @@ export function createSignalRHooks<T extends SignalRContract>(
 ) {
   type Hub = keyof T & HubString;
 
+  /**
+   * Escape hatch to the raw SignalR context. Prefer the typed hooks below;
+   * reach for this only when you need the underlying `HubConnection` or a
+   * non-reactive point read.
+   *
+   * @returns The context value: `getConnection`, `isHubConnected`, `getStatus`,
+   *   `waitForConnection`, `acquire`/`release`, `registerReconnect`, `statusStore`.
+   * @throws If called outside a `<SignalRProvider>`.
+   * @example
+   * const { getConnection } = useSignalR();
+   * getConnection("/hubs/chat")?.send("SendMessage", roomId, "bye");
+   */
   function useSignalR() {
     const ctx = use(ReactContext);
     if (!ctx)
@@ -37,7 +49,17 @@ export function createSignalRHooks<T extends SignalRContract>(
     return ctx;
   }
 
-  /** Keep a (possibly lazy) hub alive for this component's lifetime. */
+  /**
+   * Keep a (possibly lazy) hub alive for this component's lifetime without
+   * subscribing to events or status. Acquires on mount, releases on unmount.
+   *
+   * Most hooks already do this internally — use it directly only when you want
+   * a lazy hub connected for a component that doesn't otherwise touch it.
+   *
+   * @param hub The hub path to keep connected (e.g. `/hubs/chat`).
+   * @example
+   * useHubConsumer("/hubs/presence"); // hold the lazy hub open while mounted
+   */
   function useHubConsumer(hub: Hub) {
     const { acquire, release } = useSignalR();
     useEffect(() => {
@@ -46,7 +68,17 @@ export function createSignalRHooks<T extends SignalRContract>(
     }, [hub, acquire, release]);
   }
 
-  /** Live connection status of a hub. Re-renders only when THIS hub changes. */
+  /**
+   * Live connection status of a hub. Re-renders the component only when THIS
+   * hub's status changes (not when other hubs change). Also keeps the hub
+   * alive while mounted, so a lazy hub connects on first use.
+   *
+   * @param hub The hub path to watch.
+   * @returns `"disconnected" | "connecting" | "connected" | "reconnecting" | "reconnected"`.
+   * @example
+   * const status = useHubStatus("/hubs/chat");
+   * if (status !== "connected") return <Spinner />;
+   */
   function useHubStatus<H extends Hub>(hub: H): HubConnectionStatus {
     const { statusStore } = useSignalR();
     useHubConsumer(hub);
@@ -57,7 +89,19 @@ export function createSignalRHooks<T extends SignalRContract>(
     );
   }
 
-  /** Run a callback after a hub reconnects (e.g. to refetch state). */
+  /**
+   * Run a callback every time a hub reconnects (after a dropped connection is
+   * re-established) — e.g. to refetch state that may have gone stale while
+   * offline. Does NOT fire on the first connect, only on reconnects.
+   *
+   * The callback is read through a ref, so passing a fresh closure each render
+   * is fine — it won't re-subscribe or fire spuriously.
+   *
+   * @param hub The hub path to watch.
+   * @param callback Invoked after each successful reconnect.
+   * @example
+   * useOnReconnected("/hubs/chat", () => refetchMessages());
+   */
   function useOnReconnected<H extends Hub>(hub: H, callback: () => void) {
     const { registerReconnect } = useSignalR();
     useHubConsumer(hub);
@@ -68,7 +112,23 @@ export function createSignalRHooks<T extends SignalRContract>(
     );
   }
 
-  /** Subscribe to a typed server event for the lifetime of the component. */
+  /**
+   * Subscribe to a typed server event for the lifetime of the component. The
+   * handler's args are inferred from your contract for `(hub, event)`. The
+   * subscription attaches once the hub is connected and re-attaches across
+   * reconnects; it detaches on unmount.
+   *
+   * The handler is read through a ref, so a fresh closure each render is fine —
+   * it won't re-subscribe.
+   *
+   * @param hub The hub path.
+   * @param event The event name (key of that hub's `events`).
+   * @param handler Called with the event's typed args each time the server pushes it.
+   * @example
+   * useSignalREffect("/hubs/chat", "ReceiveMessage", (user, message) => {
+   *   console.log(user, message); // args typed from the contract
+   * });
+   */
   function useSignalREffect<H extends Hub, E extends EventName<T, H>>(
     hub: H,
     event: E,
@@ -88,7 +148,30 @@ export function createSignalRHooks<T extends SignalRContract>(
     }, [hub, event, status, getConnection, handlerRef]);
   }
 
-  /** Returns a typed function that invokes a hub method, waiting for connection. */
+  /**
+   * Returns a stable, typed function that invokes a hub method and resolves with
+   * its return value. It waits (up to `timeout`) for the connection before
+   * invoking, so calling right after mount is safe.
+   *
+   * Special behavior:
+   * - **Fails fast by default** (`retries: 0`): rethrows the raw server error so
+   *   callers see the original.
+   * - **Opt-in retry** for retriable failures (transport drops, timeouts) with
+   *   jittered backoff. Business errors (a `HubException` thrown while still
+   *   connected) are never retried.
+   * - **At-least-once when retrying** — only enable `retries` for IDEMPOTENT methods.
+   * - **Auto-aborts** any in-flight retry loop on unmount.
+   *
+   * @param hub The hub path.
+   * @param method The method name (key of that hub's `methods`).
+   * @param options Optional `retries`, `timeout`, `backoff`, `isRetriable`.
+   * @returns An async fn taking the method's typed args, resolving to its typed return.
+   * @throws The raw error when `retries === 0`; otherwise an {@link InvokeError}
+   *   wrapping the last failure once attempts are exhausted.
+   * @example
+   * const send = useSignalRInvoke("/hubs/chat", "SendMessage");
+   * await send(roomId, "hello"); // typed args, typed Promise
+   */
   function useSignalRInvoke<H extends Hub, M extends MethodName<T, H>>(
     hub: H,
     method: M,
@@ -142,9 +225,21 @@ export function createSignalRHooks<T extends SignalRContract>(
   }
 
   /**
-   * Stable, typed fire-and-forget sender. Does not wait for connection: if the
-   * hub isn't Connected the call is dropped (resolves `false`), else `true`.
-   * Reads the connection at call time, so it's safe to use in unmount cleanups.
+   * Returns a stable, typed fire-and-forget sender. Unlike {@link useSignalRInvoke},
+   * it does NOT wait for the connection and does NOT return the method's result:
+   * if the hub isn't Connected the call is dropped (resolves `false`); otherwise
+   * it's dispatched (resolves `true`).
+   *
+   * Reads the connection at call time and never depends on render-time state, so
+   * it's safe to capture in an unmount cleanup.
+   *
+   * @param hub The hub path.
+   * @param method The method name (key of that hub's `methods`).
+   * @returns An async fn taking the method's typed args, resolving `true` if
+   *   dispatched or `false` if dropped (not connected).
+   * @example
+   * const send = useSignalRSend("/hubs/chat", "Typing");
+   * useEffect(() => () => { send(roomId); }, [send]); // safe in cleanup
    */
   function useSignalRSend<H extends Hub, M extends MethodName<T, H>>(
     hub: H,

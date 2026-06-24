@@ -9,13 +9,28 @@ import type { HubConnection } from "@microsoft/signalr";
 export const DEFAULT_BACKOFF = [250, 1000, 3000, 5000];
 const MAX_BACKOFF = 30_000;
 
-/** Thrown when a retried invoke exhausts its budget. Only used when retries > 0;
- *  with retries === 0 the raw server error is rethrown unwrapped. */
+/**
+ * Thrown by `useSignalRInvoke` when a retried call exhausts its retry budget.
+ * Only used when `retries > 0`; with `retries === 0` the raw server error is
+ * rethrown unwrapped, so you won't see this unless you opted into retries.
+ *
+ * @example
+ * try {
+ *   await invoke(arg);
+ * } catch (e) {
+ *   if (e instanceof InvokeError) {
+ *     console.error(`failed after ${e.attempts} attempts`, e.cause);
+ *   }
+ * }
+ */
 export class InvokeError extends Error {
   constructor(
     message: string,
+    /** The last underlying error that caused the final attempt to fail. */
     readonly cause: unknown,
+    /** Total number of attempts made (including the first) before giving up. */
     readonly attempts: number,
+    /** Whether the final failure was classed retriable (budget ran out) vs not. */
     readonly retriable: boolean,
   ) {
     super(message);

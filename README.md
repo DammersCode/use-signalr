@@ -7,7 +7,9 @@
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 ```ts
-const { SignalRProvider, useSignalRInvoke } = createSignalRClient<AppHubs>({ hubs: { "/hubs/chat": {} } });
+const { SignalRProvider, useSignalRInvoke } = createSignalRClient<AppHubs>({
+  hubs: { "/hubs/chat": {} },
+});
 ```
 
 One factory call gives you a provider and a set of hooks, every one of them typed against your hub contract — event args, method args and return values are all inferred.
@@ -22,7 +24,7 @@ One factory call gives you a provider and a set of hooks, every one of them type
 - ♻️ **Auto-reconnect.** Built-in: `true`, a custom delay array, or your own retry policy. Plus a connect-retry budget for the first connect.
 - 🔁 **Invoke retry.** Opt-in per call, idempotent-safe, with jittered backoff and smart retriable-vs-business-error detection.
 - 💤 **Lazy hubs.** Connect on first use, disconnect (after a grace period) on last unmount. Ref-counted and StrictMode-safe.
-- 🟢 **Live per-hub status.** Subscribe to a hub's connection state; components re-render only when *that* hub changes.
+- 🟢 **Live per-hub status.** Subscribe to a hub's connection state; components re-render only when _that_ hub changes.
 - 🔄 **Reconnect hooks.** Run a callback after a hub reconnects — e.g. refetch state that went stale.
 - 🔑 **Auth via props.** Pass `baseUrl` + `accessTokenFactory` (gate with the optional `enabled`); the token is re-read on every negotiate, so rotation needs no rebuild.
 - 🪶 **Zero runtime deps.** Only peer deps: `react`, `react-dom`, `@microsoft/signalr`.
@@ -85,10 +87,10 @@ The provider takes **no hubs prop** — it already knows them from the config.
 import { SignalRProvider } from "./signalr";
 
 <SignalRProvider
-  baseUrl={serverUrl}                          // e.g. "https://api.example.com"
-  accessTokenFactory={() => getAccessToken()}  // sync or async; read on every (re)negotiate
-  enabled={isAuthenticated}                    // optional, default true; false -> stops + clears all connections
-  connectionKey={accessToken}                  // optional: forces reconnect when it changes (re-login)
+  baseUrl={serverUrl} // e.g. "https://api.example.com"
+  accessTokenFactory={() => getAccessToken()} // sync or async; read on every (re)negotiate
+  enabled={isAuthenticated} // optional, default true; false -> stops + clears all connections
+  connectionKey={accessToken} // optional: forces reconnect when it changes (re-login)
   onError={(hub, err) => toast.error(`Connection to ${hub} failed`)}
   onStatusChange={(hub, status) => {
     if (status === "reconnecting") toast.warning(`Reconnecting to ${hub}…`);
@@ -122,7 +124,9 @@ await send(roomId, "bye"); // typed args; Promise<boolean> (true = dispatched)
 const leaveRoom = useSignalRTeardown("/hubs/chat", "LeaveRoomAsync");
 useEffect(() => {
   joinRoom(roomId);
-  return () => { leaveRoom(roomId); }; // lands even mid-connect or on unmount
+  return () => {
+    leaveRoom(roomId);
+  }; // lands even mid-connect or on unmount
 }, [roomId, joinRoom, leaveRoom]);
 
 // 🟢 Live connection status (re-renders only when THIS hub's status changes)
@@ -146,18 +150,18 @@ Each value in `config.hubs` overrides the global defaults for that hub:
 ```ts
 createSignalRClient<AppHubs>({
   hubs: {
-    "/hubs/chat": {},                            // all defaults
+    "/hubs/chat": {}, // all defaults
     "/hubs/presence": {
-      lazy: true,                                // connect only when first used
-      graceMs: 5000,                             // wait 5s after last consumer before disconnect
-      reconnect: [0, 2000, 10000, 30000],        // custom retry delays (ms)
+      lazy: true, // connect only when first used
+      graceMs: 5000, // wait 5s after last consumer before disconnect
+      reconnect: [0, 2000, 10000, 30000], // custom retry delays (ms)
       maxConnectRetries: 5,
       transport: HttpTransportType.WebSockets,
       skipNegotiation: true,
     },
   },
-  lazy: false,          // global default for all hubs
-  reconnect: true,      // true | false | number[] | IRetryPolicy
+  lazy: false, // global default for all hubs
+  reconnect: true, // true | false | number[] | IRetryPolicy
   maxConnectRetries: 2,
 });
 ```
@@ -172,9 +176,9 @@ With `lazy: true`, a hub connects only when the first component using it mounts 
 
 ```ts
 const undo = useSignalRInvoke("/hubs/flow", "UndoAsync", {
-  retries: 2,                       // retry RETRIABLE failures (transport drops, 5xx, timeouts)
-  timeout: 15000,                   // per-attempt deadline
-  backoff: [250, 1000, 3000],       // or (attempt) => ms; capped 30s, jittered
+  retries: 2, // retry RETRIABLE failures (transport drops, 5xx, timeouts)
+  timeout: 15000, // per-attempt deadline
+  backoff: [250, 1000, 3000], // or (attempt) => ms; capped 30s, jittered
 });
 ```
 
@@ -184,14 +188,14 @@ Business errors (a `HubException` thrown while still connected) are **never** re
 
 The three "call the server" hooks differ in how they wait, what they return, and what happens on unmount. Pick by intent:
 
-| | `useSignalRInvoke` | `useSignalRSend` | `useSignalRTeardown` |
-| --- | --- | --- | --- |
-| **Waits for connection** | yes (up to `timeout`) | no | yes (up to `timeout`) |
-| **Not connected yet** | waits, then invokes | **drops** (resolves `false`) | **queues**, flushes on connect |
-| **Returns** | the method's typed result | `boolean` (dispatched?) | `boolean` (dispatched?) |
-| **On unmount** | aborts in-flight call¹ | unaffected (reads conn at call time) | **survives** (runs detached) |
-| **Holds a lazy hub open** | while mounted | while mounted | until the flush completes |
-| **Use for** | request/response you need the result of | high-frequency loss-OK signals (typing, cursor) | one-shot teardown that must land |
+|                           | `useSignalRInvoke`                      | `useSignalRSend`                                | `useSignalRTeardown`             |
+| ------------------------- | --------------------------------------- | ----------------------------------------------- | -------------------------------- |
+| **Waits for connection**  | yes (up to `timeout`)                   | no                                              | yes (up to `timeout`)            |
+| **Not connected yet**     | waits, then invokes                     | **drops** (resolves `false`)                    | **queues**, flushes on connect   |
+| **Returns**               | the method's typed result               | `boolean` (dispatched?)                         | `boolean` (dispatched?)          |
+| **On unmount**            | aborts in-flight call¹                  | unaffected (reads conn at call time)            | **survives** (runs detached)     |
+| **Holds a lazy hub open** | while mounted                           | while mounted                                   | until the flush completes        |
+| **Use for**               | request/response you need the result of | high-frequency loss-OK signals (typing, cursor) | one-shot teardown that must land |
 
 ¹ Only a mid-backoff retry is actually cancelled; pass `{ keepAliveOnUnmount: true }` to keep it alive.
 
@@ -205,7 +209,9 @@ const leaveRoom = useSignalRTeardown("/hubs/chat", "LeaveRoomAsync");
 
 useEffect(() => {
   joinRoom(roomId);
-  return () => { leaveRoom(roomId); };
+  return () => {
+    leaveRoom(roomId);
+  };
 }, [roomId, joinRoom, leaveRoom]);
 ```
 
@@ -226,18 +232,18 @@ It's best-effort fire-and-forget: resolves `true` once dispatched, `false` if th
 
 ## 📚 API
 
-| Export | What it does |
-| --- | --- |
-| `createSignalRClient<T>(config)` | Returns the Provider + hooks bound to contract `T`. Config keys declare the hubs. |
-| `<SignalRProvider>` | Builds/starts connections, retries, auto-reconnects, exposes them via context. No `hubs` prop. |
-| `useSignalREffect(hub, event, handler)` | Subscribe to a server event for the component lifetime. |
-| `useSignalRInvoke(hub, method, opts?)` | Typed request/response invoker; waits for the connection, returns the method's result. Optional retry/backoff/timeout; `keepAliveOnUnmount` to not abort on unmount. |
-| `useSignalRSend(hub, method)` | Typed fire-and-forget sender; **drops** if not connected. For high-frequency loss-OK signals. Safe in unmount cleanups. |
-| `useSignalRTeardown(hub, method, opts?)` | Reliable teardown sender for a method called in cleanup: survives unmount, **queues** while connecting (instead of dropping), holds a lazy hub open until flushed. |
-| `useHubStatus(hub)` | Live connection status; re-renders only when that hub changes. |
-| `useOnReconnected(hub, cb)` | Run `cb` after the hub reconnects (e.g. refetch). |
-| `useHubConsumer(hub)` | Keep a lazy hub connected for the component's lifetime without subscribing. |
-| `useSignalR()` | Last-resort raw context: `getConnection`, `isHubConnected`, `getStatus`. |
+| Export                                   | What it does                                                                                                                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createSignalRClient<T>(config)`         | Returns the Provider + hooks bound to contract `T`. Config keys declare the hubs.                                                                                    |
+| `<SignalRProvider>`                      | Builds/starts connections, retries, auto-reconnects, exposes them via context. No `hubs` prop.                                                                       |
+| `useSignalREffect(hub, event, handler)`  | Subscribe to a server event for the component lifetime.                                                                                                              |
+| `useSignalRInvoke(hub, method, opts?)`   | Typed request/response invoker; waits for the connection, returns the method's result. Optional retry/backoff/timeout; `keepAliveOnUnmount` to not abort on unmount. |
+| `useSignalRSend(hub, method)`            | Typed fire-and-forget sender; **drops** if not connected. For high-frequency loss-OK signals. Safe in unmount cleanups.                                              |
+| `useSignalRTeardown(hub, method, opts?)` | Reliable teardown sender for a method called in cleanup: survives unmount, **queues** while connecting (instead of dropping), holds a lazy hub open until flushed.   |
+| `useHubStatus(hub)`                      | Live connection status; re-renders only when that hub changes.                                                                                                       |
+| `useOnReconnected(hub, cb)`              | Run `cb` after the hub reconnects (e.g. refetch).                                                                                                                    |
+| `useHubConsumer(hub)`                    | Keep a lazy hub connected for the component's lifetime without subscribing.                                                                                          |
+| `useSignalR()`                           | Last-resort raw context: `getConnection`, `isHubConnected`, `getStatus`.                                                                                             |
 
 ### Provider props
 
@@ -245,12 +251,12 @@ It's best-effort fire-and-forget: resolves `true` once dispatched, `false` if th
 
 ## 📝 Notes
 
-- The provider rebuilds connections when `baseUrl`, `enabled`, or `connectionKey` change. Token *rotation* alone does **not** rebuild — `accessTokenFactory` is re-read on every negotiate.
+- The provider rebuilds connections when `baseUrl`, `enabled`, or `connectionKey` change. Token _rotation_ alone does **not** rebuild — `accessTokenFactory` is re-read on every negotiate.
 - `accessTokenFactory` and the `on*` callbacks are read through refs, so passing fresh closures each render is fine — no reconnect storm.
 
 ## 🤝 Contributing
 
-Setup, scripts and workflow live in [CONTRIBUTING.md](./CONTRIBUTING.md). Maintainer release steps are in [PUBLISHING.md](./PUBLISHING.md).
+Setup, scripts and workflow live in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## 📄 License
 

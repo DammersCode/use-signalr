@@ -13,15 +13,6 @@ const MAX_BACKOFF = 30_000;
  * Thrown by `useSignalRInvoke` when a retried call exhausts its retry budget.
  * Only used when `retries > 0`; with `retries === 0` the raw server error is
  * rethrown unwrapped, so you won't see this unless you opted into retries.
- *
- * @example
- * try {
- *   await invoke(arg);
- * } catch (e) {
- *   if (e instanceof InvokeError) {
- *     console.error(`failed after ${e.attempts} attempts`, e.cause);
- *   }
- * }
  */
 export class InvokeError extends Error {
   constructor(

@@ -64,6 +64,7 @@ export const {
   useSignalREffect,
   useSignalRInvoke,
   useSignalRSend,
+  useSignalRTeardown,
   useHubStatus,
   useOnReconnected,
   useHubConsumer,
@@ -114,6 +115,15 @@ await sendMessage(roomId, "hello"); // typed params, Promise<void>
 // Stable across renders, so it's safe to capture in an unmount cleanup.
 const send = useSignalRSend("/hubs/chat", "SendMessage");
 await send(roomId, "bye"); // typed args; Promise<boolean> (true = dispatched)
+
+// 🚪 Reliable teardown — for a method called in an effect cleanup. Survives
+// unmount, queues if the hub is still connecting (instead of dropping), holds a
+// lazy hub open until it flushes. Best-effort: Promise<boolean> (true = dispatched).
+const leaveRoom = useSignalRTeardown("/hubs/chat", "LeaveRoomAsync");
+useEffect(() => {
+  joinRoom(roomId);
+  return () => { leaveRoom(roomId); }; // lands even mid-connect or on unmount
+}, [roomId, joinRoom, leaveRoom]);
 
 // 🟢 Live connection status (re-renders only when THIS hub's status changes)
 const status = useHubStatus("/hubs/chat"); // "connecting" | "connected" | "reconnecting" | ...
@@ -170,6 +180,50 @@ const undo = useSignalRInvoke("/hubs/flow", "UndoAsync", {
 
 Business errors (a `HubException` thrown while still connected) are **never** retried.
 
+### 🚪 send vs invoke vs teardown — which call to use
+
+The three "call the server" hooks differ in how they wait, what they return, and what happens on unmount. Pick by intent:
+
+| | `useSignalRInvoke` | `useSignalRSend` | `useSignalRTeardown` |
+| --- | --- | --- | --- |
+| **Waits for connection** | yes (up to `timeout`) | no | yes (up to `timeout`) |
+| **Not connected yet** | waits, then invokes | **drops** (resolves `false`) | **queues**, flushes on connect |
+| **Returns** | the method's typed result | `boolean` (dispatched?) | `boolean` (dispatched?) |
+| **On unmount** | aborts in-flight call¹ | unaffected (reads conn at call time) | **survives** (runs detached) |
+| **Holds a lazy hub open** | while mounted | while mounted | until the flush completes |
+| **Use for** | request/response you need the result of | high-frequency loss-OK signals (typing, cursor) | one-shot teardown that must land |
+
+¹ Only a mid-backoff retry is actually cancelled; pass `{ keepAliveOnUnmount: true }` to keep it alive.
+
+#### Reliable join/leave (session pattern)
+
+A common pattern: join a session on mount, leave it in the effect cleanup.
+
+```tsx
+const joinRoom = useSignalRInvoke("/hubs/chat", "JoinRoomAsync");
+const leaveRoom = useSignalRTeardown("/hubs/chat", "LeaveRoomAsync");
+
+useEffect(() => {
+  joinRoom(roomId);
+  return () => { leaveRoom(roomId); };
+}, [roomId, joinRoom, leaveRoom]);
+```
+
+A plain `useSignalRInvoke` or `useSignalRSend` makes the **leave** unreliable:
+
+- `useSignalRInvoke` aborts in-flight calls on unmount — a leave issued in cleanup can be cancelled before it reaches the server.
+- `useSignalRSend` drops silently if the hub isn't `Connected` — so a leave that races a still-connecting socket (StrictMode's first mount, fast route switches) is lost.
+
+`useSignalRTeardown` fixes both. It:
+
+- **survives the calling component's unmount** (runs detached, never aborted),
+- **queues while connecting** — waits up to `timeout` (default 10s) for the hub, then sends, instead of dropping,
+- **holds a lazy hub open** until the flush completes, even if the unmounting component was its last consumer.
+
+It's best-effort fire-and-forget: resolves `true` once dispatched, `false` if the hub never connected in time; it never throws. Under StrictMode's mount→cleanup→mount, the intermediate teardown **does** land (then the remount re-runs setup) — so the server is never left in a stale joined state, at the cost of one extra round-trip.
+
+> Already use `useSignalRInvoke` for your leave and only need it not to be aborted on unmount? Pass `{ keepAliveOnUnmount: true }`. That covers the abort half but **not** the still-connecting race — for that, use `useSignalRTeardown`.
+
 ## 📚 API
 
 | Export | What it does |
@@ -177,8 +231,9 @@ Business errors (a `HubException` thrown while still connected) are **never** re
 | `createSignalRClient<T>(config)` | Returns the Provider + hooks bound to contract `T`. Config keys declare the hubs. |
 | `<SignalRProvider>` | Builds/starts connections, retries, auto-reconnects, exposes them via context. No `hubs` prop. |
 | `useSignalREffect(hub, event, handler)` | Subscribe to a server event for the component lifetime. |
-| `useSignalRInvoke(hub, method, opts?)` | Typed invoker; waits for the connection. Optional retry/backoff/timeout. |
-| `useSignalRSend(hub, method)` | Typed fire-and-forget sender; drops if not connected. Safe in unmount cleanups. |
+| `useSignalRInvoke(hub, method, opts?)` | Typed request/response invoker; waits for the connection, returns the method's result. Optional retry/backoff/timeout; `keepAliveOnUnmount` to not abort on unmount. |
+| `useSignalRSend(hub, method)` | Typed fire-and-forget sender; **drops** if not connected. For high-frequency loss-OK signals. Safe in unmount cleanups. |
+| `useSignalRTeardown(hub, method, opts?)` | Reliable teardown sender for a method called in cleanup: survives unmount, **queues** while connecting (instead of dropping), holds a lazy hub open until flushed. |
 | `useHubStatus(hub)` | Live connection status; re-renders only when that hub changes. |
 | `useOnReconnected(hub, cb)` | Run `cb` after the hub reconnects (e.g. refetch). |
 | `useHubConsumer(hub)` | Keep a lazy hub connected for the component's lifetime without subscribing. |

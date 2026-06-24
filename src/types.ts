@@ -123,6 +123,22 @@ export interface InvokeOptions {
   backoff?: number[] | ((attempt: number) => number);
   /** Force (non-)retriable. true=retry, false=throw now, undefined=default rule. */
   isRetriable?: (error: unknown) => boolean | undefined;
+  /**
+   * Don't abort an in-flight call when the calling component unmounts. Default
+   * false (in-flight invokes are aborted on unmount, correct for query-like reads).
+   * Set true for a method invoked in an effect cleanup so it still reaches the
+   * server. The detached call survives unmount; a still-pending retry loop is
+   * NOT cancelled. For the connecting-race + lazy-hub case prefer
+   * `useSignalRTeardown`.
+   */
+  keepAliveOnUnmount?: boolean;
+}
+
+/** Options for a `useSignalRTeardown` call. */
+export interface TeardownOptions {
+  /** Max time (ms) to wait for the hub to (re)connect before giving up the
+   *  flush. Default 10_000. */
+  timeout?: number;
 }
 
 export interface SignalRProviderProps {

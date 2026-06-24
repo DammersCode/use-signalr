@@ -10,6 +10,7 @@ export type {
   ResolvedHubConfig,
   ReconnectConfig,
   InvokeOptions,
+  TeardownOptions,
   SignalRProviderProps,
   SignalRContextValue,
   HubConnectionStatus,

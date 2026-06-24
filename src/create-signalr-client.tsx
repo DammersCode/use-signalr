@@ -14,16 +14,6 @@ import type {
  * Create a fully-typed SignalR client bound to your contract `T`.
  * The KEYS of `config.hubs` declare the hubs — there is no separate `hubs`
  * array. Returns a Provider + hooks, all typed against `T`.
- *
- * @example
- * type AppHubs = {
- *   "/hubs/chat": {
- *     events: { ReceiveMessage: (user: string, msg: string) => void };
- *     methods: { SendMessage: (msg: string) => Promise<void> };
- *   };
- * };
- * export const { SignalRProvider, useSignalREffect, useSignalRInvoke } =
- *   createSignalRClient<AppHubs>({ hubs: { "/hubs/chat": {} } });
  */
 export function createSignalRClient<T extends SignalRContract>(
   config: SignalRClientConfig<T>,
@@ -78,13 +68,21 @@ export function createSignalRClient<T extends SignalRContract>(
      */
     useSignalRSend: hooks.useSignalRSend,
     /**
+     * Typed RELIABLE teardown sender for a method invoked in an effect cleanup.
+     * Survives the calling component's unmount, queues while the hub is still
+     * connecting (instead of dropping), and holds a lazy hub open until the
+     * flush completes. Best-effort: resolves `true` if dispatched, `false` if
+     * the hub never connected in time. Never throws.
+     */
+    useSignalRTeardown: hooks.useSignalRTeardown,
+    /**
      * Live connection status of a hub. Re-renders only when THIS hub's status
      * changes. Also keeps a lazy hub connected while mounted.
      */
     useHubStatus: hooks.useHubStatus,
     /**
-     * Run a callback after each reconnect (not the first connect) — e.g. to
-     * refetch state that went stale while offline.
+     * Run a callback after each reconnect (not the first connect), to refetch
+     * state that went stale while offline.
      */
     useOnReconnected: hooks.useOnReconnected,
   };

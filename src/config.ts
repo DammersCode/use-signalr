@@ -1,23 +1,22 @@
 import { HttpError, LogLevel } from "@microsoft/signalr";
 import type {
+  HubDef,
   HubString,
-  PerHubConfig,
   ResolvedHubConfig,
   SignalRClientConfig,
-  SignalRContract,
 } from "./types";
 
 /** Typed `Object.keys` — narrows the keys to the declared hubs. */
-export function hubKeys<T extends SignalRContract>(
-  config: SignalRClientConfig<T>,
-): Array<keyof T & HubString> {
-  return Object.keys(config.hubs) as Array<keyof T & HubString>;
+export function hubKeys<H extends Record<HubString, HubDef>>(
+  config: SignalRClientConfig<H>,
+): Array<keyof H & HubString> {
+  return Object.keys(config.hubs) as Array<keyof H & HubString>;
 }
 
 /** Merge a hub's per-hub config over the global defaults. */
-export function resolveHubConfig<T extends SignalRContract>(
-  config: SignalRClientConfig<T>,
-  perHub: PerHubConfig | undefined,
+export function resolveHubConfig<H extends Record<HubString, HubDef>>(
+  config: SignalRClientConfig<H>,
+  perHub: HubDef | undefined,
 ): ResolvedHubConfig {
   return {
     lazy: perHub?.lazy ?? config.lazy ?? false,
@@ -27,6 +26,7 @@ export function resolveHubConfig<T extends SignalRContract>(
     logLevel: perHub?.logLevel ?? config.logLevel ?? LogLevel.Information,
     transport: perHub?.transport,
     skipNegotiation: perHub?.skipNegotiation,
+    events: Object.keys(perHub?.events ?? {}),
   };
 }
 

@@ -3,21 +3,25 @@ import { hubKeys, resolveHubConfig } from "./config";
 import { createSignalRProvider } from "./internal/create-provider";
 import { createSignalRHooks } from "./internal/create-hooks";
 import type {
+  HubDef,
   HubString,
+  InferContract,
   ResolvedHubConfig,
   SignalRClientConfig,
   SignalRContextValue,
-  SignalRContract,
 } from "./types";
 
 /**
- * Create a fully-typed SignalR client bound to your contract `T`.
- * The KEYS of `config.hubs` declare the hubs — there is no separate `hubs`
- * array. Returns a Provider + hooks, all typed against `T`.
+ * Create a fully-typed SignalR client. Your app contract is INFERRED from
+ * `config.hubs` — the KEYS declare which hubs exist, and each hub's
+ * `event()`/`method()` declarations declare its events and methods. There is
+ * no separately hand-written contract type. Returns a Provider + hooks, all
+ * typed against the inferred contract.
  */
-export function createSignalRClient<T extends SignalRContract>(
-  config: SignalRClientConfig<T>,
+export function createSignalRClient<const H extends Record<HubString, HubDef>>(
+  config: SignalRClientConfig<H>,
 ) {
+  type T = InferContract<H>;
   type Hub = keyof T & HubString;
 
   const hubs = hubKeys(config);

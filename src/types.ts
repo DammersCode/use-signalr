@@ -21,6 +21,50 @@ export interface HubContract {
 /** The full app contract: a map of hub path -> {events, methods}. */
 export type SignalRContract = Record<HubString, HubContract>;
 
+declare const ARGS: unique symbol;
+/** Phantom-typed event declaration; created via {@link event}. */
+export interface EventDef<A extends unknown[] = unknown[]> {
+  readonly [ARGS]?: A;
+}
+declare const SIG: unique symbol;
+/** Phantom-typed server-method declaration; created via {@link method}. */
+export interface MethodDef<A extends unknown[] = unknown[], R = unknown> {
+  readonly [SIG]?: [A, R];
+}
+
+/** Runtime per-hub definition: config plus its event/method declarations. */
+export interface HubDef extends PerHubConfig {
+  events?: Record<string, EventDef<any>>;
+  methods?: Record<string, MethodDef<any, any>>;
+}
+
+type InferEvents<E> = {
+  [K in keyof E]: E[K] extends EventDef<infer A> ? (...args: A) => void : never;
+};
+type InferMethods<M> = {
+  [K in keyof M]: M[K] extends MethodDef<infer A, infer R>
+    ? (...args: A) => Promise<R>
+    : never;
+};
+
+/** Derives the app contract ({@link SignalRContract}) from a runtime hubs config. */
+export type InferContract<H> = {
+  [P in keyof H]: {
+    events: InferEvents<H[P] extends { events?: infer E } ? NonNullable<E> : {}>;
+    methods: InferMethods<H[P] extends { methods?: infer M } ? NonNullable<M> : {}>;
+  };
+};
+
+/** Declares a server-pushed event, e.g. `event<[user: string, message: string]>()`. */
+export function event<A extends unknown[] = []>(): EventDef<A> {
+  return {} as EventDef<A>;
+}
+
+/** Declares an invocable server method, e.g. `method<[roomId: string], { success: boolean }>()`. */
+export function method<A extends unknown[] = [], R = void>(): MethodDef<A, R> {
+  return {} as MethodDef<A, R>;
+}
+
 // --- Contract index helpers. NonNullable<> because events/methods are optional;
 // without it `keyof (R | undefined)` collapses to `never` for every hub. ---
 
@@ -81,11 +125,14 @@ export interface PerHubConfig {
   skipNegotiation?: boolean;
 }
 
-/** Config passed to `createSignalRClient(config)`. Keys of `hubs` ARE the hubs. */
-export interface SignalRClientConfig<T extends SignalRContract> {
+/** Config passed to `createSignalRClient(config)`. Keys of `hubs` ARE the hubs;
+ *  each value's `events`/`methods` (declared via {@link event}/{@link method})
+ *  ARE the hub's contract — there is no separately hand-written contract type. */
+export interface SignalRClientConfig<H extends Record<HubString, HubDef>> {
   /** One entry per hub. The KEYS declare which hubs exist (no separate array).
-   *  Each value is optional per-hub config. */
-  hubs: { [H in keyof T & HubString]?: PerHubConfig };
+   *  Each value is a {@link HubDef}: per-hub config plus its event/method
+   *  declarations. */
+  hubs: H;
   /** Global default: connect hubs only on demand. Default false (all
    *  configured hubs connect upfront). */
   lazy?: boolean;
@@ -105,6 +152,7 @@ export interface ResolvedHubConfig {
   logLevel: LogLevel;
   transport?: HttpTransportType;
   skipNegotiation?: boolean;
+  events: string[];
 }
 
 /** Options for an invoke call. */

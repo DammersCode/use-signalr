@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.3.0
+
+### Changed (breaking)
+
+- **The app contract is now INFERRED from `config.hubs`, not hand-written.**
+  Previously you wrote a `SignalRContract` type by hand and passed it as
+  `createSignalRClient<AppContract>({ hubs: {...} })`. Now each hub's events
+  and methods are declared directly in the config using the new `event()` and
+  `method()` markers, and the contract is derived automatically:
+
+  ```ts
+  // Before (0.2.x)
+  type AppHubs = {
+    "/hubs/chat": {
+      events: { ReceiveMessage: (user: string, message: string) => void };
+      methods: { SendMessage: (roomId: string, message: string) => Promise<void> };
+    };
+  };
+  createSignalRClient<AppHubs>({ hubs: { "/hubs/chat": {} } });
+
+  // After (0.3.0)
+  createSignalRClient({
+    hubs: {
+      "/hubs/chat": {
+        events: { ReceiveMessage: event<[user: string, message: string]>() },
+        methods: { SendMessage: method<[roomId: string, message: string]>() },
+      },
+    },
+  });
+  ```
+
+  `createSignalRClient` is no longer called with an explicit generic — its
+  type parameter is inferred from the config value itself.
+
+- **All declared events are now always pre-bound; the `events: { X: true }`
+  opt-in map is gone.** Previously you separately listed which events to
+  pre-bind (as a no-op handler, to silence `@microsoft/signalr`'s "No client
+  method found" warning). Now every event declared via `event()` in a hub's
+  config is automatically pre-bound — the warning is impossible by
+  construction. There is nothing left to opt into or keep in sync with the
+  contract.
+
+### Added
+
+- **`event<Args>()`** — declares one of a hub's server-pushed events. The
+  type parameter is the handler's argument tuple, e.g.
+  `event<[user: string, message: string]>()`.
+- **`method<Args, Return>()`** — declares one of a hub's invocable server
+  methods. Type parameters are the argument tuple and the resolved return
+  type, e.g. `method<[roomId: string], { success: boolean }>()`.
+- **`HubDef`, `EventDef`, `MethodDef`, `InferContract`** — exported types
+  backing the new config-first contract inference, for anyone building
+  tooling on top of the library.
+
 ## 0.2.0
 
 ### Added

@@ -7,19 +7,24 @@
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 ```ts
-const { SignalRProvider, useSignalRInvoke } = createSignalRClient<AppHubs>({
-  hubs: { "/hubs/chat": {} },
+const { SignalRProvider, useSignalRInvoke } = createSignalRClient({
+  hubs: {
+    "/hubs/chat": {
+      methods: { SendMessage: method<[roomId: string, message: string]>() },
+    },
+  },
 });
 ```
 
-One factory call gives you a provider and a set of hooks, every one of them typed against your hub contract — event args, method args and return values are all inferred.
+One factory call gives you a provider and a set of hooks, every one of them typed against your hub contract — inferred straight from the config, no separately hand-written contract type. Event args, method args and return values are all inferred.
 
 ---
 
 ## ✨ Features
 
 - 🌐 **Many hubs, one provider.** Manage any number of hubs side by side — each gets its own connection, status, config and lifecycle. List them as keys; the hooks take the hub you want.
-- 🧠 **Fully typed from your contract.** Event args, method args and return values are inferred per hub. No `declare module`, no globals.
+- 🧠 **Fully typed, contract inferred from config.** Declare each hub's events/methods once with `event()`/`method()` — no hand-written contract type, no `declare module`, no globals. Event args, method args and return values are all inferred.
+- 🔇 **No "No client method found" warnings, by construction.** Every event you declare is automatically pre-bound to a no-op handler at connection build time — nothing to opt into, nothing that can drift from the contract.
 - ⚙️ **Per-hub & global config.** Set defaults once, override anything per hub: reconnect strategy, retries, transport, logging, lazy behavior.
 - ♻️ **Auto-reconnect.** Built-in: `true`, a custom delay array, or your own retry policy. Plus a connect-retry budget for the first connect.
 - 🔁 **Invoke retry.** Opt-in per call, idempotent-safe, with jittered backoff and smart retriable-vs-business-error detection.
@@ -42,23 +47,14 @@ React 19 is required — the library uses the `use` hook and JSX context provide
 
 ### 1. Define your contract and create the client
 
-`events` = what the server pushes to you; `methods` = what you invoke. The **keys of `config.hubs` declare the hubs**.
+Your app contract isn't hand-written — it's **inferred from the config**. The
+**keys of `config.hubs` declare the hubs**; each hub's `events` (what the
+server pushes to you) and `methods` (what you invoke) are declared inline
+using the `event()` and `method()` markers.
 
 ```ts
 // signalr.ts
-import { createSignalRClient } from "@dammers/use-signalr";
-
-type AppHubs = {
-  "/hubs/chat": {
-    events: {
-      ReceiveMessage: (user: string, message: string) => void;
-    };
-    methods: {
-      SendMessage: (roomId: string, message: string) => Promise<void>;
-      JoinRoom: (roomId: string) => Promise<{ success: boolean }>;
-    };
-  };
-};
+import { createSignalRClient, event, method } from "@dammers/use-signalr";
 
 export const {
   SignalRProvider,
@@ -70,14 +66,30 @@ export const {
   useHubStatus,
   useOnReconnected,
   useHubConsumer,
-} = createSignalRClient<AppHubs>({
+} = createSignalRClient({
   hubs: {
-    "/hubs/chat": {}, // per-hub config goes here (see "Per-hub config")
+    "/hubs/chat": {
+      events: {
+        ReceiveMessage: event<[user: string, message: string]>(),
+      },
+      methods: {
+        SendMessage: method<[roomId: string, message: string]>(),
+        JoinRoom: method<[roomId: string], { success: boolean }>(),
+      },
+      // per-hub config also goes here (see "Per-hub config")
+    },
   },
   // global defaults (all optional):
   // lazy: false, reconnect: true, maxConnectRetries: 2, logLevel: LogLevel.Information
 });
 ```
+
+`event<Args>()` takes the handler's argument tuple; `method<Args, Return>()`
+takes the argument tuple and the resolved return type (defaults to `void` if
+omitted). Neither returns anything meaningful at runtime — they're phantom-typed
+markers whose only job is to carry the types for inference. `createSignalRClient`
+is called with **no explicit generic**: its type is inferred from the config
+object you pass.
 
 ### 2. Mount the provider with your auth
 
@@ -145,13 +157,17 @@ getConnection("/hubs/chat")?.send("SendMessage", roomId, "bye");
 
 ## ⚙️ Per-hub config
 
-Each value in `config.hubs` overrides the global defaults for that hub:
+Each value in `config.hubs` overrides the global defaults for that hub, alongside its `events`/`methods` declarations:
 
 ```ts
-createSignalRClient<AppHubs>({
+createSignalRClient({
   hubs: {
-    "/hubs/chat": {}, // all defaults
+    "/hubs/chat": {
+      events: { ReceiveMessage: event<[user: string, message: string]>() },
+      methods: { SendMessage: method<[roomId: string, message: string]>() },
+    },
     "/hubs/presence": {
+      events: { UserOnline: event<[userId: string]>() },
       lazy: true, // connect only when first used
       graceMs: 5000, // wait 5s after last consumer before disconnect
       reconnect: [0, 2000, 10000, 30000], // custom retry delays (ms)
@@ -165,6 +181,18 @@ createSignalRClient<AppHubs>({
   maxConnectRetries: 2,
 });
 ```
+
+### 🔇 No "No client method found" warnings — by construction
+
+`@microsoft/signalr` logs a warning whenever the server pushes an event with
+no registered handler — which happens for any event no mounted component
+currently subscribes to via `useSignalREffect`. Every event you declare with
+`event()` in a hub's config is automatically pre-bound to a no-op handler at
+connection build time (before `start()`) — there's no separate opt-in list to
+keep in sync, and nothing to forget: if it's in the contract, it's pre-bound.
+Real handlers registered later via `useSignalREffect` (or `connection.on`)
+still receive events normally — SignalR fans out to every registered handler.
+This has no effect on connection lifecycle (lazy/eager behavior is unchanged).
 
 ### 💤 Lazy hubs
 
@@ -234,7 +262,9 @@ It's best-effort fire-and-forget: resolves `true` once dispatched, `false` if th
 
 | Export                                   | What it does                                                                                                                                                         |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createSignalRClient<T>(config)`         | Returns the Provider + hooks bound to contract `T`. Config keys declare the hubs.                                                                                    |
+| `createSignalRClient(config)`            | Returns the Provider + hooks, typed against the contract **inferred** from `config`. Config keys declare the hubs; no explicit generic needed.                       |
+| `event<Args>()`                          | Declares a server-pushed event inside a hub's `events`; `Args` is the handler's argument tuple.                                                                       |
+| `method<Args, Return?>()`                | Declares an invocable server method inside a hub's `methods`; `Args` is the argument tuple, `Return` the resolved return type (default `void`).                      |
 | `<SignalRProvider>`                      | Builds/starts connections, retries, auto-reconnects, exposes them via context. No `hubs` prop.                                                                       |
 | `useSignalREffect(hub, event, handler)`  | Subscribe to a server event for the component lifetime.                                                                                                              |
 | `useSignalRInvoke(hub, method, opts?)`   | Typed request/response invoker; waits for the connection, returns the method's result. Optional retry/backoff/timeout; `keepAliveOnUnmount` to not abort on unmount. |

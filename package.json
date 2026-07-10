@@ -1,6 +1,6 @@
 {
   "name": "@dammers/use-signalr",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Fully-typed multi-hub SignalR provider + hooks for React: auto-reconnect, invoke retry, lazy hubs, live status.",
   "author": "Dammers",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

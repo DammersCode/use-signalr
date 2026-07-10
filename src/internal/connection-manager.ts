@@ -10,6 +10,8 @@ import type {
 
 const CONNECT_RETRY_BASE_MS = 2500;
 
+function noop() {}
+
 export interface ConnectionManagerDeps<Hub extends HubString> {
   baseUrl: string;
   hubs: Hub[];
@@ -98,6 +100,9 @@ export function createConnectionManager<Hub extends HubString>(
       .configureLogging(rc.logLevel);
     applyReconnect(builder, rc.reconnect);
     const conn = builder.build();
+
+    // Pre-bind declared client events so server pushes never hit zero handlers.
+    for (const ev of rc.events) conn.on(ev, noop);
 
     let resolveReady!: () => void;
     const ready = new Promise<void>((res) => {

@@ -1,5 +1,6 @@
 export { createSignalRClient } from "./create-signalr-client";
 export { InvokeError } from "./retry";
+export { event, method } from "./types";
 export type { StatusStore } from "./status-store";
 export type {
   HubString,
@@ -7,6 +8,10 @@ export type {
   SignalRContract,
   SignalRClientConfig,
   PerHubConfig,
+  HubDef,
+  EventDef,
+  MethodDef,
+  InferContract,
   ResolvedHubConfig,
   ReconnectConfig,
   InvokeOptions,

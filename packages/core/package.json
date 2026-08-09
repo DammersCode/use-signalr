@@ -1,0 +1,37 @@
+{
+  "name": "@dammers/use-signalr-core",
+  "version": "0.1.0",
+  "description": "Framework-free typed multi-hub SignalR core: connection lifecycle, contracts, retry.",
+  "author": "Dammers",
+  "license": "MIT",
+  "repository": "github:DammersCode/use-signalr",
+  "homepage": "https://github.com/DammersCode/use-signalr#readme",
+  "bugs": "https://github.com/DammersCode/use-signalr/issues",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@microsoft/signalr": ">=8"
+  },
+  "devDependencies": {
+    "@microsoft/signalr": ">=8"
+  }
+}

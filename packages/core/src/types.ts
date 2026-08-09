@@ -1,10 +1,8 @@
 import type {
-  HubConnection,
   HttpTransportType,
   IRetryPolicy,
   LogLevel,
 } from "@microsoft/signalr";
-import type { StatusStore } from "./status-store";
 
 /** A hub path, for example `/hubs/chat`. */
 export type HubString = `/${string}`;
@@ -187,39 +185,4 @@ export interface TeardownOptions {
   /** Max time in ms to wait for the hub to (re)connect before giving up the
    *  flush. Default 10_000. */
   timeout?: number;
-}
-
-export interface SignalRProviderProps {
-  children: React.ReactNode;
-  /** Base URL of the SignalR server. Connections rebuild when this changes. */
-  baseUrl: string | undefined;
-  /** Returns the bearer token. Read on every (re)negotiate, so token rotation
-   *  needs no connection rebuild. */
-  accessTokenFactory: () => string | Promise<string>;
-  /** When false, all connections stop and clear. Default true. */
-  enabled?: boolean;
-  /** Optional rebuild trigger. Pass the access token (or any value) to force a
-   *  reconnect when it changes, for example on a re-login. */
-  connectionKey?: string | number;
-  onStatusChange?: (hub: HubString, status: HubConnectionStatus) => void;
-  onError?: (hub: HubString, error: unknown) => void;
-}
-
-export interface SignalRContextValue<T extends SignalRContract> {
-  getConnection: (hub: keyof T & HubString) => HubConnection | null;
-  /** Non-reactive point read. Use `useHubStatus` to re-render on a change. */
-  isHubConnected: (hub: keyof T & HubString) => boolean;
-  /** Non-reactive point read. Use `useHubStatus` to re-render on a change. */
-  getStatus: (hub: keyof T & HubString) => HubConnectionStatus;
-  waitForConnection: (
-    hub: keyof T & HubString,
-    timeoutMs: number,
-  ) => Promise<HubConnection>;
-  /** Reactive status store for `useHubStatus`. */
-  statusStore: StatusStore<keyof T & HubString>;
-  /** Lazy ref-count: keeps a hub alive while a consumer is mounted. */
-  acquire: (hub: keyof T & HubString) => void;
-  release: (hub: keyof T & HubString) => void;
-  /** Registers a reconnect callback for a hub. Returns an unsubscribe fn. */
-  registerReconnect: (hub: keyof T & HubString, cb: () => void) => () => void;
 }

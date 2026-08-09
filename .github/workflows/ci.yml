@@ -17,6 +17,7 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: node scripts/check-docs.mjs
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

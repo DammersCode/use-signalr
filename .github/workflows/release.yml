@@ -24,22 +24,33 @@ jobs:
       - run: npm install -g npm@latest
 
       - run: npm ci
+      - run: node scripts/check-docs.mjs
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
 
       # A mistyped tag must fail here, not publish the wrong version.
-      - name: Verify tag matches package.json
+      - name: Verify tag matches versions
         run: |
           TAG=${GITHUB_REF_NAME#v}
-          PKG=$(node -p "require('./package.json').version")
-          if [ "$TAG" != "$PKG" ]; then
-            echo "Tag v$TAG does not match package.json $PKG"
+          ROOT=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$ROOT" ]; then
+            echo "Tag v$TAG does not match root package.json $ROOT"
             exit 1
           fi
+          for PKG in core react solid; do
+            V=$(node -p "require('./packages/$PKG/package.json').version")
+            if [ "$TAG" != "$V" ]; then
+              echo "Tag v$TAG does not match packages/$PKG/package.json $V"
+              exit 1
+            fi
+          done
 
-      # No token: npm authenticates via OIDC trusted publishing.
-      - run: npm publish --provenance
+      # No token: npm authenticates via OIDC trusted publishing, configured
+      # per package on npmjs.com.
+      - run: npm publish -w packages/core --provenance
+      - run: npm publish -w packages/react --provenance
+      - run: npm publish -w packages/solid --provenance
 
       - uses: softprops/action-gh-release@v2
         with:

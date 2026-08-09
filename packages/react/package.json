@@ -1,6 +1,6 @@
 {
   "name": "@dammers/use-signalr-react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fully-typed multi-hub SignalR provider + hooks for React: auto-reconnect, invoke retry, lazy hubs, live status.",
   "author": "Dammers",
   "license": "MIT",
@@ -29,7 +29,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@dammers/use-signalr-core": "0.1.0"
+    "@dammers/use-signalr-core": "0.1.1"
   },
   "peerDependencies": {
     "@microsoft/signalr": ">=8",

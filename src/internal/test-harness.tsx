@@ -12,13 +12,13 @@ type Hubs = {
   };
 };
 
-/** A fake HubConnection that records invoke/send calls and lets a test resolve
- *  the pending invoke by hand. */
+/** A fake HubConnection that records invoke/send calls and lets a test
+ *  resolve the pending invoke by hand. */
 export interface FakeConnection {
   connection: HubConnection;
   invokeCalls: Array<{ method: string; args: unknown[] }>;
   sendCalls: Array<{ method: string; args: unknown[] }>;
-  /** Resolve the in-flight invoke() returned promise. */
+  /** Resolves the promise returned by the in-flight invoke() call. */
   resolveInvoke: (value?: unknown) => void;
 }
 
@@ -55,14 +55,14 @@ export interface Harness {
   fake: FakeConnection;
   acquireCount: number;
   releaseCount: number;
-  /** Flip the hub to "connected" so a pending waitForConnection resolves. */
+  /** Flips the hub to "connected", so a pending waitForConnection resolves. */
   connect: () => void;
 }
 
 export function makeHarness(opts?: {
   startConnected?: boolean;
-  /** Reject the first waitForConnection (simulates a transport drop) so the
-   *  invoke enters its retry/backoff path. */
+  /** Rejects the first waitForConnection, to simulate a transport drop, so
+   *  the invoke enters its retry/backoff path. */
   failWaitOnce?: boolean;
 }): Harness {
   type Hub = keyof Hubs;

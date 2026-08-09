@@ -58,8 +58,8 @@ describe("useSignalRInvoke keepAliveOnUnmount", () => {
   });
 });
 
-// 2. Teardown issued while the hub is still connecting: it must QUEUE and flush
-//    on connect, not drop. And it must survive the component's unmount.
+// 2. A teardown issued while the hub is still connecting must QUEUE and flush
+//    on connect, not drop. It must also survive the component's unmount.
 describe("useSignalRTeardown queue-while-connecting", () => {
   it("queues the send until connected, then flushes, surviving unmount", async () => {
     const h = makeHarness({ startConnected: false }); // still connecting
@@ -82,12 +82,12 @@ describe("useSignalRTeardown queue-while-connecting", () => {
 
     act(() => view.unmount());
 
-    // Not connected yet -> must NOT have dropped; nothing sent, but it's waiting.
+    // Not connected yet: must NOT have dropped. Nothing sent yet, but it is waiting.
     expect(h.fake.sendCalls).toEqual([]);
     // It acquired the hub to hold it open past unmount.
     expect(h.acquireCount).toBeGreaterThan(h.releaseCount);
 
-    // Now the connection comes up: the queued leave must flush.
+    // The connection comes up: the queued leave must flush.
     await act(async () => {
       h.connect();
       await Promise.resolve();
@@ -97,7 +97,7 @@ describe("useSignalRTeardown queue-while-connecting", () => {
     expect(h.fake.sendCalls).toEqual([
       { method: "LeaveRoomAsync", args: ["room-1"] },
     ]);
-    // And it released the hub after flushing.
+    // It released the hub after flushing.
     expect(h.releaseCount).toBe(h.acquireCount);
   });
 
@@ -121,7 +121,7 @@ describe("useSignalRTeardown queue-while-connecting", () => {
     );
     act(() => view.unmount());
 
-    // Even after connecting, the dropped send never flushes (it resolved false).
+    // Even after connecting, the dropped send never flushes — it resolved false.
     await act(async () => {
       h.connect();
       await Promise.resolve();

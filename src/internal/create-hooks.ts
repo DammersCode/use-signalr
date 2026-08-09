@@ -26,15 +26,15 @@ import type {
 const DEFAULT_TIMEOUT = 10_000;
 const DEFAULT_TEARDOWN_TIMEOUT = 10_000;
 
-/** Build the hooks bound to one client's context. */
+/** Builds the hooks bound to one client's context. */
 export function createSignalRHooks<T extends SignalRContract>(
   ReactContext: Context<SignalRContextValue<T> | null>,
 ) {
   type Hub = keyof T & HubString;
 
   /**
-   * Escape hatch to the raw SignalR context. Prefer the typed hooks below;
-   * reach for this only when you need the underlying `HubConnection` or a
+   * Escape hatch to the raw SignalR context. Prefer the typed hooks below.
+   * Reach for this only when you need the underlying `HubConnection` or a
    * non-reactive point read.
    *
    * @returns The context value: `getConnection`, `isHubConnected`, `getStatus`,
@@ -49,11 +49,11 @@ export function createSignalRHooks<T extends SignalRContract>(
   }
 
   /**
-   * Keep a (possibly lazy) hub alive for this component's lifetime without
+   * Keeps a (possibly lazy) hub alive for this component's lifetime, without
    * subscribing to events or status. Acquires on mount, releases on unmount.
    *
-   * Most hooks already do this internally — use it directly only when you want
-   * a lazy hub connected for a component that doesn't otherwise touch it.
+   * Most hooks already do this internally. Use it directly only when you want
+   * a lazy hub connected for a component that does not otherwise touch it.
    *
    * @param hub The hub path to keep connected.
    */
@@ -67,7 +67,7 @@ export function createSignalRHooks<T extends SignalRContract>(
 
   /**
    * Live connection status of a hub. Re-renders the component only when THIS
-   * hub's status changes (not when other hubs change). Also keeps the hub
+   * hub's status changes, not when another hub changes. Also keeps the hub
    * alive while mounted, so a lazy hub connects on first use.
    *
    * @param hub The hub path to watch.
@@ -84,12 +84,12 @@ export function createSignalRHooks<T extends SignalRContract>(
   }
 
   /**
-   * Run a callback every time a hub reconnects (after a dropped connection is
-   * re-established), to refetch state that may have gone stale while offline.
-   * Does NOT fire on the first connect, only on reconnects.
+   * Runs a callback every time a hub reconnects, after a dropped connection
+   * is re-established, to refetch state that may have gone stale while
+   * offline. Does NOT fire on the first connect, only on reconnects.
    *
-   * The callback is read through a ref, so passing a fresh closure each render
-   * is fine — it won't re-subscribe or fire spuriously.
+   * A fresh closure each render is fine — it does not re-subscribe or fire
+   * spuriously, so you do not need to memoize the callback.
    *
    * @param hub The hub path to watch.
    * @param callback Invoked after each successful reconnect.
@@ -105,16 +105,16 @@ export function createSignalRHooks<T extends SignalRContract>(
   }
 
   /**
-   * Subscribe to a typed server event for the lifetime of the component. The
+   * Subscribes to a typed server event for the lifetime of the component. The
    * handler's args are inferred from your contract for `(hub, event)`. The
-   * subscription attaches once the hub is connected and re-attaches across
-   * reconnects; it detaches on unmount.
+   * subscription attaches once the hub is connected, re-attaches across
+   * reconnects, and detaches on unmount.
    *
-   * The handler is read through a ref, so a fresh closure each render is fine —
-   * it won't re-subscribe.
+   * A fresh closure each render is fine — it does not re-subscribe, so you do
+   * not need to memoize the handler.
    *
    * @param hub The hub path.
-   * @param event The event name (key of that hub's `events`).
+   * @param event The event name, a key of that hub's `events`.
    * @param handler Called with the event's typed args each time the server pushes it.
    */
   function useSignalREffect<H extends Hub, E extends EventName<T, H>>(
@@ -137,28 +137,28 @@ export function createSignalRHooks<T extends SignalRContract>(
   }
 
   /**
-   * Returns a stable, typed function that invokes a hub method and resolves with
-   * its return value. It waits (up to `timeout`) for the connection before
-   * invoking, so calling right after mount is safe.
+   * Returns a stable, typed function that invokes a hub method and resolves
+   * with its return value. It waits, up to `timeout`, for the connection
+   * before it invokes, so calling right after mount is safe.
    *
    * Special behavior:
-   * - **Fails fast by default** (`retries: 0`): rethrows the raw server error so
-   *   callers see the original.
-   * - **Opt-in retry** for retriable failures (transport drops, timeouts) with
-   *   jittered backoff. Business errors (a `HubException` thrown while still
-   *   connected) are never retried.
-   * - **At-least-once when retrying** — only enable `retries` for IDEMPOTENT methods.
-   * - **Auto-aborts** any in-flight call/retry loop on unmount, UNLESS
-   *   `keepAliveOnUnmount: true`. For a method invoked in an effect cleanup, set
-   *   that flag — or prefer {@link useSignalRTeardown}, which also handles the
-   *   hub-still-connecting race.
+   * - **Fails fast by default** (`retries: 0`): rethrows the raw server error,
+   *   so callers see the original.
+   * - **Opt-in retry** for retriable failures (transport drops, timeouts),
+   *   with jittered backoff. Business errors (a `HubException` thrown while
+   *   still connected) are never retried.
+   * - **At-least-once when retrying.** Enable `retries` only for IDEMPOTENT methods.
+   * - **Auto-aborts** any in-flight call or retry loop on unmount, UNLESS
+   *   `keepAliveOnUnmount: true`. For a method invoked in an effect cleanup,
+   *   set that flag, or prefer {@link useSignalRTeardown}, which also handles
+   *   the hub-still-connecting race.
    *
    * @param hub The hub path.
-   * @param method The method name (key of that hub's `methods`).
+   * @param method The method name, a key of that hub's `methods`.
    * @param options Optional `retries`, `timeout`, `backoff`, `isRetriable`, `keepAliveOnUnmount`.
-   * @returns An async fn taking the method's typed args, resolving to its typed return.
-   * @throws The raw error when `retries === 0`; otherwise an {@link InvokeError}
-   *   wrapping the last failure once attempts are exhausted.
+   * @returns An async fn that takes the method's typed args and resolves to its typed return.
+   * @throws The raw error when `retries === 0`. Otherwise an {@link InvokeError}
+   *   that wraps the last failure once attempts are exhausted.
    */
   function useSignalRInvoke<H extends Hub, M extends MethodName<T, H>>(
     hub: H,
@@ -196,7 +196,7 @@ export function createSignalRHooks<T extends SignalRContract>(
             const retriable =
               forced ?? (conn ? isRetriableInvokeError(error, conn) : true);
             if (!retriable || attempt >= retries) {
-              // No retries: rethrow the raw error so callers see the original.
+              // No retries: rethrow the raw error, so callers see the original.
               if (retries === 0) throw error;
               throw new InvokeError(
                 `SignalR invoke ${hub}/${String(method)} failed after ${attempt + 1} attempts`,
@@ -219,17 +219,17 @@ export function createSignalRHooks<T extends SignalRContract>(
 
   /**
    * Returns a stable, typed fire-and-forget sender. Unlike {@link useSignalRInvoke},
-   * it does NOT wait for the connection and does NOT return the method's result:
-   * if the hub isn't Connected the call is dropped (resolves `false`); otherwise
-   * it's dispatched (resolves `true`).
+   * it does NOT wait for the connection and does NOT return the method's
+   * result. If the hub is not Connected, the call is dropped (resolves
+   * `false`); otherwise it is dispatched (resolves `true`).
    *
-   * Reads the connection at call time and never depends on render-time state, so
-   * it's safe to capture in an unmount cleanup.
+   * Reads the connection at call time and never depends on render-time state,
+   * so it is safe to capture in an unmount cleanup.
    *
    * @param hub The hub path.
-   * @param method The method name (key of that hub's `methods`).
-   * @returns An async fn taking the method's typed args, resolving `true` if
-   *   dispatched or `false` if dropped (not connected).
+   * @param method The method name, a key of that hub's `methods`.
+   * @returns An async fn that takes the method's typed args and resolves
+   *   `true` if dispatched, `false` if dropped because it was not connected.
    */
   function useSignalRSend<H extends Hub, M extends MethodName<T, H>>(
     hub: H,
@@ -244,7 +244,7 @@ export function createSignalRHooks<T extends SignalRContract>(
         if (!connection || connection.state !== HubConnectionState.Connected) {
           return Promise.resolve(false); // dropped: not connected
         }
-        // send is variadic-untyped; args are enforced at the call site.
+        // send() is variadic and untyped; args are enforced at the call site.
         return connection.send(method, ...(args as unknown[])).then(() => true);
       },
       [getConnection, hub, method],
@@ -252,29 +252,33 @@ export function createSignalRHooks<T extends SignalRContract>(
   }
 
   /**
-   * Returns a stable, typed RELIABLE teardown sender, built for a method invoked
-   * in an effect cleanup. Unlike {@link useSignalRSend} (which drops if not yet
-   * connected) and {@link useSignalRInvoke} (which aborts in-flight calls on
-   * unmount), the returned function:
+   * Returns a stable, typed RELIABLE teardown sender, built for a method
+   * invoked in an effect cleanup. Unlike {@link useSignalRSend}, which drops
+   * a call if not yet connected, and {@link useSignalRInvoke}, which aborts
+   * in-flight calls on unmount, the returned function:
    *
-   * - **Survives the calling component's unmount** — it runs detached, not tied
-   *   to any effect or AbortController, so a call issued in cleanup still lands.
-   * - **Queues while connecting** — waits (up to `timeout`) for the hub to
+   * - **Survives the calling component's unmount.** It runs detached, not
+   *   tied to any effect or AbortController, so a call issued in cleanup
+   *   still lands.
+   * - **Queues while connecting.** It waits, up to `timeout`, for the hub to
    *   (re)connect, then sends, instead of dropping the call.
-   * - **Holds a lazy hub open** until the flush completes, even when the calling
-   *   component was the last consumer (it acquires/releases independently).
-   * - **Best-effort & fire-and-forget** — resolves `true` once dispatched,
-   *   `false` if the hub never connected within `timeout`. Never throws.
+   * - **Holds a lazy hub open** until the flush completes, even when the
+   *   calling component was the last consumer — it acquires and releases
+   *   independently.
+   * - **Is best-effort and fire-and-forget.** It resolves `true` once
+   *   dispatched, `false` if the hub never connected within `timeout`, and
+   *   never throws.
    *
-   * Trade-off: under StrictMode's mount→cleanup→mount, the intermediate teardown
-   * DOES fire (then the remount re-runs setup) — correct, so the server is never
-   * left in a stale joined state, at the cost of one extra round-trip.
+   * Trade-off: under StrictMode's mount→cleanup→mount, the intermediate
+   * teardown DOES fire, and the remount then re-runs setup. This is correct:
+   * the server is never left in a stale joined state, at the cost of one
+   * extra round-trip.
    *
    * @param hub The hub path.
-   * @param method The teardown method name (key of that hub's `methods`).
-   * @param options Optional `timeout` (ms) to wait for a connection. Default 10_000.
-   * @returns An async fn taking the method's typed args, resolving `true` if
-   *   dispatched or `false` if the hub never connected in time.
+   * @param method The teardown method name, a key of that hub's `methods`.
+   * @param options Optional `timeout` in ms to wait for a connection. Default 10_000.
+   * @returns An async fn that takes the method's typed args and resolves
+   *   `true` if dispatched, `false` if the hub never connected in time.
    */
   function useSignalRTeardown<H extends Hub, M extends MethodName<T, H>>(
     hub: H,
@@ -288,14 +292,14 @@ export function createSignalRHooks<T extends SignalRContract>(
     return useCallback(
       (...args: MethodArgs<T, H, M>): Promise<boolean> => {
         const timeout = optsRef.current?.timeout ?? DEFAULT_TEARDOWN_TIMEOUT;
-        acquire(hub); // hold the hub open past our own unmount until flushed
+        acquire(hub); // hold the hub open past our own unmount, until flushed
         return (async () => {
           try {
             const connection = await waitForConnection(hub, timeout);
             await connection.send(method, ...(args as unknown[]));
             return true;
           } catch {
-            return false; // never connected in time, or send failed: best-effort
+            return false; // never connected in time, or the send failed: best-effort
           } finally {
             release(hub);
           }

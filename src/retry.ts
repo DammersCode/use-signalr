@@ -11,17 +11,17 @@ const MAX_BACKOFF = 30_000;
 
 /**
  * Thrown by `useSignalRInvoke` when a retried call exhausts its retry budget.
- * Only used when `retries > 0`; with `retries === 0` the raw server error is
- * rethrown unwrapped, so you won't see this unless you opted into retries.
+ * Used only when `retries > 0`. With `retries === 0`, the raw server error is
+ * rethrown unwrapped, so this error appears only if you opted into retries.
  */
 export class InvokeError extends Error {
   constructor(
     message: string,
     /** The last underlying error that caused the final attempt to fail. */
     readonly cause: unknown,
-    /** Total number of attempts made (including the first) before giving up. */
+    /** Total number of attempts made, including the first, before giving up. */
     readonly attempts: number,
-    /** Whether the final failure was classed retriable (budget ran out) vs not. */
+    /** Whether the final failure was classed as retriable (budget ran out) or not. */
     readonly retriable: boolean,
   ) {
     super(message);
@@ -30,10 +30,11 @@ export class InvokeError extends Error {
 }
 
 /**
- * Whether a failed invoke should be retried. Keyed on CONNECTION STATE, not the
- * error message: a transport drop leaves the connection not-Connected (retry);
- * an error thrown while still Connected is a genuine server/business error
- * (HubException) and must NOT be retried.
+ * Checks whether a failed invoke is worth a retry. This is keyed on
+ * CONNECTION STATE, not the error message: a transport drop leaves the
+ * connection not-Connected, so it is worth a retry. An error thrown while
+ * still Connected is a genuine server or business error (HubException) and
+ * must NOT be retried.
  */
 export function isRetriableInvokeError(
   error: unknown,
@@ -46,10 +47,10 @@ export function isRetriableInvokeError(
     const s = error.statusCode;
     return s === 0 || s === 408 || s === 429 || s >= 500;
   }
-  return false; // Connected + plain Error -> server business error -> no retry
+  return false; // Connected + plain Error: a server business error, no retry
 }
 
-/** Resolve the backoff delay for an attempt, capped and jittered. */
+/** Resolves the backoff delay for an attempt, capped and jittered. */
 export function resolveBackoff(
   backoff: number[] | ((attempt: number) => number),
   attempt: number,
@@ -62,7 +63,7 @@ export function resolveBackoff(
   return capped * (0.5 + Math.random() * 0.5);
 }
 
-/** setTimeout as a cancellable promise. */
+/** setTimeout wrapped as a cancellable promise. */
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const t = setTimeout(resolve, ms);

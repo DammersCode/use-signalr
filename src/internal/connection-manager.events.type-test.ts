@@ -3,8 +3,8 @@ import { event, method } from "../types";
 
 // Compile-time-only checks that the app contract is correctly INFERRED from
 // `event()`/`method()` declarations in the config, end to end through
-// `createSignalRClient`. Included by tsconfig.json (unlike *.test.ts), so
-// `npm run typecheck` actually enforces the @ts-expect-error assertions below.
+// `createSignalRClient`. Included by tsconfig.json, unlike *.test.ts, so
+// `npm run typecheck` enforces the @ts-expect-error assertions below.
 
 const { useSignalREffect, useSignalRInvoke } = createSignalRClient({
   hubs: {
@@ -26,7 +26,7 @@ useSignalREffect("/hubs/chat", "OnFoo", (x) => {
   void n;
 });
 
-// Invalid: an event name never declared via event() is a compile error.
+// Invalid: an event name never declared with event() is a compile error.
 useSignalREffect(
   "/hubs/chat",
   // @ts-expect-error - OnBaz was never declared via event() on this hub
@@ -35,7 +35,7 @@ useSignalREffect(
 );
 
 // EventArgs inference: event<[user: { id: string }]>() yields a handler arg
-// typed { id: string }, not e.g. { id: number }.
+// typed { id: string }, not { id: number } or another shape.
 useSignalREffect("/hubs/chat", "OnUser", (user) => {
   const id: string = user.id;
   void id;
@@ -55,6 +55,6 @@ async function checkInvoke() {
 }
 void checkInvoke;
 
-// Invalid: a method name never declared via method() is a compile error.
-// @ts-expect-error - GetBaz was never declared via method() on this hub
+// Invalid: a method name never declared with method() is a compile error.
+// @ts-expect-error - GetBaz was never declared with method() on this hub
 useSignalRInvoke("/hubs/chat", "GetBaz");

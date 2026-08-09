@@ -1,6 +1,6 @@
 # 🔌 @dammers/use-signalr
 
-> Fully-typed, reusable [SignalR](https://learn.microsoft.com/aspnet/core/signalr) provider + hooks for React — driven entirely by **your** contract.
+> A typed, reusable [SignalR](https://learn.microsoft.com/aspnet/core/signalr) provider and hook set for React, driven by your contract.
 
 [![npm](https://img.shields.io/npm/v/@dammers/use-signalr.svg)](https://www.npmjs.com/package/@dammers/use-signalr)
 [![types](https://img.shields.io/badge/types-included-blue.svg)](#-api)
@@ -16,23 +16,22 @@ const { SignalRProvider, useSignalRInvoke } = createSignalRClient({
 });
 ```
 
-One factory call gives you a provider and a set of hooks, every one of them typed against your hub contract — inferred straight from the config, no separately hand-written contract type. Event args, method args and return values are all inferred.
+One factory call returns a provider and a set of hooks, each typed against your hub contract. Event args, method args, and return values are all inferred from the config.
 
 ---
 
 ## ✨ Features
 
-- 🌐 **Many hubs, one provider.** Manage any number of hubs side by side — each gets its own connection, status, config and lifecycle. List them as keys; the hooks take the hub you want.
-- 🧠 **Fully typed, contract inferred from config.** Declare each hub's events/methods once with `event()`/`method()` — no hand-written contract type, no `declare module`, no globals. Event args, method args and return values are all inferred.
-- 🔇 **No "No client method found" warnings, by construction.** Every event you declare is automatically pre-bound to a no-op handler at connection build time — nothing to opt into, nothing that can drift from the contract.
-- ⚙️ **Per-hub & global config.** Set defaults once, override anything per hub: reconnect strategy, retries, transport, logging, lazy behavior.
-- ♻️ **Auto-reconnect.** Built-in: `true`, a custom delay array, or your own retry policy. Plus a connect-retry budget for the first connect.
-- 🔁 **Invoke retry.** Opt-in per call, idempotent-safe, with jittered backoff and smart retriable-vs-business-error detection.
-- 💤 **Lazy hubs.** Connect on first use, disconnect (after a grace period) on last unmount. Ref-counted and StrictMode-safe.
-- 🟢 **Live per-hub status.** Subscribe to a hub's connection state; components re-render only when _that_ hub changes.
-- 🔄 **Reconnect hooks.** Run a callback after a hub reconnects — e.g. refetch state that went stale.
-- 🔑 **Auth via props.** Pass `baseUrl` + `accessTokenFactory` (gate with the optional `enabled`); the token is re-read on every negotiate, so rotation needs no rebuild.
-- 🪶 **Zero runtime deps.** Only peer deps: `react`, `react-dom`, `@microsoft/signalr`.
+- 🌐 **Many hubs, one provider.** Each hub gets its own connection, status, config, and lifecycle.
+- 🧠 **Fully typed, contract inferred from config.** Declare events and methods once with `event()`/`method()`. No hand-written contract type.
+- ⚙️ **Per-hub and global config.** Set defaults once, then override per hub: reconnect, retries, transport, logging, lazy behavior.
+- ♻️ **Auto-reconnect** with a retry budget for the first connect.
+- 🔁 **Invoke retry** for idempotent methods, with jittered backoff.
+- 💤 **Lazy hubs.** Connect on first use, disconnect after a grace period on last unmount.
+- 🟢 **Live per-hub status**, re-rendering only the components that watch it.
+- 🔄 **Reconnect hooks** to refetch stale state after a reconnect.
+- 🔑 **Auth via props** — `baseUrl` and `accessTokenFactory`, gated by `enabled`. Token rotation needs no rebuild.
+- 🪶 **Zero runtime deps.** Peer deps only: `react`, `react-dom`, `@microsoft/signalr`.
 
 ## 📦 Install
 
@@ -40,17 +39,15 @@ One factory call gives you a provider and a set of hooks, every one of them type
 npm i @dammers/use-signalr @microsoft/signalr
 ```
 
-Peer deps: `react` ≥ 19, `react-dom` ≥ 19, `@microsoft/signalr` ≥ 8 (tested against 8–10).
-React 19 is required — the library uses the `use` hook and JSX context providers.
+Requires React 19 and `@microsoft/signalr` ≥ 8 (tested against 8–10).
 
 ## 🚀 Usage
 
 ### 1. Define your contract and create the client
 
-Your app contract isn't hand-written — it's **inferred from the config**. The
-**keys of `config.hubs` declare the hubs**; each hub's `events` (what the
-server pushes to you) and `methods` (what you invoke) are declared inline
-using the `event()` and `method()` markers.
+The **keys of `config.hubs` declare the hubs**. Each hub's `events` (what the
+server pushes to you) and `methods` (what you invoke) are declared inline with
+the `event()` and `method()` markers.
 
 ```ts
 // signalr.ts
@@ -84,16 +81,10 @@ export const {
 });
 ```
 
-`event<Args>()` takes the handler's argument tuple; `method<Args, Return>()`
-takes the argument tuple and the resolved return type (defaults to `void` if
-omitted). Neither returns anything meaningful at runtime — they're phantom-typed
-markers whose only job is to carry the types for inference. `createSignalRClient`
-is called with **no explicit generic**: its type is inferred from the config
-object you pass.
+`event<Args>()` takes the handler's argument tuple. `method<Args, Return>()`
+takes the argument tuple and the resolved return type (default `void`).
 
 ### 2. Mount the provider with your auth
-
-The provider takes **no hubs prop** — it already knows them from the config.
 
 ```tsx
 import { SignalRProvider } from "./signalr";
@@ -125,26 +116,26 @@ useSignalREffect("/hubs/chat", "ReceiveMessage", (user, message) => {
 const sendMessage = useSignalRInvoke("/hubs/chat", "SendMessage");
 await sendMessage(roomId, "hello"); // typed params, Promise<void>
 
-// 🏹 Typed fire-and-forget — no connect-wait, dropped if the hub isn't connected.
-// Stable across renders, so it's safe to capture in an unmount cleanup.
+// 🏹 Typed fire-and-forget — does not wait for connection; drops if not connected.
+// Stable across renders — safe to capture in an unmount cleanup.
 const send = useSignalRSend("/hubs/chat", "SendMessage");
 await send(roomId, "bye"); // typed args; Promise<boolean> (true = dispatched)
 
 // 🚪 Reliable teardown — for a method called in an effect cleanup. Survives
-// unmount, queues if the hub is still connecting (instead of dropping), holds a
+// unmount, queues while the hub connects (instead of dropping), and holds a
 // lazy hub open until it flushes. Best-effort: Promise<boolean> (true = dispatched).
 const leaveRoom = useSignalRTeardown("/hubs/chat", "LeaveRoomAsync");
 useEffect(() => {
   joinRoom(roomId);
   return () => {
     leaveRoom(roomId);
-  }; // lands even mid-connect or on unmount
+  }; // lands even mid-connect or after unmount
 }, [roomId, joinRoom, leaveRoom]);
 
-// 🟢 Live connection status (re-renders only when THIS hub's status changes)
+// 🟢 Live connection status — re-renders only when this hub's status changes
 const status = useHubStatus("/hubs/chat"); // "connecting" | "connected" | "reconnecting" | ...
 
-// 🔄 Re-sync after a reconnect (e.g. refetch a query)
+// 🔄 Re-sync after a reconnect, for example to refetch a query
 useOnReconnected("/hubs/chat", () => refetchMessages());
 
 // ⚓ Keep a lazy hub connected for this component's lifetime without subscribing
@@ -182,25 +173,13 @@ createSignalRClient({
 });
 ```
 
-### 🔇 No "No client method found" warnings — by construction
-
-`@microsoft/signalr` logs a warning whenever the server pushes an event with
-no registered handler — which happens for any event no mounted component
-currently subscribes to via `useSignalREffect`. Every event you declare with
-`event()` in a hub's config is automatically pre-bound to a no-op handler at
-connection build time (before `start()`) — there's no separate opt-in list to
-keep in sync, and nothing to forget: if it's in the contract, it's pre-bound.
-Real handlers registered later via `useSignalREffect` (or `connection.on`)
-still receive events normally — SignalR fans out to every registered handler.
-This has no effect on connection lifecycle (lazy/eager behavior is unchanged).
-
 ### 💤 Lazy hubs
 
-With `lazy: true`, a hub connects only when the first component using it mounts (any hook for that hub) and disconnects `graceMs` after the last one unmounts. Ref-counted and StrictMode-safe. Default is eager.
+With `lazy: true`, a hub connects only when the first component that uses it mounts (any hook for that hub), and disconnects `graceMs` after the last one unmounts. Ref-counted and StrictMode-safe. Default is eager.
 
 ### 🔁 Invoke retry
 
-`useSignalRInvoke` fails fast by default (`retries: 0`, rethrows the raw server error). Opt in **only for idempotent methods** — a retried invoke is at-least-once:
+`useSignalRInvoke` fails fast by default (`retries: 0`) and rethrows the raw server error. Opt in **only for idempotent methods** — a retried invoke is at-least-once:
 
 ```ts
 const undo = useSignalRInvoke("/hubs/flow", "UndoAsync", {
@@ -225,11 +204,11 @@ The three "call the server" hooks differ in how they wait, what they return, and
 | **Holds a lazy hub open** | while mounted                           | while mounted                                   | until the flush completes        |
 | **Use for**               | request/response you need the result of | high-frequency loss-OK signals (typing, cursor) | one-shot teardown that must land |
 
-¹ Only a mid-backoff retry is actually cancelled; pass `{ keepAliveOnUnmount: true }` to keep it alive.
+¹ Only a mid-backoff retry is actually cancelled. Pass `{ keepAliveOnUnmount: true }` to keep it alive.
 
 #### Reliable join/leave (session pattern)
 
-A common pattern: join a session on mount, leave it in the effect cleanup.
+A common pattern joins a session on mount and leaves it in the effect cleanup.
 
 ```tsx
 const joinRoom = useSignalRInvoke("/hubs/chat", "JoinRoomAsync");
@@ -245,48 +224,48 @@ useEffect(() => {
 
 A plain `useSignalRInvoke` or `useSignalRSend` makes the **leave** unreliable:
 
-- `useSignalRInvoke` aborts in-flight calls on unmount — a leave issued in cleanup can be cancelled before it reaches the server.
-- `useSignalRSend` drops silently if the hub isn't `Connected` — so a leave that races a still-connecting socket (StrictMode's first mount, fast route switches) is lost.
+- `useSignalRInvoke` aborts in-flight calls on unmount, so a leave issued in cleanup can be cancelled before it reaches the server.
+- `useSignalRSend` drops silently if the hub is not `Connected`, so a leave that races a still-connecting socket (StrictMode's first mount, a fast route switch) is lost.
 
-`useSignalRTeardown` fixes both. It:
+`useSignalRTeardown` fixes both problems. It:
 
-- **survives the calling component's unmount** (runs detached, never aborted),
-- **queues while connecting** — waits up to `timeout` (default 10s) for the hub, then sends, instead of dropping,
+- **survives the calling component's unmount** — it runs detached and is never aborted,
+- **queues while connecting** — it waits up to `timeout` (default 10s) for the hub, then sends, instead of dropping,
 - **holds a lazy hub open** until the flush completes, even if the unmounting component was its last consumer.
 
-It's best-effort fire-and-forget: resolves `true` once dispatched, `false` if the hub never connected in time; it never throws. Under StrictMode's mount→cleanup→mount, the intermediate teardown **does** land (then the remount re-runs setup) — so the server is never left in a stale joined state, at the cost of one extra round-trip.
+It is best-effort and fire-and-forget: it resolves `true` once dispatched, `false` if the hub never connected in time, and never throws. It also lands correctly under StrictMode's mount→cleanup→mount, at the cost of one extra round-trip.
 
-> Already use `useSignalRInvoke` for your leave and only need it not to be aborted on unmount? Pass `{ keepAliveOnUnmount: true }`. That covers the abort half but **not** the still-connecting race — for that, use `useSignalRTeardown`.
+> If your leave already uses `useSignalRInvoke` and only needs to avoid the abort on unmount, pass `{ keepAliveOnUnmount: true }`. This covers the abort case but **not** the still-connecting race. For that race, use `useSignalRTeardown`.
 
 ## 📚 API
 
-| Export                                   | What it does                                                                                                                                                         |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createSignalRClient(config)`            | Returns the Provider + hooks, typed against the contract **inferred** from `config`. Config keys declare the hubs; no explicit generic needed.                       |
-| `event<Args>()`                          | Declares a server-pushed event inside a hub's `events`; `Args` is the handler's argument tuple.                                                                       |
-| `method<Args, Return?>()`                | Declares an invocable server method inside a hub's `methods`; `Args` is the argument tuple, `Return` the resolved return type (default `void`).                      |
-| `<SignalRProvider>`                      | Builds/starts connections, retries, auto-reconnects, exposes them via context. No `hubs` prop.                                                                       |
-| `useSignalREffect(hub, event, handler)`  | Subscribe to a server event for the component lifetime.                                                                                                              |
-| `useSignalRInvoke(hub, method, opts?)`   | Typed request/response invoker; waits for the connection, returns the method's result. Optional retry/backoff/timeout; `keepAliveOnUnmount` to not abort on unmount. |
-| `useSignalRSend(hub, method)`            | Typed fire-and-forget sender; **drops** if not connected. For high-frequency loss-OK signals. Safe in unmount cleanups.                                              |
-| `useSignalRTeardown(hub, method, opts?)` | Reliable teardown sender for a method called in cleanup: survives unmount, **queues** while connecting (instead of dropping), holds a lazy hub open until flushed.   |
-| `useHubStatus(hub)`                      | Live connection status; re-renders only when that hub changes.                                                                                                       |
-| `useOnReconnected(hub, cb)`              | Run `cb` after the hub reconnects (e.g. refetch).                                                                                                                    |
-| `useHubConsumer(hub)`                    | Keep a lazy hub connected for the component's lifetime without subscribing.                                                                                          |
-| `useSignalR()`                           | Last-resort raw context: `getConnection`, `isHubConnected`, `getStatus`.                                                                                             |
+| Export                                   | What it does                                                                                                                                                            |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createSignalRClient(config)`            | Returns the provider and hooks, typed against the contract **inferred** from `config`.                                                                                  |
+| `event<Args>()`                          | Declares a server-pushed event inside a hub's `events`. `Args` is the handler's argument tuple.                                                                         |
+| `method<Args, Return?>()`                | Declares an invocable server method inside a hub's `methods`. `Args` is the argument tuple; `Return` is the resolved return type (default `void`).                      |
+| `<SignalRProvider>`                      | Builds and starts connections, retries, and auto-reconnects.                                                                                                            |
+| `useSignalREffect(hub, event, handler)`  | Subscribes to a server event for the component's lifetime.                                                                                                              |
+| `useSignalRInvoke(hub, method, opts?)`   | Typed request/response invoker. Waits for the connection and returns the method's result. Optional retry/backoff/timeout; `keepAliveOnUnmount` skips the unmount abort. |
+| `useSignalRSend(hub, method)`            | Typed fire-and-forget sender. **Drops** if not connected. For high-frequency signals where loss is acceptable. Safe in unmount cleanups.                                |
+| `useSignalRTeardown(hub, method, opts?)` | Reliable teardown sender for a method called in cleanup: survives unmount, **queues** while connecting instead of dropping, and holds a lazy hub open until flushed.    |
+| `useHubStatus(hub)`                      | Live connection status. Re-renders only when that hub changes.                                                                                                          |
+| `useOnReconnected(hub, cb)`              | Runs `cb` after the hub reconnects, for example to refetch.                                                                                                             |
+| `useHubConsumer(hub)`                    | Keeps a lazy hub connected for the component's lifetime without subscribing.                                                                                            |
+| `useSignalR()`                           | Last-resort raw context: `getConnection`, `isHubConnected`, `getStatus`.                                                                                                |
 
 ### Provider props
 
-`baseUrl`, `accessTokenFactory` (required); `enabled` (optional, default `true`), `connectionKey`, `onStatusChange`, `onError` (optional). Connection behavior (`lazy`, `reconnect`, `maxConnectRetries`, `logLevel`, per-hub overrides) lives in the **config** passed to `createSignalRClient`, not on the provider.
+Required: `baseUrl`, `accessTokenFactory`. Optional: `enabled` (default `true`), `connectionKey`, `onStatusChange`, `onError`. Connection behavior (`lazy`, `reconnect`, `maxConnectRetries`, `logLevel`, per-hub overrides) lives in the **config** passed to `createSignalRClient`, not on the provider.
 
 ## 📝 Notes
 
-- The provider rebuilds connections when `baseUrl`, `enabled`, or `connectionKey` change. Token _rotation_ alone does **not** rebuild — `accessTokenFactory` is re-read on every negotiate.
-- `accessTokenFactory` and the `on*` callbacks are read through refs, so passing fresh closures each render is fine — no reconnect storm.
+- The provider rebuilds connections when `baseUrl`, `enabled`, or `connectionKey` change. Token _rotation_ alone does **not** trigger a rebuild — `accessTokenFactory` is re-read on every negotiate.
+- `accessTokenFactory` and the `on*` callbacks always see your latest props. Passing a fresh closure each render is fine — it causes no reconnect storm, so you do not need to memoize them.
 
 ## 🤝 Contributing
 
-Setup, scripts and workflow live in [CONTRIBUTING.md](./CONTRIBUTING.md).
+Setup, scripts, and workflow live in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## 📄 License
 

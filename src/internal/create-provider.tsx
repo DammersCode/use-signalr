@@ -12,7 +12,7 @@ import type {
   SignalRProviderProps,
 } from "../types";
 
-/** Build the `SignalRProvider` component bound to one client's context. */
+/** Builds the `SignalRProvider` component bound to one client's context. */
 export function createSignalRProvider<T extends SignalRContract>(
   ReactContext: Context<SignalRContextValue<T> | null>,
   hubs: Array<keyof T & HubString>,
@@ -32,7 +32,7 @@ export function createSignalRProvider<T extends SignalRContract>(
     const statusStore = useRef(createStatusStore<Hub>()).current;
 
     // Lazy ref-counts, pending stop timers, and reconnect listeners persist
-    // across rebuilds; the live manager is swapped per generation.
+    // across rebuilds. The live manager is swapped per generation.
     const refCounts = useRef(new Map<Hub, number>()).current;
     const stopTimers = useRef(
       new Map<Hub, ReturnType<typeof setTimeout>>(),
@@ -40,7 +40,7 @@ export function createSignalRProvider<T extends SignalRContract>(
     const reconnectListeners = useRef(new Map<Hub, Set<() => void>>()).current;
     const managerRef = useRef<ConnectionManager<Hub> | null>(null);
 
-    // Latest props via refs so once-attached handlers call current props.
+    // Latest props via refs, so once-attached handlers call the current props.
     const tokenFactoryRef = useLatest(accessTokenFactory);
     const onStatusChangeRef = useLatest(onStatusChange);
     const onErrorRef = useLatest(onError);
@@ -69,14 +69,14 @@ export function createSignalRProvider<T extends SignalRContract>(
         isCurrent: () => managerRef.current === manager,
       });
       managerRef.current = manager;
-      manager.reconcile(); // build eager hubs + already-referenced lazy hubs
+      manager.reconcile(); // build eager hubs plus already-referenced lazy hubs
 
       return () => {
         manager.dispose();
         if (managerRef.current === manager) managerRef.current = null;
       };
       // Rebuild only when the connection identity changes. tokenFactoryRef and
-      // on*Ref are stable; props read via .current.
+      // on*Ref are stable; props are read through .current.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [baseUrl, enabled, connectionKey]);
 

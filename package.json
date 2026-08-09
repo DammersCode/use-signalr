@@ -16,7 +16,7 @@
     "check": "node scripts/check-docs.mjs",
     "preversion": "npm run check && npm run typecheck && npm test",
     "version": "node scripts/sync-versions.mjs && git add packages/*/package.json package-lock.json",
-    "postversion": "git push --follow-tags"
+    "postversion": "git push && git push --tags"
   },
   "devDependencies": {
     "typescript": ">=5",

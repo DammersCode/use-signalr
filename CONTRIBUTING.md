@@ -67,3 +67,18 @@ Rebuild here after each change (`npm run build`) and the app picks it up. Unlink
 2. `npm run build` and `npm run typecheck` must pass clean.
 3. Update the [README](./README.md) if you changed the public API.
 4. One focused change per PR — small diffs get merged fast.
+
+## 🚀 Releasing
+
+One command bumps the version, commits, tags, and pushes:
+
+```bash
+npm version patch   # 0.3.0 -> 0.3.1  (minor | major for features | breaking)
+```
+
+Tests and typecheck run first — a failure stops the release before anything is
+tagged. The pushed tag triggers the GitHub Actions release workflow, which
+publishes to npm and creates a GitHub Release.
+
+Never edit `version` in `package.json` by hand. The workflow fails if the tag
+and the file disagree.

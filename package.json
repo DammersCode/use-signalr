@@ -28,6 +28,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "preversion": "npm run typecheck && npm test",
+    "postversion": "git push --follow-tags",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

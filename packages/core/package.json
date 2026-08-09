@@ -1,6 +1,6 @@
 {
   "name": "@dammers/use-signalr-core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Framework-free typed multi-hub SignalR core: connection lifecycle, contracts, retry.",
   "author": "Dammers",
   "license": "MIT",

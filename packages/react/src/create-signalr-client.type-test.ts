@@ -1,5 +1,5 @@
-import { createSignalRClient } from "../create-signalr-client";
-import { event, method } from "../types";
+import { createSignalRClient } from "./create-signalr-client";
+import { event, method } from "@dammers/use-signalr-core";
 
 // Compile-time-only checks that the app contract is correctly INFERRED from
 // `event()`/`method()` declarations in the config, end to end through

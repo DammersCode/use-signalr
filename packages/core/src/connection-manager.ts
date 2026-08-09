@@ -1,12 +1,12 @@
 import { HubConnectionBuilder, HubConnectionState } from "@microsoft/signalr";
-import { isRetriableConnectError } from "../config";
+import { isRetriableConnectError } from "./config";
 import type { HubConnection } from "@microsoft/signalr";
 import type { HubEntry } from "./hub-entry";
 import type {
   HubConnectionStatus,
   HubString,
   ResolvedHubConfig,
-} from "../types";
+} from "./types";
 
 const CONNECT_RETRY_BASE_MS = 2500;
 

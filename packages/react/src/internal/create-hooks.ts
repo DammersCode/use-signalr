@@ -1,13 +1,6 @@
-import { use, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
-import { HubConnectionState } from "@microsoft/signalr";
+import { use, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useLatest } from "../internal-hooks";
-import {
-  DEFAULT_BACKOFF,
-  InvokeError,
-  isRetriableInvokeError,
-  resolveBackoff,
-  sleep,
-} from "../retry";
+import { createInvoker, createSender, createTeardownSender } from "@dammers/use-signalr-core";
 import type { Context } from "react";
 import type {
   EventArgs,
@@ -19,12 +12,9 @@ import type {
   MethodArgs,
   MethodName,
   MethodReturn,
-  SignalRContextValue,
   SignalRContract,
-} from "../types";
-
-const DEFAULT_TIMEOUT = 10_000;
-const DEFAULT_TEARDOWN_TIMEOUT = 10_000;
+} from "@dammers/use-signalr-core";
+import type { SignalRContextValue } from "../types";
 
 /** Builds the hooks bound to one client's context. */
 export function createSignalRHooks<T extends SignalRContract>(
@@ -176,43 +166,17 @@ export function createSignalRHooks<T extends SignalRContract>(
       [optsRef],
     );
 
-    return useCallback(
-      async (...args: MethodArgs<T, H, M>): Promise<MethodReturn<T, H, M>> => {
-        const o = optsRef.current;
-        const timeout = o?.timeout ?? DEFAULT_TIMEOUT;
-        const retries = o?.retries ?? 0;
-        const ac = (abortRef.current = new AbortController());
-        let attempt = 0;
-        for (;;) {
-          try {
-            const connection = await waitForConnection(hub, timeout);
-            return await connection.invoke<MethodReturn<T, H, M>>(
-              method,
-              ...args,
-            );
-          } catch (error) {
-            const conn = getConnection(hub);
-            const forced = o?.isRetriable?.(error);
-            const retriable =
-              forced ?? (conn ? isRetriableInvokeError(error, conn) : true);
-            if (!retriable || attempt >= retries) {
-              // No retries: rethrow the raw error, so callers see the original.
-              if (retries === 0) throw error;
-              throw new InvokeError(
-                `SignalR invoke ${hub}/${String(method)} failed after ${attempt + 1} attempts`,
-                error,
-                attempt + 1,
-                retriable,
-              );
-            }
-            await sleep(
-              resolveBackoff(o?.backoff ?? DEFAULT_BACKOFF, attempt),
-              ac.signal,
-            );
-            attempt += 1;
-          }
-        }
-      },
+    return useMemo(
+      () =>
+        createInvoker<T, H, M>(
+          { waitForConnection, getConnection },
+          hub,
+          method,
+          () => optsRef.current,
+          (ac) => {
+            abortRef.current = ac;
+          },
+        ),
       [waitForConnection, getConnection, hub, method, optsRef],
     );
   }
@@ -238,15 +202,8 @@ export function createSignalRHooks<T extends SignalRContract>(
     const { getConnection } = useSignalR();
     useHubConsumer(hub);
 
-    return useCallback(
-      (...args: MethodArgs<T, H, M>): Promise<boolean> => {
-        const connection = getConnection(hub);
-        if (!connection || connection.state !== HubConnectionState.Connected) {
-          return Promise.resolve(false); // dropped: not connected
-        }
-        // send() is variadic and untyped; args are enforced at the call site.
-        return connection.send(method, ...(args as unknown[])).then(() => true);
-      },
+    return useMemo(
+      () => createSender<T, H, M>(getConnection, hub, method),
       [getConnection, hub, method],
     );
   }
@@ -289,22 +246,14 @@ export function createSignalRHooks<T extends SignalRContract>(
     useHubConsumer(hub);
     const optsRef = useLatest(options);
 
-    return useCallback(
-      (...args: MethodArgs<T, H, M>): Promise<boolean> => {
-        const timeout = optsRef.current?.timeout ?? DEFAULT_TEARDOWN_TIMEOUT;
-        acquire(hub); // hold the hub open past our own unmount, until flushed
-        return (async () => {
-          try {
-            const connection = await waitForConnection(hub, timeout);
-            await connection.send(method, ...(args as unknown[]));
-            return true;
-          } catch {
-            return false; // never connected in time, or the send failed: best-effort
-          } finally {
-            release(hub);
-          }
-        })();
-      },
+    return useMemo(
+      () =>
+        createTeardownSender<T, H, M>(
+          { acquire, release, waitForConnection },
+          hub,
+          method,
+          () => optsRef.current,
+        ),
       [acquire, release, waitForConnection, hub, method, optsRef],
     );
   }

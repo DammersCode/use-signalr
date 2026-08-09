@@ -20,6 +20,9 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; Node 22 ships older.
+      - run: npm install -g npm@latest
+
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -35,9 +38,8 @@ jobs:
             exit 1
           fi
 
+      # No token: npm authenticates via OIDC trusted publishing.
       - run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - uses: softprops/action-gh-release@v2
         with:

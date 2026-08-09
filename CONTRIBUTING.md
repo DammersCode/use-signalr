@@ -78,7 +78,8 @@ npm version patch   # 0.3.0 -> 0.3.1  (minor | major for features | breaking)
 
 Tests and typecheck run first — a failure stops the release before anything is
 tagged. The pushed tag triggers the GitHub Actions release workflow, which
-publishes to npm and creates a GitHub Release.
+publishes to npm and creates a GitHub Release. Publishing authenticates through
+npm trusted publishing (OIDC), so there is no token to store or rotate.
 
 Never edit `version` in `package.json` by hand. The workflow fails if the tag
 and the file disagree.

@@ -4,9 +4,9 @@ import type { ConnectionManagerDeps } from "./connection-manager";
 import type { HubString, ResolvedHubConfig } from "../types";
 
 // --- Fake @microsoft/signalr ---
-// connection-manager.ts only uses HubConnectionBuilder (runtime) and
-// HubConnectionState (runtime enum) from the package; everything else it
-// imports is type-only, so nothing further needs mocking here.
+// connection-manager.ts uses only HubConnectionBuilder (runtime) and
+// HubConnectionState (a runtime enum) from the package. Everything else it
+// imports is type-only, so nothing further needs a mock here.
 const onCalls: Array<{ name: string; fn: unknown }> = [];
 let startResolves: (() => void) | null = null;
 let startRejects: ((err: unknown) => void) | null = null;
@@ -133,8 +133,8 @@ describe("createConnectionManager: pre-bound events", () => {
 });
 
 // --- Type-level exhaustiveness check ---
-// The real compile-time proof lives in connection-manager.events.type-test.ts
-// (included by tsconfig, verified by `npm run typecheck`). Vitest's transform
-// (esbuild) does not type-check, so `@ts-expect-error` assertions placed only
+// The real compile-time proof lives in connection-manager.events.type-test.ts,
+// included by tsconfig and verified by `npm run typecheck`. Vitest's esbuild
+// transform does not type-check, so `@ts-expect-error` assertions placed only
 // in a *.test.ts file are not enforced by `npm run test` or `npm run
 // typecheck` — see that file for the enforced version of this guarantee.

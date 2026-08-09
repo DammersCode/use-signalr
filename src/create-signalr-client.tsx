@@ -12,11 +12,10 @@ import type {
 } from "./types";
 
 /**
- * Create a fully-typed SignalR client. Your app contract is INFERRED from
- * `config.hubs` — the KEYS declare which hubs exist, and each hub's
- * `event()`/`method()` declarations declare its events and methods. There is
- * no separately hand-written contract type. Returns a Provider + hooks, all
- * typed against the inferred contract.
+ * Creates a fully-typed SignalR client. Returns a provider and hooks, typed
+ * against the contract inferred from `config.hubs`: the keys declare the
+ * hubs, and each hub's `event()`/`method()` declarations declare its events
+ * and methods.
  */
 export function createSignalRClient<const H extends Record<HubString, HubDef>>(
   config: SignalRClientConfig<H>,
@@ -37,46 +36,47 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
 
   return {
     /**
-     * Provider that builds, starts, retries and auto-reconnects every configured
-     * hub, exposing them to the hooks via context. Takes no `hubs` prop — it
-     * already knows them from the config. Pass `baseUrl` + `accessTokenFactory`
-     * (gate with `enabled`); rebuilds when `baseUrl`, `enabled` or `connectionKey`
-     * change. Mount it once near the root.
+     * Provider that builds, starts, retries, and auto-reconnects every
+     * configured hub. Pass `baseUrl` and `accessTokenFactory`, and gate them
+     * with `enabled`. Mount it once, near the root.
      */
     SignalRProvider,
     /**
      * Escape hatch to the raw SignalR context (`getConnection`, `getStatus`,
-     * `isHubConnected`, …). Prefer the typed hooks below; use this only for the
-     * underlying `HubConnection` or a non-reactive point read.
+     * `isHubConnected`, and more). Prefer the typed hooks below. Use this only
+     * for the underlying `HubConnection` or a non-reactive point read.
      */
     useSignalR: hooks.useSignalR,
     /**
-     * Keep a (possibly lazy) hub connected for the component's lifetime without
-     * subscribing to events or status. Acquires on mount, releases on unmount.
+     * Keeps a (possibly lazy) hub connected for the component's lifetime,
+     * without subscribing to events or status. Acquires on mount, releases on
+     * unmount.
      */
     useHubConsumer: hooks.useHubConsumer,
     /**
-     * Subscribe to a typed server event for the component's lifetime. Handler
-     * args are inferred from your contract; re-attaches across reconnects.
+     * Subscribes to a typed server event for the component's lifetime.
+     * Handler args are inferred from your contract. Re-attaches across
+     * reconnects.
      */
     useSignalREffect: hooks.useSignalREffect,
     /**
-     * Typed invoker that waits for the connection and resolves with the method's
-     * return value. Fails fast by default; opt-in retry (idempotent methods only).
+     * Typed invoker that waits for the connection and resolves with the
+     * method's return value. Fails fast by default. Opt in to retry for
+     * idempotent methods only.
      */
     useSignalRInvoke: hooks.useSignalRInvoke,
     /**
-     * Typed fire-and-forget sender. Does not wait for connection: dropped
-     * (resolves `false`) if not connected, else dispatched (`true`). Safe in
-     * unmount cleanups.
+     * Typed fire-and-forget sender. Does not wait for the connection: it
+     * drops the call (resolves `false`) if not connected, otherwise it
+     * dispatches the call (`true`). Safe in unmount cleanups.
      */
     useSignalRSend: hooks.useSignalRSend,
     /**
-     * Typed RELIABLE teardown sender for a method invoked in an effect cleanup.
-     * Survives the calling component's unmount, queues while the hub is still
-     * connecting (instead of dropping), and holds a lazy hub open until the
-     * flush completes. Best-effort: resolves `true` if dispatched, `false` if
-     * the hub never connected in time. Never throws.
+     * Typed RELIABLE teardown sender for a method invoked in an effect
+     * cleanup. Survives the calling component's unmount, queues while the hub
+     * is still connecting instead of dropping, and holds a lazy hub open
+     * until the flush completes. Best-effort: resolves `true` if dispatched,
+     * `false` if the hub never connected in time. Never throws.
      */
     useSignalRTeardown: hooks.useSignalRTeardown,
     /**
@@ -85,7 +85,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     useHubStatus: hooks.useHubStatus,
     /**
-     * Run a callback after each reconnect (not the first connect), to refetch
+     * Runs a callback after each reconnect, not the first connect, to refetch
      * state that went stale while offline.
      */
     useOnReconnected: hooks.useOnReconnected,

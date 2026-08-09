@@ -5,9 +5,9 @@ import type { HubConnectionStatus } from "../types";
 export interface HubEntry {
   connection: HubConnection;
   status: HubConnectionStatus;
-  /** Resolves once Connected; replaced on each (re)build. */
+  /** Resolves once Connected. Replaced on each rebuild. */
   ready: Promise<void>;
   resolveReady: () => void;
-  /** Set before stop() so the start() catch never zombie-reconnects. */
+  /** Set before stop(), so the start() catch never reconnects a stopped hub. */
   stopping: boolean;
 }

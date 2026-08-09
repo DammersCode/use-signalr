@@ -1,9 +1,10 @@
 import type { HubConnectionStatus } from "./types";
 
 /**
- * Tiny external store for hub statuses, consumed via `useSyncExternalStore`.
- * Exposes only `subscribe`/`get`/`set` — no whole-record snapshot — so a
- * per-hub selector lets React bail out when an unrelated hub's status changes.
+ * Small external store for hub statuses, consumed with `useSyncExternalStore`.
+ * Exposes only `subscribe`, `get`, and `set` — no whole-record snapshot — so
+ * a per-hub selector lets React skip a re-render when an unrelated hub's
+ * status changes.
  */
 export interface StatusStore<H extends string> {
   subscribe: (listener: () => void) => () => void;
@@ -21,7 +22,7 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
     },
     get: (hub) => snapshot.get(hub) ?? "disconnected",
     set: (hub, status) => {
-      if (snapshot.get(hub) === status) return; // dedupe -> no spurious notify
+      if (snapshot.get(hub) === status) return; // dedupe: skip a spurious notify
       snapshot.set(hub, status);
       listeners.forEach((l) => l());
     },

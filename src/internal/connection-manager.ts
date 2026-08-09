@@ -16,33 +16,33 @@ export interface ConnectionManagerDeps<Hub extends HubString> {
   baseUrl: string;
   hubs: Hub[];
   resolve: (hub: Hub) => ResolvedHubConfig;
-  /** Read fresh on every (re)negotiate so token rotation needs no rebuild. */
+  /** Read fresh on every (re)negotiate, so token rotation needs no rebuild. */
   getAccessToken: () => string | Promise<string>;
-  /** Per-hub ref-counts shared across rebuilds (lazy lifecycle). */
+  /** Per-hub ref-counts, shared across rebuilds, for the lazy lifecycle. */
   refCounts: Map<Hub, number>;
-  /** Pending lazy-stop timers shared across rebuilds. */
+  /** Pending lazy-stop timers, shared across rebuilds. */
   stopTimers: Map<Hub, ReturnType<typeof setTimeout>>;
   reconnectListeners: Map<Hub, Set<() => void>>;
   onStatus: (hub: Hub, status: HubConnectionStatus) => void;
   onError: (hub: Hub, error: unknown) => void;
-  /** True while this manager's generation is the live one (guards stale rebuilds). */
+  /** True while this manager's generation is the live one. Guards stale rebuilds. */
   isCurrent: () => boolean;
 }
 
 export interface ConnectionManager<Hub extends HubString> {
-  /** Build/start desired hubs, stop undesired ones. Safe to call repeatedly. */
+  /** Builds/starts desired hubs and stops undesired ones. Safe to call repeatedly. */
   reconcile: () => void;
   getConnection: (hub: Hub) => HubConnection | null;
-  /** Resolve once the hub is connected, else reject after timeoutMs. */
+  /** Resolves once the hub is connected. Rejects after timeoutMs otherwise. */
   waitForConnection: (hub: Hub, timeoutMs: number) => Promise<HubConnection>;
-  /** Stop all connections and cancel timers. */
+  /** Stops all connections and cancels timers. */
   dispose: () => void;
 }
 
 /**
  * Owns the HubConnection lifecycle for one provider generation: building,
- * starting (with retry), lazy ref-counted start/stop, and reconnect fan-out.
- * No React — driven by the provider's effect and context callbacks.
+ * starting with retry, lazy ref-counted start/stop, and reconnect fan-out.
+ * Has no React dependency — driven by the provider's effect and context callbacks.
  */
 export function createConnectionManager<Hub extends HubString>(
   deps: ConnectionManagerDeps<Hub>,
@@ -101,7 +101,7 @@ export function createConnectionManager<Hub extends HubString>(
     applyReconnect(builder, rc.reconnect);
     const conn = builder.build();
 
-    // Pre-bind declared client events so server pushes never hit zero handlers.
+    // Pre-bind declared client events, so a server push never hits zero handlers.
     for (const ev of rc.events) conn.on(ev, noop);
 
     let resolveReady!: () => void;
@@ -117,9 +117,9 @@ export function createConnectionManager<Hub extends HubString>(
     };
     built.set(hub, entry);
 
-    // Attach lifecycle handlers ONCE (SignalR has no removal API).
+    // Attach lifecycle handlers ONCE — SignalR has no removal API.
     conn.onclose((err) => {
-      // Deliberate stop() (logout/rebuild/lazy) -> err undefined -> silent.
+      // A deliberate stop() (logout, rebuild, lazy stop) leaves err undefined: stay silent.
       if (disposing || err === undefined) {
         setStatus(hub, "disconnected");
         return;
@@ -168,7 +168,7 @@ export function createConnectionManager<Hub extends HubString>(
     clearStopTimer(hub);
     const stopNow = () => {
       stopTimers.delete(hub);
-      if ((refCounts.get(hub) ?? 0) > 0) return; // re-acquired during grace
+      if ((refCounts.get(hub) ?? 0) > 0) return; // re-acquired during the grace period
       const e = built.get(hub);
       if (!e || e.stopping) return;
       e.stopping = true;
@@ -229,7 +229,7 @@ export function createConnectionManager<Hub extends HubString>(
     stopTimers.forEach((id) => clearTimeout(id));
     stopTimers.clear();
     built.forEach((e) => void e.connection.stop());
-    // refCounts intentionally preserved across rebuild.
+    // refCounts are kept across rebuilds on purpose.
   };
 
   return { reconcile, getConnection, waitForConnection, dispose };

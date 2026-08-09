@@ -1,58 +1,26 @@
 {
-  "name": "@dammers/use-signalr",
-  "version": "0.3.0",
-  "description": "Fully-typed multi-hub SignalR provider + hooks for React: auto-reconnect, invoke retry, lazy hubs, live status.",
-  "author": "Dammers",
-  "license": "MIT",
-  "repository": "github:DammersCode/use-signalr",
-  "homepage": "https://github.com/DammersCode/use-signalr#readme",
-  "bugs": "https://github.com/DammersCode/use-signalr/issues",
+  "name": "use-signalr",
+  "private": true,
+  "version": "0.1.0",
   "type": "module",
-  "sideEffects": false,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
+  "license": "MIT",
+  "author": "Dammers",
+  "repository": "github:DammersCode/use-signalr",
+  "workspaces": [
+    "packages/*"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "preversion": "npm run typecheck && npm test",
-    "postversion": "git push --follow-tags",
-    "prepublishOnly": "npm run build"
-  },
-  "keywords": [
-    "react",
-    "signalr",
-    "hooks",
-    "typescript",
-    "realtime",
-    "websocket"
-  ],
-  "peerDependencies": {
-    "@microsoft/signalr": ">=8",
-    "react": ">=19",
-    "react-dom": ">=19"
+    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/solid --if-present",
+    "typecheck": "npm run build -w packages/core && npm run typecheck --workspaces --if-present",
+    "test": "npm run build -w packages/core && npm run test --workspaces --if-present",
+    "check": "node scripts/check-docs.mjs",
+    "preversion": "npm run check && npm run typecheck && npm test",
+    "version": "node scripts/sync-versions.mjs && git add packages/*/package.json package-lock.json",
+    "postversion": "git push --follow-tags"
   },
   "devDependencies": {
-    "@microsoft/signalr": ">=8",
-    "@testing-library/react": "^16.1.0",
-    "@types/react": ">=19",
-    "jsdom": "^29.1.1",
-    "react": ">=19",
-    "react-dom": ">=19",
     "typescript": ">=5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "jsdom": "^29.1.1"
   }
 }

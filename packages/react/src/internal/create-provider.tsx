@@ -1,16 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useLatest } from "../internal-hooks";
 import { createStatusStore } from "../status-store";
-import { createConnectionManager } from "./connection-manager";
+import { createConnectionManager } from "@dammers/use-signalr-core";
 import type { Context } from "react";
-import type { ConnectionManager } from "./connection-manager";
-import type {
-  HubString,
-  ResolvedHubConfig,
-  SignalRContextValue,
-  SignalRContract,
-  SignalRProviderProps,
-} from "../types";
+import type { ConnectionManager } from "@dammers/use-signalr-core";
+import type { HubString, ResolvedHubConfig, SignalRContract } from "@dammers/use-signalr-core";
+import type { SignalRContextValue, SignalRProviderProps } from "../types";
 
 /** Builds the `SignalRProvider` component bound to one client's context. */
 export function createSignalRProvider<T extends SignalRContract>(

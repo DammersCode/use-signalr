@@ -1,6 +1,5 @@
 export { createSignalRClient } from "./create-signalr-client";
-export { InvokeError } from "./retry";
-export { event, method } from "./types";
+export { InvokeError, event, method } from "@dammers/use-signalr-core";
 export type { StatusStore } from "./status-store";
 export type {
   HubString,
@@ -16,12 +15,11 @@ export type {
   ReconnectConfig,
   InvokeOptions,
   TeardownOptions,
-  SignalRProviderProps,
-  SignalRContextValue,
   HubConnectionStatus,
   EventName,
   MethodName,
   EventArgs,
   MethodArgs,
   MethodReturn,
-} from "./types";
+} from "@dammers/use-signalr-core";
+export type { SignalRProviderProps, SignalRContextValue } from "./types";

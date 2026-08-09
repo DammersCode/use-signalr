@@ -1,4 +1,7 @@
-import type { HubConnectionStatus } from "./types";
+import type {
+  HubConnectionStatus,
+  StatusStore as StatusStoreBase,
+} from "@dammers/use-signalr-core";
 
 /**
  * Small external store for hub statuses, consumed with `useSyncExternalStore`.
@@ -6,10 +9,8 @@ import type { HubConnectionStatus } from "./types";
  * a per-hub selector lets React skip a re-render when an unrelated hub's
  * status changes.
  */
-export interface StatusStore<H extends string> {
+export interface StatusStore<H extends string> extends StatusStoreBase<H> {
   subscribe: (listener: () => void) => () => void;
-  get: (hub: H) => HubConnectionStatus;
-  set: (hub: H, status: HubConnectionStatus) => void;
 }
 
 export function createStatusStore<H extends string>(): StatusStore<H> {

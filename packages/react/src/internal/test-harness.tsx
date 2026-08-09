@@ -1,7 +1,8 @@
 import { createContext } from "react";
 import type { HubConnection } from "@microsoft/signalr";
 import { createSignalRHooks } from "./create-hooks";
-import type { SignalRContextValue, SignalRContract } from "../types";
+import type { SignalRContract } from "@dammers/use-signalr-core";
+import type { SignalRContextValue } from "../types";
 
 type Hubs = {
   "/hubs/chat": {

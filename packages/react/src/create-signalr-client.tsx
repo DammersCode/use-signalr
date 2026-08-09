@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { hubKeys, resolveHubConfig } from "./config";
+import { hubKeys, resolveHubConfig } from "@dammers/use-signalr-core";
 import { createSignalRProvider } from "./internal/create-provider";
 import { createSignalRHooks } from "./internal/create-hooks";
 import type {
@@ -8,8 +8,8 @@ import type {
   InferContract,
   ResolvedHubConfig,
   SignalRClientConfig,
-  SignalRContextValue,
-} from "./types";
+} from "@dammers/use-signalr-core";
+import type { SignalRContextValue } from "./types";
 
 /**
  * Creates a fully-typed SignalR client. Returns a provider and hooks, typed

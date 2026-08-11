@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import { onScopeDispose, ref, watch } from "vue";
+import { createLogger } from "@examples/contract";
 import { useSignalREvent, useSignalRTeardown, useHubStatus } from "./client.js";
 
-const LOG = "[use-signalr:vue]";
+const log = createLogger("vue");
 
 const status = useHubStatus("/hubs/counter");
 const leave = useSignalRTeardown("/hubs/chat", "Leave");
 const count = ref<number | null>(null);
 
 useSignalREvent("/hubs/counter", "Count", (value) => {
-  console.log(`${LOG} count ${value}`);
+  log.count(value);
   count.value = value;
 });
 
 watch(status, (value) => {
-  console.log(`${LOG} status /hubs/counter: ${value}`);
+  log.status("/hubs/counter", value);
 });
 
 onScopeDispose(() => {

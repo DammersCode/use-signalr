@@ -34,14 +34,34 @@ export const hubs = {
   },
 };
 
+/** Prints the shared example console protocol, prefixed `[use-signalr:<framework>]`. */
+export function createLogger(framework: string) {
+  const prefix = `[use-signalr:${framework}]`;
+  const log = (message: string) => console.log(`${prefix} ${message}`);
+
+  return {
+    status: (hub: string, status: string) => log(`status ${hub}: ${status}`),
+    tick: (n: number) => log(`tick ${n}`),
+    count: (n: number) => log(`count ${n}`),
+    result: (name: string, value: unknown) => log(`${name} -> ${value}`),
+    invokeFailed: (err: { attempts?: number; retriable?: boolean }) =>
+      log(`invoke failed: attempts=${err.attempts} retriable=${err.retriable}`),
+    sent: (name: string, ok: boolean) => log(`${name} sent: ${ok}`),
+    echoed: (text: string, at: string) => log(`echoed ${text} at ${at}`),
+    left: (connectionId: string) => log(`left ${connectionId}`),
+    reconnected: () => log("reconnected"),
+    log,
+  };
+}
+
 let tokenCount = 0;
 
 /** Returns a fake per-negotiate bearer token, proving token reads are per-connect. */
 export function makeToken(framework: string): () => string {
+  const { log } = createLogger(framework);
   return () => {
     tokenCount++;
-    const token = `${framework}-token-${tokenCount}`;
-    console.log(`[use-signalr:${framework}] token read #${tokenCount}`);
-    return token;
+    log(`token read #${tokenCount}`);
+    return `${framework}-token-${tokenCount}`;
   };
 }

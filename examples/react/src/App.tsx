@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { InvokeError } from "@dammers/use-signalr-react";
-import { BASE_URL, makeToken } from "@examples/contract";
+import { BASE_URL, makeToken, createLogger } from "@examples/contract";
 import {
   SignalRProvider,
   useSignalREffect,
@@ -11,7 +11,7 @@ import {
 } from "./client.js";
 import { Counter } from "./Counter.js";
 
-const LOG = "[use-signalr:react]";
+const log = createLogger("react");
 
 function Main() {
   const [showCounter, setShowCounter] = useState(false);
@@ -27,20 +27,20 @@ function Main() {
   const killConnection = useSignalRSend("/hubs/chat", "KillConnection");
 
   useSignalREffect("/hubs/chat", "Tick", (count) => {
-    console.log(`${LOG} tick ${count}`);
+    log.tick(count);
   });
   useSignalREffect("/hubs/chat", "Echoed", (text, at) => {
-    console.log(`${LOG} echoed ${text} at ${at}`);
+    log.echoed(text, at);
   });
   useSignalREffect("/hubs/chat", "Left", (id) => {
-    console.log(`${LOG} left ${id}`);
+    log.left(id);
   });
   useOnReconnected("/hubs/chat", () => {
-    console.log(`${LOG} reconnected`);
+    log.reconnected();
   });
 
   useEffect(() => {
-    console.log(`${LOG} status /hubs/chat: ${chatStatus}`);
+    log.status("/hubs/chat", chatStatus);
   }, [chatStatus]);
 
   async function onFail() {
@@ -48,11 +48,9 @@ function Main() {
       await fail();
     } catch (err) {
       if (err instanceof InvokeError) {
-        console.log(
-          `${LOG} invoke failed: attempts=${err.attempts} retriable=${err.retriable}`,
-        );
+        log.invokeFailed(err);
       } else {
-        console.log(`${LOG} invoke failed: ${String(err)}`);
+        log.log(`invoke failed: ${String(err)}`);
       }
     }
   }
@@ -62,38 +60,26 @@ function Main() {
       <h1>use-signalr: react</h1>
       <p>Open the web console (F12) — that is where the magic happens.</p>
       <p>status /hubs/chat: {chatStatus}</p>
-      <button onClick={() => echo("hello").then((r) => console.log(`${LOG} echo -> ${r}`))}>
+      <button onClick={() => echo("hello").then((r) => log.result("echo", r))}>
         Echo
       </button>
-      <button onClick={() => add(2, 3).then((r) => console.log(`${LOG} add -> ${r}`))}>
+      <button onClick={() => add(2, 3).then((r) => log.result("add", r))}>
         Add(2,3)
       </button>
-      <button
-        onClick={() =>
-          slowEcho("slow", 2000).then((r) => console.log(`${LOG} slowEcho -> ${r}`))
-        }
-      >
+      <button onClick={() => slowEcho("slow", 2000).then((r) => log.result("slowEcho", r))}>
         SlowEcho(2s)
       </button>
       <button onClick={onFail}>Fail</button>
-      <button onClick={() => ping().then((ok) => console.log(`${LOG} ping sent: ${ok}`))}>
+      <button onClick={() => ping().then((ok) => log.sent("ping", ok))}>
         Ping
       </button>
-      <button onClick={() => leave().then((ok) => console.log(`${LOG} leave sent: ${ok}`))}>
+      <button onClick={() => leave().then((ok) => log.sent("leave", ok))}>
         Leave
       </button>
-      <button
-        onClick={() =>
-          killConnection().then((ok) => console.log(`${LOG} kill sent: ${ok}`))
-        }
-      >
+      <button onClick={() => killConnection().then((ok) => log.sent("kill", ok))}>
         Kill
       </button>
-      <button
-        onClick={() =>
-          connectionId().then((id) => console.log(`${LOG} connectionId -> ${id}`))
-        }
-      >
+      <button onClick={() => connectionId().then((id) => log.result("connectionId", id))}>
         ConnectionId
       </button>
       <button onClick={() => setShowCounter((v) => !v)}>Toggle counter</button>

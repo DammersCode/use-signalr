@@ -72,8 +72,12 @@ export function createSignalRHooks<T extends SignalRContract>(
   function useHubStatus<H extends Hub>(hub: H): HubConnectionStatus {
     const { statusStore } = useSignalR();
     useHubConsumer(hub);
+    const subscribe = useMemo(
+      () => (listener: () => void) => statusStore.subscribe(hub, listener),
+      [statusStore, hub],
+    );
     return useSyncExternalStore(
-      statusStore.subscribe,
+      subscribe,
       () => statusStore.get(hub),
       () => statusStore.get(hub),
     );

@@ -10,22 +10,25 @@ import type {
  * status changes.
  */
 export interface StatusStore<H extends string> extends StatusStoreBase<H> {
-  subscribe: (listener: () => void) => () => void;
+  subscribe: (hub: H, listener: () => void) => () => void;
 }
 
+/** Separate listener sets keep status updates granular per hub. */
 export function createStatusStore<H extends string>(): StatusStore<H> {
   const snapshot = new Map<H, HubConnectionStatus>();
-  const listeners = new Set<() => void>();
+  const listeners = new Map<H, Set<() => void>>();
   return {
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+    subscribe: (hub, listener) => {
+      let set = listeners.get(hub);
+      if (!set) listeners.set(hub, (set = new Set()));
+      set.add(listener);
+      return () => set!.delete(listener);
     },
     get: (hub) => snapshot.get(hub) ?? "disconnected",
     set: (hub, status) => {
       if (snapshot.get(hub) === status) return; // dedupe: skip a spurious notify
       snapshot.set(hub, status);
-      listeners.forEach((l) => l());
+      listeners.get(hub)?.forEach((l) => l());
     },
   };
 }

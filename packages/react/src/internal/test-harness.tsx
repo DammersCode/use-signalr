@@ -94,7 +94,7 @@ export function makeHarness(opts?: {
     isHubConnected: () => connected,
     getStatus: () => (connected ? "connected" : "connecting"),
     statusStore: {
-      subscribe: () => () => {},
+      subscribe: (_hub: Hub, _listener: () => void) => () => {},
       get: () => (connected ? "connected" : "connecting"),
       set: () => {},
     } as unknown as SignalRContextValue<Hubs>["statusStore"],

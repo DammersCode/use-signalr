@@ -26,6 +26,7 @@ packages/
   solid/    @dammers/use-signalr-solid    SolidJS provider + hooks
   svelte/   @dammers/use-signalr-svelte   Svelte provider + stores
   angular/  @dammers/use-signalr-angular  Angular provider + signals
+  vue/      @dammers/use-signalr-vue      Vue plugin + composables
 scripts/
   sync-versions.mjs   writes the root version into every package + adapter->core dep
   check-docs.mjs      docs-staleness guard (see "Ground rules")

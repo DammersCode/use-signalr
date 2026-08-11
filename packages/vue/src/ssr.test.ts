@@ -5,6 +5,8 @@ describe("SSR", () => {
   it("creates and installs a client without building a connection", async () => {
     expect(typeof globalThis.window).toBe("undefined");
     const build = vi.fn();
+    // Without a module reset, the cached real signalr makes this test vacuous.
+    vi.resetModules();
     vi.doMock("@microsoft/signalr", () => ({
       HubConnectionBuilder: class {
         build() {

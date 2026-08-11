@@ -6,6 +6,7 @@ import {
   createEnvironmentInjector,
   effect,
   runInInjectionContext,
+  signal,
 } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { resolveHubConfig } from "@dammers/use-signalr-core";
@@ -26,6 +27,7 @@ let onCloseHandler: ((err?: unknown) => void) | undefined;
 let onReconnectingHandler: (() => void) | undefined;
 let onReconnectedHandler: (() => void) | undefined;
 let fakeConnection: ReturnType<typeof makeFakeConnection>;
+let tokenFactories: Array<() => unknown> = [];
 
 function makeFakeConnection() {
   const conn = {
@@ -60,7 +62,8 @@ function makeFakeConnection() {
 
 vi.mock("@microsoft/signalr", () => {
   class HubConnectionBuilder {
-    withUrl() {
+    withUrl(_url: string, opts?: { accessTokenFactory?: () => unknown }) {
+      if (opts?.accessTokenFactory) tokenFactories.push(opts.accessTokenFactory);
       return this;
     }
     configureLogging() {
@@ -104,6 +107,7 @@ async function flush(appRef: ApplicationRef) {
 
 beforeEach(() => {
   onCalls = [];
+  tokenFactories = [];
   startResolvers = [];
   onCloseHandler = undefined;
   onReconnectingHandler = undefined;
@@ -222,6 +226,62 @@ describe("lazy hub (real provider, mocked signalr)", () => {
     await tick();
     await tick();
     expect(fakeConnection.stop).toHaveBeenCalled();
+  });
+});
+
+// 3b: accessTokenFactory is read per negotiation, never rebuilt on rotation.
+describe("accessTokenFactory", () => {
+  async function connect(accessTokenFactory: SignalROptions["accessTokenFactory"]) {
+    const contextToken = new InjectionToken<SignalRContextValue<any>>("use-signalr-token-test");
+    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } } as any, {} as any);
+    const provideSignalR = createSignalRProvider<any>(contextToken, [HUB], () => resolved);
+    const hooks = createSignalRHooks<any>(contextToken);
+
+    const parent = TestBed.inject(EnvironmentInjector);
+    const providerInjector = createEnvironmentInjector(
+      [provideSignalR({ baseUrl: "https://example.test", accessTokenFactory })],
+      parent,
+    );
+    runInInjectionContext(providerInjector, () => hooks.injectSignalR());
+
+    const appRef = TestBed.inject(ApplicationRef);
+    await flush(appRef);
+    return { appRef, providerInjector };
+  }
+
+  it("plain factory: negotiates with the current token, rotation does not rebuild", async () => {
+    let token = "t1";
+    const { appRef, providerInjector } = await connect(() => token);
+
+    expect(tokenFactories).toHaveLength(1);
+    await expect(tokenFactories[0]!()).resolves.toBe("t1");
+
+    token = "t2";
+    appRef.tick();
+    await tick();
+
+    expect(tokenFactories).toHaveLength(1); // same connection: no rebuild
+    await expect(tokenFactories[0]!()).resolves.toBe("t2");
+
+    providerInjector.destroy();
+  });
+
+  it("signal of factory: negotiates with the current token, rotation does not rebuild", async () => {
+    const token = signal("t1");
+    const factory = signal(() => token());
+    const { appRef, providerInjector } = await connect(factory);
+
+    expect(tokenFactories).toHaveLength(1);
+    await expect(tokenFactories[0]!()).resolves.toBe("t1");
+
+    token.set("t2");
+    appRef.tick();
+    await tick();
+
+    expect(tokenFactories).toHaveLength(1);
+    await expect(tokenFactories[0]!()).resolves.toBe("t2");
+
+    providerInjector.destroy();
   });
 });
 

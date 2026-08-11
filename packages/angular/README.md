@@ -102,7 +102,7 @@ import { AppComponent } from "./app/app.component";
 bootstrapApplication(AppComponent, appConfig);
 ```
 
-`baseUrl`, `accessTokenFactory`, `enabled`, and `connectionKey` each accept a plain value, a zero-arg getter, or a `Signal`. Passing a getter/`Signal` for `baseUrl`, `enabled`, or `connectionKey` makes the provider react to it — the connection rebuilds whenever the value changes. `accessTokenFactory` is read on every negotiate regardless, so **token rotation never rebuilds the connection**, whether it is a plain function or a `Signal`-backed one:
+`baseUrl`, `enabled`, and `connectionKey` each accept a plain value, a zero-arg getter, or a `Signal`; passing a getter/`Signal` makes the provider react to it — the connection rebuilds whenever the value changes. `accessTokenFactory` is the token factory itself, or a `Signal` holding one. It is called on every negotiate, so **token rotation never rebuilds the connection**:
 
 ```ts
 provideSignalR({

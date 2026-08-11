@@ -302,6 +302,37 @@ describe("createSignalRSession: waitForConnection", () => {
   });
 });
 
+describe("createSignalRSession: stale generation callbacks", () => {
+  it("a stale connection's onclose does not overwrite the live generation's status", async () => {
+    const statusStore = makeFakeStatusStore();
+    const onError = vi.fn();
+    const session = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore,
+      getAccessToken: () => "token",
+      onError,
+    });
+
+    session.start("https://example.test");
+    const staleConn = fakeConnections[0]!;
+    await Promise.resolve();
+
+    session.start("https://example.test/2"); // new generation replaces the old
+    await Promise.resolve();
+
+    expect(fakeConnections).toHaveLength(2);
+    expect(statusStore.get(HUB_A)).toBe("connected");
+
+    const staleOnClose = staleConn.onclose.mock.calls[0]![0] as (err?: unknown) => void;
+    staleOnClose(new Error("transport lost"));
+
+    expect(statusStore.get(HUB_A)).toBe("connected");
+    expect(onError).not.toHaveBeenCalled();
+    session.stop();
+  });
+});
+
 describe("createSignalRSession: status granularity", () => {
   it("a status change on hub A does not write to hub B's entry", () => {
     const statusStore = makeFakeStatusStore();

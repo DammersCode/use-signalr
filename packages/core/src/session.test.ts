@@ -134,10 +134,20 @@ describe("createSignalRSession: stop()", () => {
 
     session.start("https://example.test");
     const conn = fakeConnections[0]!;
+    let connectionWasAvailableDuringNotify = false;
+    const setStatus = statusStore.set;
+    statusStore.set = (hub, status) => {
+      if (hub === HUB_A && status === "disconnected") {
+        connectionWasAvailableDuringNotify =
+          session.context.getConnection(HUB_A) === conn;
+      }
+      setStatus(hub, status);
+    };
 
     session.stop();
 
     expect(conn.stop).toHaveBeenCalledTimes(1);
+    expect(connectionWasAvailableDuringNotify).toBe(true);
     expect(statusStore.get(HUB_A)).toBe("disconnected");
     expect(statusStore.get(HUB_B)).toBe("disconnected");
   });

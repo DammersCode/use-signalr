@@ -78,9 +78,11 @@ export function createSignalRSession<
   };
 
   const stop = () => {
+    // Notify synchronous adapter stores while the live connections are still
+    // available, so they can detach event handlers deterministically.
+    hubs.forEach((h) => statusStore.set(h, "disconnected"));
     current?.dispose();
     current = null;
-    hubs.forEach((h) => statusStore.set(h, "disconnected"));
   };
 
   const context: SignalRContextValueBase<T, TStore> = {

@@ -195,4 +195,23 @@ describe("Vue plugin lifecycle", () => {
     app.unmount();
     expect(connection.off).toHaveBeenCalledTimes(2);
   });
+
+  // Behavioral performance baseline: repeated mounts must not leak handlers.
+  it("balances handlers and connections across 50 mount cycles", async () => {
+    const CYCLES = 50;
+    for (let i = 0; i < CYCLES; i += 1) {
+      const { app } = mount((client) => {
+        client.useSignalREvent(HUB, "OnFoo", () => {});
+      });
+      await nextTick();
+      await connect();
+      app.unmount();
+      await nextTick();
+    }
+
+    expect(connection.on).toHaveBeenCalledTimes(CYCLES);
+    expect(connection.off).toHaveBeenCalledTimes(CYCLES);
+    // One lazy build per cycle: no churn from repeated mounting.
+    expect(buildCalls).toBe(CYCLES);
+  });
 });

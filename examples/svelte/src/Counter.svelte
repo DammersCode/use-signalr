@@ -1,20 +1,21 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
+  import { createLogger } from "@examples/contract";
   import { onHubEvent, hubTeardown, hubStatus } from "./client.js";
 
-  const LOG = "[use-signalr:svelte]";
+  const log = createLogger("svelte");
 
   const status = hubStatus("/hubs/counter");
   const leave = hubTeardown("/hubs/chat", "Leave");
   let count: number | null = $state(null);
 
   onHubEvent("/hubs/counter", "Count", (value) => {
-    console.log(`${LOG} count ${value}`);
+    log.count(value);
     count = value;
   });
 
   $effect(() => {
-    console.log(`${LOG} status /hubs/counter: ${$status}`);
+    log.status("/hubs/counter", $status);
   });
 
   onDestroy(() => {

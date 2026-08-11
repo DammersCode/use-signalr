@@ -48,8 +48,7 @@
   },
   "peerDependencies": {
     "@microsoft/signalr": ">=8",
-    "react": ">=19",
-    "react-dom": ">=19"
+    "react": ">=19"
   },
   "devDependencies": {
     "@microsoft/signalr": ">=8",

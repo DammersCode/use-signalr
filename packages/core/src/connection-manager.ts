@@ -70,6 +70,12 @@ export function createConnectionManager<Hub extends HubString>(
     onStatus(hub, status);
   };
 
+  // stop() stays fire-and-forget so the public API remains synchronous, but a
+  // rejection must surface instead of becoming an unhandled rejection.
+  const stopConnection = (hub: Hub, connection: HubConnection) => {
+    void connection.stop().catch((err: unknown) => onError(hub, err));
+  };
+
   const clearStopTimer = (hub: Hub) => {
     const id = stopTimers.get(hub);
     if (id !== undefined) {
@@ -184,7 +190,7 @@ export function createConnectionManager<Hub extends HubString>(
       e.stopping = true;
       built.delete(hub);
       setStatus(hub, "disconnected");
-      void e.connection.stop();
+      stopConnection(hub, e.connection);
     };
     if (graceMs <= 0) queueMicrotask(stopNow);
     else stopTimers.set(hub, setTimeout(stopNow, graceMs));
@@ -241,7 +247,7 @@ export function createConnectionManager<Hub extends HubString>(
     stopTimers.clear();
     retryTimers.forEach((id) => clearTimeout(id));
     retryTimers.clear();
-    built.forEach((e) => void e.connection.stop());
+    built.forEach((e, hub) => stopConnection(hub, e.connection));
     // refCounts are kept across rebuilds on purpose.
   };
 

@@ -1,6 +1,6 @@
 # Architecture
 
-How responsibility splits between `packages/core` and the framework adapters (`packages/react`, `packages/solid`, `packages/svelte`, `packages/angular`, `packages/vue`, `packages/preact`), and what a new adapter needs to implement.
+How responsibility splits between `packages/core` and the framework adapters (`packages/react`, `packages/solid`, `packages/svelte`, `packages/angular`, `packages/vue`, `packages/preact`, `packages/lit`), and what a new adapter needs to implement.
 
 ## Core responsibilities vs adapter responsibilities
 
@@ -60,6 +60,7 @@ No connection work happens at module scope or during a synchronous render/setup 
 - Svelte: inside `onMount`.
 - Angular: inside `afterNextRender`, which never runs on the server.
 - Preact: inside `useEffect`, which does not run during server rendering.
+- Lit: inside `ReactiveController.hostConnected()`.
 
 A server render therefore never opens a socket. Every hub reports `"disconnected"` until a client-side lifecycle hook calls `session.start()`.
 
@@ -93,18 +94,18 @@ Building a new adapter:
 
 The core's concepts are fixed: provide/context, raw context access, hub status, server events, invoke, send, teardown, reconnect, keep-alive. Each adapter names its public surface using its own framework's vocabulary. An API that reads foreign is a tax on every consumer — a Svelte developer expects stores, not `useX`; a React developer expects hooks; an Angular developer expects services and Observables. The rename is free before an adapter ships, and it is what "framework-idiomatic" means in practice.
 
-| Concept | React / Solid / Preact | Svelte | Angular | Vue | Lit (planned) |
+| Concept | React / Solid / Preact | Svelte | Angular | Vue | Lit |
 | --- | --- | --- | --- | --- | --- |
-| provide/context | `SignalRProvider` | `provideSignalR` | `provideSignalR` | configured client plugin (`install`) | host wiring |
-| raw context access | `useSignalR` | `getSignalR` | `injectSignalR` | `useSignalR` | controller field |
-| hub status | `useHubStatus` | `hubStatus` | `injectHubStatus` (`Signal<HubConnectionStatus>`) | `useHubStatus` (ref) | `SignalRStatusController` |
-| server event | `useSignalREffect` | `onHubEvent` | `injectHubEvent` | `useSignalREvent` | controller subscribe |
-| invoke | `useSignalRInvoke` | `hubInvoke` | `injectHubInvoke` | `useSignalRInvoke` | controller method |
-| send | `useSignalRSend` | `hubSend` | `injectHubSend` | `useSignalRSend` | controller method |
-| teardown | `useSignalRTeardown` | `hubTeardown` | `injectHubTeardown` | `useSignalRTeardown` | controller method |
-| reconnect hook | `useOnReconnected` | `onReconnected` | `injectOnReconnected` | `useOnReconnected` | controller callback |
-| keep lazy hub alive | `useHubConsumer` | `keepHubAlive` | `injectKeepHubAlive` | `useHubConsumer` | controller lifecycle |
+| provide/context | `SignalRProvider` | `provideSignalR` | `provideSignalR` | configured client plugin (`install`) | explicit shared `createSession` |
+| raw context access | `useSignalR` | `getSignalR` | `injectSignalR` | `useSignalR` | `session.context` |
+| hub status | `useHubStatus` | `hubStatus` | `injectHubStatus` (`Signal<HubConnectionStatus>`) | `useHubStatus` (ref) | `controller.status` |
+| server event | `useSignalREffect` | `onHubEvent` | `injectHubEvent` | `useSignalREvent` | `controller.on` |
+| invoke | `useSignalRInvoke` | `hubInvoke` | `injectHubInvoke` | `useSignalRInvoke` | `controller.invoke` |
+| send | `useSignalRSend` | `hubSend` | `injectHubSend` | `useSignalRSend` | `controller.send` |
+| teardown | `useSignalRTeardown` | `hubTeardown` | `injectHubTeardown` | `useSignalRTeardown` | `controller.teardown` |
+| reconnect hook | `useOnReconnected` | `onReconnected` | `injectOnReconnected` | `useOnReconnected` | `controller.onReconnected` |
+| keep lazy hub alive | `useHubConsumer` | `keepHubAlive` | `injectKeepHubAlive` | `useHubConsumer` | controller host lifecycle |
 
-React, Solid, and Preact keep `use*` because that vocabulary is native to them. The Preact adapter uses `preact` and `preact/hooks` only. Svelte stores are nouns, and context access follows `getContext`. Angular uses `inject*` and `provideSignalR`. Vue installs the configured client through `app.use` and exposes `use*` composables. Lit remains planned and its names are not binding.
+React, Solid, and Preact keep `use*` because that vocabulary is native to them. The Preact adapter uses `preact` and `preact/hooks` only. Svelte stores are nouns, and context access follows `getContext`. Angular uses `inject*` and `provideSignalR`. Vue installs the configured client through `app.use` and exposes `use*` composables. Lit uses Reactive Controllers and an explicit shared session, without a global provider element.
 
 The exported *type* names and `createSignalRClient`, `event`, `method` stay identical across all adapters — they are core concepts, not framework surface.

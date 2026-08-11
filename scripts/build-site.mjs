@@ -7,7 +7,7 @@ const src = join(root, "site");
 const out = join(root, "dist-site");
 const repo = "https://github.com/DammersCode/use-signalr";
 
-const order = ["react", "vue", "svelte", "angular", "solid", "preact", "core"];
+const order = ["react", "vue", "svelte", "angular", "solid", "preact", "lit", "core"];
 const accents = {
   react: "#61dafb",
   vue: "#42d392",
@@ -15,6 +15,7 @@ const accents = {
   angular: "#f0326e",
   solid: "#5aa7f0",
   preact: "#a78bfa",
+  lit: "#2d75ff",
   core: "#94a3b8",
 };
 const labels = {
@@ -24,6 +25,7 @@ const labels = {
   angular: "Angular",
   solid: "SolidJS",
   preact: "Preact",
+  lit: "Lit",
   core: "Core",
 };
 

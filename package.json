@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/solid --if-present && npm run build -w packages/svelte --if-present && npm run build -w packages/angular --if-present",
+    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/solid --if-present && npm run build -w packages/svelte --if-present && npm run build -w packages/angular --if-present && npm run build -w packages/vue --if-present",
     "typecheck": "npm run build -w packages/core && npm run typecheck --workspaces --if-present",
     "test": "npm run build -w packages/core && npm run test --workspaces --if-present",
     "check": "node scripts/check-docs.mjs",

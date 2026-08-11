@@ -52,6 +52,7 @@ const requiredReadmes = [
   "packages/svelte/README.md",
   "packages/angular/README.md",
   "packages/vue/README.md",
+  "packages/preact/README.md",
   "README.md",
   "CONTRIBUTING.md",
   "ARCHITECTURE.md",
@@ -82,6 +83,7 @@ const nameCheckedFiles = [
   "packages/svelte/README.md",
   "packages/angular/README.md",
   "packages/vue/README.md",
+  "packages/preact/README.md",
 ];
 for (const rel of nameCheckedFiles) {
   const p = path.join(rootDir, rel);
@@ -114,6 +116,7 @@ const sanityChecks = [
   ["packages/svelte/README.md", "@dammers/use-signalr-svelte"],
   ["packages/angular/README.md", "@dammers/use-signalr-angular"],
   ["packages/vue/README.md", "@dammers/use-signalr-vue"],
+  ["packages/preact/README.md", "@dammers/use-signalr-preact"],
   ["packages/core/README.md", "@dammers/use-signalr-core"],
 ];
 for (const [rel, mustMention] of sanityChecks) {

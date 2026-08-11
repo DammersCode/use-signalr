@@ -86,7 +86,7 @@ export type MethodArgs<
   T,
   H extends keyof T,
   M extends MethodName<T, H>,
-> = Methods<T, H>[M] extends (...args: infer A) => any ? A : any[];
+> = Methods<T, H>[M] extends (...args: infer A) => any ? A : never;
 
 export type MethodReturn<
   T,

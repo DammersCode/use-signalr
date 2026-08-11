@@ -1,7 +1,8 @@
 import { createSignal, onCleanup, createEffect } from "solid-js";
+import { createLogger } from "@examples/contract";
 import { useSignalREffect, useSignalRTeardown, useHubStatus } from "./client.js";
 
-const LOG = "[use-signalr:solid]";
+const log = createLogger("solid");
 
 /** Mounted/unmounted via "Toggle counter" to exercise lazy connect + grace-period disconnect. */
 export function Counter() {
@@ -10,12 +11,12 @@ export function Counter() {
   const leave = useSignalRTeardown("/hubs/chat", "Leave");
 
   useSignalREffect("/hubs/counter", "Count", (value) => {
-    console.log(`${LOG} count ${value}`);
+    log.count(value);
     setCount(value);
   });
 
   createEffect(() => {
-    console.log(`${LOG} status /hubs/counter: ${status()}`);
+    log.status("/hubs/counter", status());
   });
 
   onCleanup(() => {

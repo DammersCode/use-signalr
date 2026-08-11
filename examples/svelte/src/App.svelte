@@ -1,6 +1,6 @@
 <script lang="ts">
   import { InvokeError } from "@dammers/use-signalr-svelte";
-  import { BASE_URL, makeToken } from "@examples/contract";
+  import { BASE_URL, makeToken, createLogger } from "@examples/contract";
   import {
     provideSignalR,
     onHubEvent,
@@ -11,7 +11,7 @@
   } from "./client.js";
   import Counter from "./Counter.svelte";
 
-  const LOG = "[use-signalr:svelte]";
+  const log = createLogger("svelte");
 
   provideSignalR({ baseUrl: BASE_URL, accessTokenFactory: makeToken("svelte") });
 
@@ -28,20 +28,20 @@
   const killConnection = hubSend("/hubs/chat", "KillConnection");
 
   onHubEvent("/hubs/chat", "Tick", (count) => {
-    console.log(`${LOG} tick ${count}`);
+    log.tick(count);
   });
   onHubEvent("/hubs/chat", "Echoed", (text, at) => {
-    console.log(`${LOG} echoed ${text} at ${at}`);
+    log.echoed(text, at);
   });
   onHubEvent("/hubs/chat", "Left", (id) => {
-    console.log(`${LOG} left ${id}`);
+    log.left(id);
   });
   onReconnected("/hubs/chat", () => {
-    console.log(`${LOG} reconnected`);
+    log.reconnected();
   });
 
   $effect(() => {
-    console.log(`${LOG} status /hubs/chat: ${$chatStatus}`);
+    log.status("/hubs/chat", $chatStatus);
   });
 
   async function onFail() {
@@ -49,9 +49,9 @@
       await fail();
     } catch (err) {
       if (err instanceof InvokeError) {
-        console.log(`${LOG} invoke failed: attempts=${err.attempts} retriable=${err.retriable}`);
+        log.invokeFailed(err);
       } else {
-        console.log(`${LOG} invoke failed: ${String(err)}`);
+        log.log(`invoke failed: ${String(err)}`);
       }
     }
   }
@@ -61,28 +61,26 @@
   <h1>use-signalr: svelte</h1>
   <p>Open the web console (F12) — that is where the magic happens.</p>
   <p>status /hubs/chat: {$chatStatus}</p>
-  <button onclick={() => echo("hello").then((r) => console.log(`${LOG} echo -> ${r}`))}>
+  <button onclick={() => echo("hello").then((r) => log.result("echo", r))}>
     Echo
   </button>
-  <button onclick={() => add(2, 3).then((r) => console.log(`${LOG} add -> ${r}`))}>
+  <button onclick={() => add(2, 3).then((r) => log.result("add", r))}>
     Add(2,3)
   </button>
-  <button
-    onclick={() => slowEcho("slow", 2000).then((r) => console.log(`${LOG} slowEcho -> ${r}`))}
-  >
+  <button onclick={() => slowEcho("slow", 2000).then((r) => log.result("slowEcho", r))}>
     SlowEcho(2s)
   </button>
   <button onclick={onFail}>Fail</button>
-  <button onclick={() => ping().then((ok) => console.log(`${LOG} ping sent: ${ok}`))}>
+  <button onclick={() => ping().then((ok) => log.sent("ping", ok))}>
     Ping
   </button>
-  <button onclick={() => leave().then((ok) => console.log(`${LOG} leave sent: ${ok}`))}>
+  <button onclick={() => leave().then((ok) => log.sent("leave", ok))}>
     Leave
   </button>
-  <button onclick={() => killConnection().then((ok) => console.log(`${LOG} kill sent: ${ok}`))}>
+  <button onclick={() => killConnection().then((ok) => log.sent("kill", ok))}>
     Kill
   </button>
-  <button onclick={() => connectionId().then((id) => console.log(`${LOG} connectionId -> ${id}`))}>
+  <button onclick={() => connectionId().then((id) => log.result("connectionId", id))}>
     ConnectionId
   </button>
   <button onclick={() => (showCounter = !showCounter)}>Toggle counter</button>

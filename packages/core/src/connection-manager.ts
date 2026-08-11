@@ -119,6 +119,8 @@ export function createConnectionManager<Hub extends HubString>(
 
     // Attach lifecycle handlers ONCE — SignalR has no removal API.
     conn.onclose((err) => {
+      // A stale generation's late callback must never overwrite the live one's status.
+      if (!isCurrent()) return;
       // A deliberate stop() (logout, rebuild, lazy stop) leaves err undefined: stay silent.
       if (disposing || err === undefined) {
         setStatus(hub, "disconnected");
@@ -127,10 +129,13 @@ export function createConnectionManager<Hub extends HubString>(
       setStatus(hub, "disconnected");
       onError(hub, err);
     });
-    conn.onreconnecting(() => setStatus(hub, "reconnecting"));
+    conn.onreconnecting(() => {
+      if (isCurrent()) setStatus(hub, "reconnecting");
+    });
     conn.onreconnected(() => {
       entry.resolveReady();
-      if (!disposing && isCurrent()) {
+      if (!isCurrent()) return;
+      if (!disposing) {
         onStatus(hub, "reconnected");
         reconnectListeners.get(hub)?.forEach((cb) => cb());
       }

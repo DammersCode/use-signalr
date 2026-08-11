@@ -188,6 +188,28 @@ It is best-effort and fire-and-forget: it resolves `true` once dispatched, `fals
 
 > If your leave already uses `hubInvoke` and only needs to avoid the abort on destroy, pass `{ keepAliveOnUnmount: true }`. This covers the abort case but **not** the still-connecting race. For that race, use `hubTeardown`.
 
+## Lazy hubs and `graceMs`
+
+Set `lazy: true` on a hub to connect it only when the first store or function for that hub is set up. Consumers are ref-counted.
+
+After the last consumer is destroyed, the connection stays open for `graceMs` milliseconds. If a new consumer appears inside that window, the connection stays. The default is `0`.
+
+```ts
+createSignalRClient({
+  hubs: {
+    "/hubs/presence": { lazy: true, graceMs: 5000 },
+  },
+});
+```
+
+## `InvokeError`
+
+`hubInvoke` throws `InvokeError` when its retry budget is exhausted. The error carries `cause` (the last underlying error), `attempts` (the total number of attempts), and `retriable` (whether the final failure was classed as retriable).
+
+`InvokeError` is thrown only when you set `retries` above `0`. With the default `retries: 0`, the raw server error propagates unchanged.
+
+The `timeout` option bounds only the wait for a connected hub before dispatch. SignalR cannot cancel an invocation after dispatch.
+
 ## Svelte-specific behavior
 
 - **`provideSignalR` is a function, not a component.** Call it directly in a `<script>` block during component initialization — most commonly your root layout — instead of wrapping markup in a provider component.

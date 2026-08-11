@@ -59,6 +59,7 @@ No connection work happens at module scope or during a synchronous render/setup 
 - Solid: inside `createEffect` (which does not run during SSR render).
 - Svelte: inside `onMount`.
 - Angular: inside `afterNextRender`, which never runs on the server.
+- Vue: the plugin skips its `effectScope` when `typeof window === "undefined"`.
 - Preact: inside `useEffect`, which does not run during server rendering.
 - Lit: inside `ReactiveController.hostConnected()`.
 

@@ -1,6 +1,6 @@
 # use-signalr
 
-Typed multi-hub [SignalR](https://learn.microsoft.com/aspnet/core/signalr) client libraries for React, SolidJS, Svelte, Angular, Vue, and Preact, sharing one framework-free core.
+Typed multi-hub [SignalR](https://learn.microsoft.com/aspnet/core/signalr) client libraries for React, SolidJS, Svelte, Angular, Vue, Preact, and Lit, sharing one framework-free core.
 
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
@@ -28,6 +28,7 @@ One factory call returns a framework integration with typed reactive helpers. Ev
 | [`@dammers/use-signalr-angular`](./packages/angular/README.md) | Provider + signals for Angular. |
 | [`@dammers/use-signalr-vue`](./packages/vue/README.md) | Plugin + composables for Vue 3. |
 | [`@dammers/use-signalr-preact`](./packages/preact/README.md) | Provider + hooks for native Preact. |
+| [`@dammers/use-signalr-lit`](./packages/lit/README.md) | Reactive Controllers for Lit. |
 | [`@dammers/use-signalr-core`](./packages/core/README.md) | Framework-free connection lifecycle, contracts, and retry logic. Only needed if you are writing an adapter. |
 
 Each package README covers install and usage for that framework. This document covers the concepts shared by all of them.

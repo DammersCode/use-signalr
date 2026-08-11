@@ -1,6 +1,6 @@
 # use-signalr
 
-Typed multi-hub [SignalR](https://learn.microsoft.com/aspnet/core/signalr) client libraries for React and SolidJS, sharing one framework-free core.
+Typed multi-hub [SignalR](https://learn.microsoft.com/aspnet/core/signalr) client libraries for React, SolidJS, and Svelte, sharing one framework-free core.
 
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
@@ -20,11 +20,12 @@ One factory call returns a provider and a set of hooks, each typed against your 
 
 ## Packages
 
-| Package                                                    | Description                                                                                                          |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [`@dammers/use-signalr-react`](./packages/react/README.md) | Provider + hooks for React. Install this in a React app.                                                             |
-| [`@dammers/use-signalr-solid`](./packages/solid/README.md) | Provider + hooks for SolidJS. Install this in a Solid app.                                                           |
-| [`@dammers/use-signalr-core`](./packages/core/README.md)   | Framework-free connection lifecycle, contracts, and retry logic. Install this only if you are writing a new adapter. |
+| Package | Description |
+| --- | --- |
+| [`@dammers/use-signalr-react`](./packages/react/README.md) | Provider + hooks for React. Install this in a React app. |
+| [`@dammers/use-signalr-solid`](./packages/solid/README.md) | Provider + hooks for SolidJS. Install this in a Solid app. |
+| [`@dammers/use-signalr-svelte`](./packages/svelte/README.md) | Provider + stores for Svelte. Install this in a Svelte app. |
+| [`@dammers/use-signalr-core`](./packages/core/README.md) | Framework-free connection lifecycle, contracts, and retry logic. Install this only if you are writing a new adapter. |
 
 Each package README covers install and usage for that framework. This document covers the concepts shared by all of them.
 
@@ -155,7 +156,7 @@ See your framework's README for the exact join/leave code (React's `useEffect` c
 
 ## Which package do I need?
 
-Building an app? Install `@dammers/use-signalr-react` or `@dammers/use-signalr-solid`, whichever matches your framework. Building a new framework adapter? Depend on `@dammers/use-signalr-core` and see its README for the pieces it exposes.
+Building an app? Install `@dammers/use-signalr-react`, `@dammers/use-signalr-solid`, or `@dammers/use-signalr-svelte`, whichever matches your framework. Building a new framework adapter? Depend on `@dammers/use-signalr-core` and see its README for the pieces it exposes.
 
 ## Migrating from `@dammers/use-signalr`
 

@@ -33,6 +33,37 @@ One factory call returns a framework integration with typed reactive helpers. Ev
 
 Each package README covers install and usage for that framework. This document covers the concepts shared by all of them.
 
+## Capability matrix
+
+All seven adapters implement the same capabilities. Tests cover every cell.
+
+| Capability | react | solid | svelte | angular | vue | preact | lit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Typed events | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Typed invoke / send / teardown | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Per-hub connection status | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Lazy hubs + grace period | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Reconnect hook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SSR-safe import | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Granular per-hub subscriptions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Rebuild on option change | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | manual |
+
+Lit reads `baseUrl` and `enabled` once, when the first host connects. To change them, call `session.stop()` and create a new session.
+
+### Minimum versions
+
+| Package | Framework | SignalR client |
+| --- | --- | --- |
+| `@dammers/use-signalr-react` | react ≥ 19 | `@microsoft/signalr` ≥ 8 |
+| `@dammers/use-signalr-solid` | solid-js ≥ 1.7 | `@microsoft/signalr` ≥ 8 |
+| `@dammers/use-signalr-svelte` | svelte ≥ 4 | `@microsoft/signalr` ≥ 8 |
+| `@dammers/use-signalr-angular` | @angular/core ≥ 20 | `@microsoft/signalr` ≥ 8 |
+| `@dammers/use-signalr-vue` | vue ≥ 3.3 | `@microsoft/signalr` ≥ 8 |
+| `@dammers/use-signalr-preact` | preact ≥ 10 | `@microsoft/signalr` ≥ 8 |
+| `@dammers/use-signalr-lit` | lit ≥ 3 | `@microsoft/signalr` ≥ 8 |
+
+The Angular `rxjs-interop` entry point needs `rxjs` ≥ 7. This peer dependency is optional.
+
 ## The contract
 
 The **keys of `config.hubs` declare the hubs**. Each hub's `events` (what the server pushes to you) and `methods` (what you invoke) are declared inline with the `event()` and `method()` markers.

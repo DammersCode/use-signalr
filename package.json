@@ -7,7 +7,8 @@
   "author": "Dammers",
   "repository": "github:DammersCode/use-signalr",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/solid --if-present && npm run build -w packages/svelte --if-present && npm run build -w packages/angular --if-present && npm run build -w packages/vue --if-present && npm run build -w packages/preact --if-present && npm run build -w packages/lit --if-present",
@@ -15,6 +16,7 @@
     "test": "npm run build -w packages/core && npm run test --workspaces --if-present",
     "check": "node scripts/check-docs.mjs",
     "check:dist": "node scripts/check-dist.mjs",
+    "dev": "node scripts/dev.mjs",
     "preversion": "npm run check && npm run typecheck && npm test",
     "version": "node scripts/sync-versions.mjs && git add packages/*/package.json package-lock.json",
     "postversion": "git push && git push --tags"

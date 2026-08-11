@@ -1,41 +1,105 @@
-import { event, method } from "@dammers/use-signalr-core";
 import { createSignalRClient } from "./create-signalr-client.js";
+import { event, method } from "@dammers/use-signalr-core";
 
-const client = createSignalRClient({
+// Compile-time-only checks that the app contract is correctly INFERRED from
+// `event()`/`method()` declarations in the config, end to end through
+// `createSignalRClient`. Included by tsconfig.json, unlike *.test.ts, so
+// `npm run typecheck` enforces the negative assertions below.
+
+const {
+  useSignalREffect,
+  useSignalRInvoke,
+  useSignalRSend,
+  useSignalRTeardown,
+  useHubStatus,
+} = createSignalRClient({
   hubs: {
     "/hubs/chat": {
-      events: { Receive: event<[message: string]>() },
-      methods: { Count: method<[room: string], number>() },
+      events: {
+        OnFoo: event<[x: number]>(),
+        OnUser: event<[user: { id: string }]>(),
+      },
+      methods: {
+        GetCount: method<[filter: string], number>(),
+        Join: method<[room: string, silent: boolean]>(),
+      },
     },
   },
 });
 
-client.useSignalREffect("/hubs/chat", "Receive", (message) => {
-  const value: string = message;
-  void value;
-});
-// @ts-expect-error event is not declared
-client.useSignalREffect("/hubs/chat", "Missing", () => {});
-// @ts-expect-error hub is not declared
-client.useHubStatus("/hubs/missing");
+// --- Hub names ---
+useHubStatus("/hubs/chat");
+// @ts-expect-error - /hubs/missing was never declared in the config
+useHubStatus("/hubs/missing");
 
+// --- Event names and args ---
+useSignalREffect("/hubs/chat", "OnFoo", (x) => {
+  const n: number = x;
+  void n;
+});
+
+useSignalREffect(
+  "/hubs/chat",
+  // @ts-expect-error - OnBaz was never declared via event() on this hub
+  "OnBaz",
+  () => {},
+);
+
+// EventArgs inference: event<[user: { id: string }]>() yields a handler arg
+// typed { id: string }, not { id: number } or another shape.
+useSignalREffect("/hubs/chat", "OnUser", (user) => {
+  const id: string = user.id;
+  void id;
+  // @ts-expect-error - user.id is a string, not a number
+  const bad: number = user.id;
+  void bad;
+});
+
+// @ts-expect-error - OnFoo pushes a number, so the handler cannot take a string
+useSignalREffect("/hubs/chat", "OnFoo", (x: string) => void x);
+
+// @ts-expect-error - OnFoo pushes exactly one argument
+useSignalREffect("/hubs/chat", "OnFoo", (x: number, extra: number) => void [x, extra]);
+
+// --- Method names, args, and returns ---
 async function checkInvoke() {
-  const invoke = client.useSignalRInvoke("/hubs/chat", "Count");
-  const value: number = await invoke("main");
-  void value;
-  // @ts-expect-error argument must be a string
-  await invoke(1);
-  // @ts-expect-error method is not declared
-  client.useSignalRInvoke("/hubs/chat", "Missing");
-  const send = client.useSignalRSend("/hubs/chat", "Count");
-  const sent: boolean = await send("main");
-  void sent;
-  // @ts-expect-error send argument must be a string
-  await send(1);
-  const teardown = client.useSignalRTeardown("/hubs/chat", "Count");
-  const tornDown: boolean = await teardown("main");
-  void tornDown;
-  // @ts-expect-error teardown argument must be a string
-  await teardown(1);
+  const getCount = useSignalRInvoke("/hubs/chat", "GetCount");
+  const count: number = await getCount("active");
+  void count;
+  // @ts-expect-error - GetCount returns number, not string
+  const bad: string = await getCount("active");
+  void bad;
+  // @ts-expect-error - GetCount takes a string filter, not a number
+  await getCount(1);
+  // @ts-expect-error - GetCount takes exactly one argument
+  await getCount("active", "extra");
+
+  const join = useSignalRInvoke("/hubs/chat", "Join");
+  await join("room-1", true);
+  // @ts-expect-error - Join takes (string, boolean), not (string, string)
+  await join("room-1", "yes");
 }
 void checkInvoke;
+
+// @ts-expect-error - GetBaz was never declared with method() on this hub
+useSignalRInvoke("/hubs/chat", "GetBaz");
+
+// --- send typing ---
+async function checkSend() {
+  const send = useSignalRSend("/hubs/chat", "GetCount");
+  const sent: boolean = await send("active");
+  void sent;
+  // @ts-expect-error - GetCount takes a string filter, not a number
+  await send(1);
+}
+void checkSend;
+
+// --- teardown typing ---
+async function checkTeardown() {
+  const teardown = useSignalRTeardown("/hubs/chat", "Join");
+  const done: boolean = await teardown("room-1", true);
+  void done;
+  // @ts-expect-error - Join takes (string, boolean), not (string, string)
+  await teardown("room-1", "yes");
+}
+void checkTeardown;

@@ -1,0 +1,60 @@
+{
+  "name": "@dammers/use-signalr-preact",
+  "version": "0.4.0",
+  "description": "Fully-typed multi-hub SignalR provider + hooks for Preact.",
+  "author": "Dammers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DammersCode/use-signalr.git",
+    "directory": "packages/preact"
+  },
+  "homepage": "https://github.com/DammersCode/use-signalr/tree/main/packages/preact#readme",
+  "bugs": {
+    "url": "https://github.com/DammersCode/use-signalr/issues"
+  },
+  "keywords": [
+    "signalr",
+    "typescript",
+    "realtime",
+    "websocket",
+    "preact",
+    "hooks"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dammers/use-signalr-core": "0.4.0"
+  },
+  "peerDependencies": {
+    "@microsoft/signalr": ">=8",
+    "preact": ">=10"
+  },
+  "devDependencies": {
+    "@microsoft/signalr": ">=8",
+    "preact": "^10.27.2",
+    "preact-render-to-string": "^6.7.0"
+  }
+}

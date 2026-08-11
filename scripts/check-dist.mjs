@@ -33,6 +33,17 @@ function collectEntries(exportsField) {
   return entries.filter((e) => !e.file.endsWith(".d.ts"));
 }
 
+function listFiles(dir, base = dir, out = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, e.name);
+    if (e.isDirectory()) listFiles(abs, base, out);
+    else out.push(path.relative(base, abs).split(path.sep).join("/"));
+  }
+  return out;
+}
+
+const TEST_ARTIFACT = /(^|\/)(test-setup|test-harness)[.-]|\.(test|type-test)\./;
+
 const packageDirs = readdirSync(packagesDir, { withFileTypes: true })
   .filter((e) => e.isDirectory())
   .map((e) => e.name);
@@ -41,6 +52,15 @@ for (const name of packageDirs) {
   const pkgPath = path.join(packagesDir, name, "package.json");
   if (!existsSync(pkgPath)) continue;
   const pkg = readJson(pkgPath);
+
+  const distDir = path.join(packagesDir, name, "dist");
+  if (existsSync(distDir)) {
+    for (const rel of listFiles(distDir)) {
+      if (TEST_ARTIFACT.test(rel)) {
+        violations.push(`packages/${name}/dist ships test-only file: ${rel}`);
+      }
+    }
+  }
 
   if (!pkg.exports) {
     violations.push(`packages/${name}/package.json has no "exports" map`);

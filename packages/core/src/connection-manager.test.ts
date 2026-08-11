@@ -4,9 +4,9 @@ import type { ConnectionManagerDeps } from "./connection-manager.js";
 import type { HubString, ResolvedHubConfig } from "./types.js";
 
 // --- Fake @microsoft/signalr ---
-// connection-manager.ts uses only HubConnectionBuilder (runtime) and
-// HubConnectionState (a runtime enum) from the package. Everything else it
-// imports is type-only, so nothing further needs a mock here.
+// connection-manager.ts uses HubConnectionBuilder (runtime) and
+// HubConnectionState (a runtime enum) directly; its retry classifier in
+// config.ts also needs HttpError. Everything else it imports is type-only.
 const onCalls: Array<{ name: string; fn: unknown }> = [];
 let startResolves: (() => void) | null = null;
 let startRejects: ((err: unknown) => void) | null = null;
@@ -56,7 +56,15 @@ vi.mock("@microsoft/signalr", () => {
     Disconnecting: "Disconnecting",
     Reconnecting: "Reconnecting",
   };
-  return { HubConnectionBuilder, HubConnectionState };
+  class HttpError extends Error {
+    constructor(
+      message: string,
+      readonly statusCode: number,
+    ) {
+      super(message);
+    }
+  }
+  return { HubConnectionBuilder, HubConnectionState, HttpError };
 });
 
 const HUB = "/hubs/chat" as HubString;
@@ -129,6 +137,53 @@ describe("createConnectionManager: pre-bound events", () => {
     startResolves!();
     await Promise.resolve();
     manager.dispose();
+  });
+});
+
+describe("createConnectionManager: timer cleanup", () => {
+  it("waitForConnection clears its timeout timer once readiness wins", async () => {
+    vi.useFakeTimers();
+    try {
+      const manager = createConnectionManager(makeDeps(() => baseResolved()));
+      manager.reconcile();
+
+      const waiting = manager.waitForConnection(HUB, 30_000);
+      await Promise.resolve(); // let waitForConnection register its timeout
+
+      const withTimeoutPending = vi.getTimerCount();
+      expect(withTimeoutPending).toBeGreaterThan(0);
+
+      fakeConnection.state = "Connected";
+      startResolves!();
+      await expect(waiting).resolves.toBe(fakeConnection);
+
+      expect(vi.getTimerCount()).toBeLessThan(withTimeoutPending);
+      expect(vi.getTimerCount()).toBe(0);
+
+      manager.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("dispose() clears a pending connect-retry timer", async () => {
+    vi.useFakeTimers();
+    try {
+      const manager = createConnectionManager(makeDeps(() => baseResolved()));
+      manager.reconcile();
+
+      startRejects!(new Error("transport unavailable"));
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(vi.getTimerCount()).toBe(1); // the scheduled retry
+
+      manager.dispose();
+
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

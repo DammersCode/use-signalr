@@ -61,6 +61,7 @@ export function createConnectionManager<Hub extends HubString>(
   } = deps;
 
   const built = new Map<Hub, HubEntry>();
+  const retryTimers = new Set<ReturnType<typeof setTimeout>>();
   let disposing = false;
 
   const setStatus = (hub: Hub, status: HubConnectionStatus) => {
@@ -160,7 +161,11 @@ export function createConnectionManager<Hub extends HubString>(
         }
         retries += 1;
         setStatus(hub, "disconnected");
-        setTimeout(start, CONNECT_RETRY_BASE_MS * retries);
+        const id = setTimeout(() => {
+          retryTimers.delete(id);
+          void start();
+        }, CONNECT_RETRY_BASE_MS * retries);
+        retryTimers.add(id);
       }
     };
     void start();
@@ -215,13 +220,14 @@ export function createConnectionManager<Hub extends HubString>(
       if (entry?.connection.state === HubConnectionState.Connected) {
         return entry.connection;
       }
-      const timeout = new Promise<"timeout">((res) =>
-        setTimeout(() => res("timeout"), deadline - Date.now()),
-      );
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeout = new Promise<"timeout">((res) => {
+        timeoutId = setTimeout(() => res("timeout"), deadline - Date.now());
+      });
       const result = await Promise.race([
         entry?.ready.then(() => "ready" as const) ?? timeout,
         timeout,
-      ]);
+      ]).finally(() => clearTimeout(timeoutId));
       if (result === "timeout") break;
     }
     throw new Error(
@@ -233,6 +239,8 @@ export function createConnectionManager<Hub extends HubString>(
     disposing = true;
     stopTimers.forEach((id) => clearTimeout(id));
     stopTimers.clear();
+    retryTimers.forEach((id) => clearTimeout(id));
+    retryTimers.clear();
     built.forEach((e) => void e.connection.stop());
     // refCounts are kept across rebuilds on purpose.
   };

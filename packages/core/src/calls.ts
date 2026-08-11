@@ -82,8 +82,8 @@ export function createInvoker<
 
 /**
  * Builds the stable fire-and-forget sender for `useSignalRSend`. Reads the
- * connection at call time and never depends on render/tracked state, so it
- * is safe to capture in an unmount/cleanup handler.
+ * connection at call time and never depends on the adapter's tracked state,
+ * so it is safe to capture in a teardown handler.
  */
 export function createSender<
   T extends SignalRContract,
@@ -107,8 +107,8 @@ export function createSender<
 /**
  * Builds the stable RELIABLE teardown sender for `useSignalRTeardown`. Runs
  * detached from the caller's lifecycle: it acquires the hub itself, waits
- * for a connection, sends, then releases — independent of the component
- * that created it having already unmounted.
+ * for a connection, sends, then releases — independent of the consumer
+ * that created it having already torn down.
  */
 export function createTeardownSender<
   T extends SignalRContract,

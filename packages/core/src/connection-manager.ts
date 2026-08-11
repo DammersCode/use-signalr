@@ -42,7 +42,7 @@ export interface ConnectionManager<Hub extends HubString> {
 /**
  * Owns the HubConnection lifecycle for one provider generation: building,
  * starting with retry, lazy ref-counted start/stop, and reconnect fan-out.
- * Has no React dependency — driven by the provider's effect and context callbacks.
+ * Framework-neutral — driven by the adapter's lifecycle hook and context callbacks.
  */
 export function createConnectionManager<Hub extends HubString>(
   deps: ConnectionManagerDeps<Hub>,

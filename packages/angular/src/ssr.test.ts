@@ -14,6 +14,8 @@ describe("SSR-safe import", () => {
 
   it("creates a client and calling provideSignalR builds NO connection", async () => {
     const build = vi.fn();
+    // Without a module reset, the cached real signalr makes this test vacuous.
+    vi.resetModules();
     vi.doMock("@microsoft/signalr", () => ({
       HubConnectionBuilder: class {
         withUrl() {

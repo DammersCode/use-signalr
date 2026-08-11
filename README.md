@@ -22,10 +22,10 @@ One factory call returns a provider and a set of hooks, each typed against your 
 
 | Package | Description |
 | --- | --- |
-| [`@dammers/use-signalr-react`](./packages/react/README.md) | Provider + hooks for React. Install this in a React app. |
-| [`@dammers/use-signalr-solid`](./packages/solid/README.md) | Provider + hooks for SolidJS. Install this in a Solid app. |
-| [`@dammers/use-signalr-svelte`](./packages/svelte/README.md) | Provider + stores for Svelte. Install this in a Svelte app. |
-| [`@dammers/use-signalr-core`](./packages/core/README.md) | Framework-free connection lifecycle, contracts, and retry logic. Install this only if you are writing a new adapter. |
+| [`@dammers/use-signalr-react`](./packages/react/README.md) | Provider + hooks for React. |
+| [`@dammers/use-signalr-solid`](./packages/solid/README.md) | Provider + hooks for SolidJS. |
+| [`@dammers/use-signalr-svelte`](./packages/svelte/README.md) | Provider + stores for Svelte. |
+| [`@dammers/use-signalr-core`](./packages/core/README.md) | Framework-free connection lifecycle, contracts, and retry logic. Only needed if you are writing an adapter. |
 
 Each package README covers install and usage for that framework. This document covers the concepts shared by all of them.
 

@@ -12,10 +12,10 @@ Thanks for helping out! This is a small, dependency-light monorepo on purpose �
 ```bash
 git clone https://github.com/DammersCode/use-signalr.git
 cd use-signalr
-npm install        # installs and links all three workspace packages
+npm install        # installs and links all workspace packages
 ```
 
-Core has no runtime dependencies. React and Solid depend on core plus their framework as a peer dependency (`react`/`react-dom`, or `solid-js`) and on `@microsoft/signalr` as a peer dependency in all three packages. Peers are listed in `devDependencies` too, so local type-checking and builds resolve without a consuming app.
+Core has no runtime dependencies. React, Solid, and Svelte depend on core plus their framework as a peer dependency (`react`/`react-dom`, `solid-js`, or `svelte`) and on `@microsoft/signalr` as a peer dependency in every adapter. Peers are listed in `devDependencies` too, so local type-checking and builds resolve without a consuming app.
 
 ## Layout
 
@@ -24,12 +24,13 @@ packages/
   core/     @dammers/use-signalr-core     framework-free: connection lifecycle, contracts, retry
   react/    @dammers/use-signalr-react    React provider + hooks
   solid/    @dammers/use-signalr-solid    SolidJS provider + hooks
+  svelte/   @dammers/use-signalr-svelte   Svelte provider + stores
 scripts/
   sync-versions.mjs   writes the root version into every package + adapter->core dep
   check-docs.mjs      docs-staleness guard (see "Ground rules")
 ```
 
-Each package has its own `src/`, `package.json`, `tsconfig.json`/`tsconfig.build.json`, and `vitest.config.ts`. Only `packages/core/src` may be imported by the adapters — they never reach into each other.
+Each package has its own `src/`, `package.json`, `tsconfig.json`/`tsconfig.build.json`, and `vitest.config.ts`. Only `packages/core/src` may be imported by the adapters — they never reach into each other. See [ARCHITECTURE.md](./ARCHITECTURE.md) for how responsibility splits between core and the adapters, and the checklist for adding a new one.
 
 ## Build order
 
@@ -41,12 +42,12 @@ Run from the repo root:
 
 | Command | What it does |
 | --- | --- |
-| `npm run build` | Builds core, then react, then solid (`tsc -p tsconfig.build.json` per package). |
+| `npm run build` | Builds core, then react, then solid, then svelte (`tsc -p tsconfig.build.json` per package). |
 | `npm run typecheck` | Builds core (adapters need its `dist` to resolve types), then type-checks every package with a `typecheck` script. |
 | `npm test` | Builds core, then runs `vitest run` in every package with a `test` script. |
 | `npm run check` | Runs `scripts/check-docs.mjs` — fails if versions drift or docs go stale. |
 
-Inside one package (`npm run build -w packages/react`, etc.) works too, but core must already be built for react/solid to type-check or test cleanly.
+Inside one package (`npm run build -w packages/react`, etc.) works too, but core must already be built for react/solid/svelte to type-check or test cleanly.
 
 ## Testing your change in a real app
 
@@ -70,7 +71,7 @@ If your change touches core, rebuild core first — the adapter you linked resol
 - **Stay self-contained per package.** No imports across `packages/*/src` boundaries except an adapter importing from `@dammers/use-signalr-core`.
 - **Keep it typed.** Public APIs are inferred from the contract — avoid `any` and casts; any existing cast is documented in code, don't add an undocumented one.
 - **Match the surrounding style.** Same comment density and naming as the existing files, per package.
-- **Parity policy.** A behavior change that lives entirely in `packages/core` lands there once and both adapters pick it up automatically. A behavior change that touches an adapter surface (a hook's options, the provider's props, a hook's return shape) must land in **both** `packages/react` and `packages/solid` in the same PR, with matching tests in both. Don't ship a hook improvement to one framework and leave the other behind.
+- **Parity policy.** A behavior change that lives entirely in `packages/core` lands there once and every adapter picks it up automatically. A behavior change that touches an adapter surface (a hook's options, the provider's props, a hook's return shape) must land in **all** of `packages/react`, `packages/solid`, and `packages/svelte` in the same PR, with matching tests in each. Don't ship a hook improvement to one framework and leave the others behind.
 - **Docs stay in sync.** `npm run check` enforces version sync across all `package.json` files and catches stale package-name/path references left over from the pre-monorepo layout. It runs in CI and in `preversion` — fix violations rather than working around them.
 
 ## Pull requests
@@ -82,7 +83,7 @@ If your change touches core, rebuild core first — the adapter you linked resol
 
 ## Releasing
 
-All three packages are versioned in lockstep — one version number, always released together.
+All packages are versioned in lockstep — one version number, always released together.
 
 ```bash
 npm version patch   # 0.1.0 -> 0.1.1  (minor | major for features | breaking)
@@ -91,18 +92,18 @@ npm version patch   # 0.1.0 -> 0.1.1  (minor | major for features | breaking)
 This runs, in order:
 
 1. `preversion`: `npm run check && npm run typecheck && npm test` — a failure here stops the release before anything is tagged.
-2. The root `version` bumps `package.json`, then `version` script runs `scripts/sync-versions.mjs`, which writes the new version into every `packages/*/package.json` and into react's and solid's dependency on `@dammers/use-signalr-core`, then stages those files.
+2. The root `version` bumps `package.json`, then `version` script runs `scripts/sync-versions.mjs`, which writes the new version into every `packages/*/package.json` and into each adapter's dependency on `@dammers/use-signalr-core`, then stages those files.
 3. A single `v*` tag is created and pushed (`postversion`).
 
-The pushed tag triggers the GitHub Actions release workflow, which builds, tests, verifies the tag matches every package's version, and publishes all three packages to npm with provenance. Publishing authenticates through npm trusted publishing (OIDC) — no token to store or rotate.
+The pushed tag triggers the GitHub Actions release workflow, which builds, tests, verifies the tag matches every package's version, and publishes all packages to npm with provenance. Publishing authenticates through npm trusted publishing (OIDC) — no token to store or rotate.
 
 Never edit `version` by hand in any `package.json`. The release workflow fails if the tag and any package's version disagree.
 
 ### First publish and Trusted Publisher setup
 
-`npm publish` via OIDC only works once a package already exists on npm with a Trusted Publisher configured for it. Each of the three packages needs its own Trusted Publisher entry on npmjs.com, pointing at this repo's `release.yml` workflow. Until that's set up per package:
+`npm publish` via OIDC only works once a package already exists on npm with a Trusted Publisher configured for it. Each package needs its own Trusted Publisher entry on npmjs.com, pointing at this repo's `release.yml` workflow. Until that's set up per package:
 
-- The **first** publish of each of `@dammers/use-signalr-core`, `@dammers/use-signalr-react`, and `@dammers/use-signalr-solid` has to be done manually (`npm publish` from a maintainer's authenticated machine, from the built `packages/*/dist`).
+- The **first** publish of each of `@dammers/use-signalr-core`, `@dammers/use-signalr-react`, `@dammers/use-signalr-solid`, and `@dammers/use-signalr-svelte` has to be done manually (`npm publish` from a maintainer's authenticated machine, from the built `packages/*/dist`).
 - After each package's first manual publish, configure its Trusted Publisher entry on npmjs.com to point at `release.yml`. Every release after that flows through CI automatically.
 
 ### Deprecating the old package

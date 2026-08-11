@@ -7,9 +7,9 @@ import type {
   ResolvedHubConfig,
   SignalRClientConfig,
 } from "@dammers/use-signalr-core";
-import { createComposables } from "./internal/create-composables";
-import { createPlugin } from "./internal/create-plugin";
-import type { SignalRContextValue } from "./types";
+import { createComposables } from "./internal/create-composables.js";
+import { createPlugin } from "./internal/create-plugin.js";
+import type { SignalRContextValue } from "./types.js";
 
 /** Creates a typed Vue plugin and the composables bound to its app context. */
 export function createSignalRClient<const H extends Record<HubString, HubDef>>(

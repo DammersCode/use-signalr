@@ -14,7 +14,7 @@ import type {
   SignalRContract,
   TeardownOptions,
 } from "@dammers/use-signalr-core";
-import type { SignalRContextValue } from "../types";
+import type { SignalRContextValue } from "../types.js";
 
 export function createComposables<T extends SignalRContract>(
   key: InjectionKey<SignalRContextValue<T>>,

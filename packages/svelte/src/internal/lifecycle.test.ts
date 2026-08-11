@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/svelte";
 import { resolveHubConfig } from "@dammers/use-signalr-core";
-import { createSignalRProvider } from "./create-provider";
-import { createSignalRHooks } from "./create-hooks";
-import { createStatusStore } from "../status-store";
-import { makeHarness } from "./test-harness";
+import { createSignalRProvider } from "./create-provider.js";
+import { createSignalRHooks } from "./create-hooks.js";
+import { createStatusStore } from "../status-store.js";
+import { makeHarness } from "./test-harness.js";
 import Runner from "./test-components/Runner.svelte";
 import Provider from "./test-components/Provider.svelte";
-import type { SignalRProviderProps } from "../types";
+import type { SignalRProviderProps } from "../types.js";
 
 const HUB = "/hubs/chat" as const;
 const tick = () => new Promise((r) => setTimeout(r, 0));

@@ -14,7 +14,7 @@ import type {
   MethodReturn,
   SignalRContract,
 } from "@dammers/use-signalr-core";
-import type { SignalRContextValue } from "../types";
+import type { SignalRContextValue } from "../types.js";
 
 /** Builds the functions bound to one client's context. */
 export function createSignalRHooks<T extends SignalRContract>(contextKey: symbol) {

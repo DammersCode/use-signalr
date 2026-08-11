@@ -1,4 +1,4 @@
-import { createSignalRClient } from "./create-signalr-client";
+import { createSignalRClient } from "./create-signalr-client.js";
 import { event, method } from "@dammers/use-signalr-core";
 
 // Compile-time-only checks that the app contract is correctly INFERRED from

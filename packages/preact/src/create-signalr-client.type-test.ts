@@ -1,5 +1,5 @@
 import { event, method } from "@dammers/use-signalr-core";
-import { createSignalRClient } from "./create-signalr-client";
+import { createSignalRClient } from "./create-signalr-client.js";
 
 const client = createSignalRClient({
   hubs: {

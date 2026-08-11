@@ -4,7 +4,7 @@ import type {
   HubString,
   ResolvedHubConfig,
   SignalRClientConfig,
-} from "./types";
+} from "./types.js";
 
 /** Typed `Object.keys`. Narrows the keys to the declared hubs. */
 export function hubKeys<H extends Record<HubString, HubDef>>(

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createSignalRSession } from "./session";
-import type { HubConnectionStatus, HubString, ResolvedHubConfig } from "./types";
-import type { StatusStore } from "./status-store";
+import { createSignalRSession } from "./session.js";
+import type { HubConnectionStatus, HubString, ResolvedHubConfig } from "./types.js";
+import type { StatusStore } from "./status-store.js";
 
 // --- Fake @microsoft/signalr ---
 // session.ts drives createConnectionManager, which uses only

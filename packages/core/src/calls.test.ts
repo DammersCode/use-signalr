@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { HubConnection } from "@microsoft/signalr";
-import { createInvoker } from "./calls";
+import { createInvoker } from "./calls.js";
 
 type Contract = {
   "/hub": { methods: { Count: () => Promise<number> } };

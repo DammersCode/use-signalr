@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { describe, it, expect } from "vitest";
 import { act, render } from "@testing-library/react";
-import { makeHarness } from "./test-harness";
+import { makeHarness } from "./test-harness.js";
 
 const HUB = "/hubs/chat" as const;
 const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));

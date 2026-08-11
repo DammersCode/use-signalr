@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createConnectionManager } from "./connection-manager";
-import type { ConnectionManagerDeps } from "./connection-manager";
-import type { HubString, ResolvedHubConfig } from "./types";
+import { createConnectionManager } from "./connection-manager.js";
+import type { ConnectionManagerDeps } from "./connection-manager.js";
+import type { HubString, ResolvedHubConfig } from "./types.js";
 
 // --- Fake @microsoft/signalr ---
 // connection-manager.ts uses only HubConnectionBuilder (runtime) and

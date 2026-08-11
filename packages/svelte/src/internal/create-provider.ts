@@ -1,10 +1,10 @@
 import { setContext, onMount } from "svelte";
 import { derived, readable } from "svelte/store";
 import type { Readable } from "svelte/store";
-import { createStatusStore } from "../status-store";
+import { createStatusStore } from "../status-store.js";
 import { createSignalRSession } from "@dammers/use-signalr-core";
 import type { HubString, ResolvedHubConfig, SignalRContract } from "@dammers/use-signalr-core";
-import type { SignalRContextValue, SignalRProviderProps } from "../types";
+import type { SignalRContextValue, SignalRProviderProps } from "../types.js";
 
 function isReadable(value: unknown): value is Readable<unknown> {
   return (

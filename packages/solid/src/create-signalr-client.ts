@@ -1,7 +1,7 @@
 import { createContext } from "solid-js";
 import { hubKeys, resolveHubConfig } from "@dammers/use-signalr-core";
-import { createSignalRProvider } from "./internal/create-provider";
-import { createSignalRHooks } from "./internal/create-hooks";
+import { createSignalRProvider } from "./internal/create-provider.js";
+import { createSignalRHooks } from "./internal/create-hooks.js";
 import type {
   HubDef,
   HubString,
@@ -9,7 +9,7 @@ import type {
   ResolvedHubConfig,
   SignalRClientConfig,
 } from "@dammers/use-signalr-core";
-import type { SignalRContextValue } from "./types";
+import type { SignalRContextValue } from "./types.js";
 
 /**
  * Creates a fully-typed SignalR client. Returns a provider and hooks, typed

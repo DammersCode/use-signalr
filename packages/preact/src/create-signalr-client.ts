@@ -1,9 +1,9 @@
 import { createContext } from "preact";
 import { hubKeys, resolveHubConfig } from "@dammers/use-signalr-core";
 import type { HubDef, HubString, InferContract, ResolvedHubConfig, SignalRClientConfig } from "@dammers/use-signalr-core";
-import { createSignalRHooks } from "./internal/create-hooks";
-import { createSignalRProvider } from "./internal/create-provider";
-import type { SignalRContextValue } from "./types";
+import { createSignalRHooks } from "./internal/create-hooks.js";
+import { createSignalRProvider } from "./internal/create-provider.js";
+import type { SignalRContextValue } from "./types.js";
 
 export function createSignalRClient<const H extends Record<HubString, HubDef>>(config: SignalRClientConfig<H>) {
   type T = InferContract<H>;

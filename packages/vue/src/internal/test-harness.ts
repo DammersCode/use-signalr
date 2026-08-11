@@ -1,7 +1,7 @@
 import { effectScope, type InjectionKey, type Ref } from "vue";
 import type { HubConnection } from "@microsoft/signalr";
-import { createComposables } from "./create-composables";
-import type { SignalRContextValue } from "../types";
+import { createComposables } from "./create-composables.js";
+import type { SignalRContextValue } from "../types.js";
 
 export type Hubs = {
   "/hubs/chat": { methods: { LeaveRoomAsync: (id: string) => Promise<void> } };

@@ -2,11 +2,11 @@ import { createContext, createEffect, createRoot } from "solid-js";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { resolveHubConfig } from "@dammers/use-signalr-core";
-import { createSignalRProvider } from "./create-provider";
-import { createSignalRHooks } from "./create-hooks";
-import { createStatusStore } from "../status-store";
-import { makeHarness } from "./test-harness";
-import type { SignalRContextValue } from "../types";
+import { createSignalRProvider } from "./create-provider.js";
+import { createSignalRHooks } from "./create-hooks.js";
+import { createStatusStore } from "../status-store.js";
+import { makeHarness } from "./test-harness.js";
+import type { SignalRContextValue } from "../types.js";
 
 const HUB = "/hubs/chat" as const;
 const tick = () => new Promise((r) => setTimeout(r, 0));

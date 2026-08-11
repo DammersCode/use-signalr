@@ -1,7 +1,7 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSignalRClient } from "../create-signalr-client";
+import { createSignalRClient } from "../create-signalr-client.js";
 import { event } from "@dammers/use-signalr-core";
 
 function makeConnection() {

@@ -4,7 +4,7 @@ import type {
   SignalRContract,
   SignalRContextValueBase,
 } from "@dammers/use-signalr-core";
-import type { StatusStore } from "./status-store";
+import type { StatusStore } from "./status-store.js";
 
 export interface SignalRSessionOptions<H extends HubString = HubString> {
   baseUrl: string | undefined;

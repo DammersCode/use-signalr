@@ -14,7 +14,7 @@ const { SignalRProvider, useSignalRInvoke } = createSignalRClient({
 });
 ```
 
-One factory call returns a provider and a set of hooks, each typed against your hub contract. Event args, method args, and return values are all inferred from the config.
+One factory call returns a framework integration with typed reactive helpers. Event arguments, method arguments, and return values come from the configuration.
 
 ---
 
@@ -37,7 +37,7 @@ The **keys of `config.hubs` declare the hubs**. Each hub's `events` (what the se
 
 ```ts
 // signalr.ts
-import { createSignalRClient, event, method } from "@dammers/use-signalr-react"; // or -solid
+import { createSignalRClient, event, method } from "@dammers/use-signalr-react"; // or another framework package
 
 export const client = createSignalRClient({
   hubs: {

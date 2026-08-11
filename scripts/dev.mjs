@@ -4,6 +4,16 @@
 import { spawn } from "node:child_process";
 
 const ALL_APPS = ["react", "solid", "svelte", "angular", "vue", "preact", "lit"];
+const PORTS = {
+  server: 5299,
+  react: 5301,
+  solid: 5302,
+  svelte: 5303,
+  angular: 5304,
+  vue: 5305,
+  preact: 5306,
+  lit: 5307,
+};
 
 const requested = process.argv.slice(2);
 const names = requested.length > 0 ? requested : ["server", ...ALL_APPS];
@@ -27,7 +37,8 @@ function prefix(name, chunk) {
 }
 
 function spawnChild(name, command, args) {
-  const child = spawn(command, args, { shell: true });
+  // Single command string avoids Node's shell-arg-escaping deprecation warning.
+  const child = spawn([command, ...args].join(" "), { shell: true });
   child.stdout.on("data", (d) => prefix(name, d));
   child.stderr.on("data", (d) => prefix(name, d));
   child.on("exit", (code) => prefix(name, `exited with code ${code}`));
@@ -43,6 +54,11 @@ if (children.length === 0) {
   console.error("Nothing to start.");
   process.exit(1);
 }
+
+const started = wantServer ? ["server", ...wantApps] : wantApps;
+const width = Math.max(...started.map((name) => name.length));
+const urlFor = (name) => (name === "server" ? `http://localhost:${PORTS[name]}` : `http://localhost:${PORTS[name]}/`);
+console.log(started.map((name) => `${(name + ":").padEnd(width + 1)}  ${urlFor(name)}`).join("\n"));
 
 let shuttingDown = false;
 function shutdown() {

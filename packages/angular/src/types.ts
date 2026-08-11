@@ -5,7 +5,7 @@ import type {
   HubString,
 } from "@dammers/use-signalr-core";
 import type { Signal } from "@angular/core";
-import type { StatusStore } from "./status-store";
+import type { StatusStore } from "./status-store.js";
 
 /** A value that can also be supplied as a zero-arg getter or a `Signal`, to
  *  make `provideSignalR` react to it (token rotation, enable/disable). */

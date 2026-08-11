@@ -10,8 +10,8 @@ import {
 import type { Ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HubConnectionStatus } from "@dammers/use-signalr-core";
-import { createSignalRClient } from "../create-signalr-client";
-import { createStatusStore } from "../status-store";
+import { createSignalRClient } from "../create-signalr-client.js";
+import { createStatusStore } from "../status-store.js";
 
 const HUB = "/hubs/chat" as const;
 let connection: ReturnType<typeof fakeConnection>;

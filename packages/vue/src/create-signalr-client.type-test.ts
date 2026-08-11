@@ -1,7 +1,7 @@
 import { event, method } from "@dammers/use-signalr-core";
 import { ref } from "vue";
 import type { App } from "vue";
-import { createSignalRClient } from "./create-signalr-client";
+import { createSignalRClient } from "./create-signalr-client.js";
 
 const client = createSignalRClient({
   hubs: {

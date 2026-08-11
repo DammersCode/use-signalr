@@ -2,7 +2,7 @@ import { onDestroy } from "svelte";
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/svelte";
 import Runner from "./test-components/Runner.svelte";
-import { makeHarness } from "./test-harness";
+import { makeHarness } from "./test-harness.js";
 
 const HUB = "/hubs/chat" as const;
 const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));

@@ -5,7 +5,7 @@ import {
   isRetriableInvokeError,
   resolveBackoff,
   sleep,
-} from "./retry";
+} from "./retry.js";
 import type { HubConnection } from "@microsoft/signalr";
 import type {
   HubString,
@@ -15,7 +15,7 @@ import type {
   MethodName,
   MethodReturn,
   SignalRContract,
-} from "./types";
+} from "./types.js";
 
 const DEFAULT_TIMEOUT = 10_000;
 const DEFAULT_TEARDOWN_TIMEOUT = 10_000;

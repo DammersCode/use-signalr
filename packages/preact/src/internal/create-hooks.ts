@@ -2,8 +2,8 @@ import { useContext, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { createInvoker, createSender, createTeardownSender } from "@dammers/use-signalr-core";
 import type { Context } from "preact";
 import type { EventArgs, EventName, HubConnectionStatus, HubString, InvokeOptions, MethodName, SignalRContract, TeardownOptions } from "@dammers/use-signalr-core";
-import { useLatest } from "../internal-hooks";
-import type { SignalRContextValue } from "../types";
+import { useLatest } from "../internal-hooks.js";
+import type { SignalRContextValue } from "../types.js";
 
 export function createSignalRHooks<T extends SignalRContract>(Context: Context<SignalRContextValue<T> | null>) {
   type Hub = keyof T & HubString;

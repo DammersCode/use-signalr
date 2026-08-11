@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { createSignalRClient } from "./create-signalr-client";
+import { createSignalRClient } from "./create-signalr-client.js";
 import type { ReactiveControllerHost } from "lit";
 
 describe("SSR", () => {

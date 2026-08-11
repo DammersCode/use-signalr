@@ -11,8 +11,8 @@ import {
 import type { EnvironmentProviders, InjectionToken } from "@angular/core";
 import { createSignalRSession } from "@dammers/use-signalr-core";
 import type { HubString, ResolvedHubConfig, SignalRContract } from "@dammers/use-signalr-core";
-import { createStatusStore } from "../status-store";
-import type { MaybeSignal, SignalRContextValue, SignalROptions } from "../types";
+import { createStatusStore } from "../status-store.js";
+import type { MaybeSignal, SignalRContextValue, SignalROptions } from "../types.js";
 
 function resolveMaybeSignal<T>(value: MaybeSignal<T>): T {
   if (isSignal(value)) return value();

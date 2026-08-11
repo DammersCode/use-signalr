@@ -8,7 +8,7 @@ import { describe, it, expect, vi } from "vitest";
 describe("SSR-safe import", () => {
   it("imports without a DOM present", async () => {
     expect(typeof globalThis.window).toBe("undefined");
-    const mod = await import("./index");
+    const mod = await import("./index.js");
     expect(typeof mod.createSignalRClient).toBe("function");
   });
 
@@ -34,7 +34,7 @@ describe("SSR-safe import", () => {
       LogLevel: { Information: 2 },
     }));
 
-    const { createSignalRClient, event, method } = await import("./index");
+    const { createSignalRClient, event, method } = await import("./index.js");
     const client = createSignalRClient({
       hubs: {
         "/hubs/chat": {
@@ -59,14 +59,14 @@ describe("SSR-safe import", () => {
   });
 
   it("exposes every documented export", async () => {
-    const mod = await import("./index");
+    const mod = await import("./index.js");
     for (const name of ["createSignalRClient", "event", "method", "InvokeError"]) {
       expect(mod, `missing export: ${name}`).toHaveProperty(name);
     }
   });
 
   it("rxjs-interop entry point imports without a DOM present", async () => {
-    const mod = await import("./rxjs-interop");
+    const mod = await import("./rxjs-interop.js");
     expect(typeof mod.hubStatus$).toBe("function");
   });
 });

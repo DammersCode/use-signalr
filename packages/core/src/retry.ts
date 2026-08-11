@@ -65,11 +65,17 @@ export function resolveBackoff(
 
 /** setTimeout wrapped as a cancellable promise. */
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  // An already-aborted signal never fires "abort", so check before listening.
+  if (signal?.aborted) return Promise.reject(new AbortError("aborted"));
   return new Promise((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => {
+    const onAbort = () => {
       clearTimeout(t);
       reject(new AbortError("aborted"));
-    });
+    };
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort);
   });
 }

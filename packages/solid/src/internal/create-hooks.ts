@@ -1,6 +1,11 @@
 import { createEffect, onCleanup, useContext } from "solid-js";
 import type { Accessor, Context } from "solid-js";
-import { createInvoker, createSender, createTeardownSender } from "@dammers/use-signalr-core";
+import {
+  createAbortScope,
+  createInvoker,
+  createSender,
+  createTeardownSender,
+} from "@dammers/use-signalr-core";
 import type {
   EventArgs,
   EventName,
@@ -143,9 +148,9 @@ export function createSignalRHooks<T extends SignalRContract>(
   ) {
     const { waitForConnection, getConnection } = useSignalR();
     useHubConsumer(hub);
-    let abort: AbortController | null = null;
+    const scope = createAbortScope();
     onCleanup(() => {
-      if (!options?.keepAliveOnUnmount) abort?.abort();
+      if (!options?.keepAliveOnUnmount) scope.abortAll();
     });
 
     return createInvoker<T, H, M>(
@@ -153,9 +158,8 @@ export function createSignalRHooks<T extends SignalRContract>(
       hub,
       method,
       () => options,
-      (ac) => {
-        abort = ac;
-      },
+      scope.track,
+      scope.untrack,
     );
   }
 

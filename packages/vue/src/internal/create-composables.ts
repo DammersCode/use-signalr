@@ -1,5 +1,6 @@
 import { inject, onScopeDispose, watch } from "vue";
 import {
+  createAbortScope,
   createInvoker,
   createSender,
   createTeardownSender,
@@ -71,18 +72,17 @@ export function createComposables<T extends SignalRContract>(
   ) {
     const context = useSignalR();
     useHubConsumer(hub);
-    let abort: AbortController | undefined;
+    const scope = createAbortScope();
     onScopeDispose(() => {
-      if (!options?.keepAliveOnUnmount) abort?.abort();
+      if (!options?.keepAliveOnUnmount) scope.abortAll();
     });
     return createInvoker<T, H, M>(
       context,
       hub,
       method,
       () => options,
-      (controller) => {
-        abort = controller;
-      },
+      scope.track,
+      scope.untrack,
     );
   }
   function useSignalRSend<H extends Hub, M extends MethodName<T, H>>(

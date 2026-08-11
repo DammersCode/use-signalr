@@ -38,7 +38,13 @@ export type { ConnectionManager, ConnectionManagerDeps } from "./connection-mana
 
 export type { StatusStore } from "./status-store.js";
 export type { SignalRProviderPropsBase, SignalRContextValueBase } from "./context.js";
-export { createInvoker, createSender, createTeardownSender } from "./calls.js";
+export {
+  createAbortScope,
+  createInvoker,
+  createSender,
+  createTeardownSender,
+} from "./calls.js";
+export type { AbortScope } from "./calls.js";
 export type { CallTarget } from "./calls.js";
 
 export { createSignalRSession } from "./session.js";

@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { createInvoker, createSender, createTeardownSender } from "@dammers/use-signalr-core";
+import { createAbortScope, createInvoker, createSender, createTeardownSender } from "@dammers/use-signalr-core";
+import type { AbortScope } from "@dammers/use-signalr-core";
 import type { Context } from "preact";
 import type { EventArgs, EventName, HubConnectionStatus, HubString, InvokeOptions, MethodName, SignalRContract, TeardownOptions } from "@dammers/use-signalr-core";
 import { useLatest } from "../internal-hooks.js";
@@ -48,9 +49,11 @@ export function createSignalRHooks<T extends SignalRContract>(Context: Context<S
     const { waitForConnection, getConnection } = useSignalR();
     useHubConsumer(hub);
     const latest = useLatest(options);
-    const abort = useRef<AbortController | null>(null);
-    useEffect(() => () => { if (!latest.current?.keepAliveOnUnmount) abort.current?.abort(); }, [latest]);
-    return useMemo(() => createInvoker<T, H, M>({ waitForConnection, getConnection }, hub, method, () => latest.current, (controller) => { abort.current = controller; }), [waitForConnection, getConnection, hub, method, latest]);
+    const scopeRef = useRef<AbortScope | null>(null);
+    scopeRef.current ??= createAbortScope();
+    const scope = scopeRef.current;
+    useEffect(() => () => { if (!latest.current?.keepAliveOnUnmount) scope.abortAll(); }, [latest, scope]);
+    return useMemo(() => createInvoker<T, H, M>({ waitForConnection, getConnection }, hub, method, () => latest.current, scope.track, scope.untrack), [waitForConnection, getConnection, hub, method, latest, scope]);
   }
   function useSignalRSend<H extends Hub, M extends MethodName<T, H>>(hub: H, method: M) {
     const { getConnection } = useSignalR();

@@ -20,6 +20,29 @@ import type {
 const DEFAULT_TIMEOUT = 10_000;
 const DEFAULT_TEARDOWN_TIMEOUT = 10_000;
 
+/**
+ * Tracks every in-flight invocation of one consumer, so its cleanup aborts
+ * ALL of them — not just the most recent. Adapters pass `track`/`untrack`
+ * straight to `createInvoker` and call `abortAll` from their teardown hook.
+ */
+export interface AbortScope {
+  track: (ac: AbortController) => void;
+  untrack: (ac: AbortController) => void;
+  abortAll: () => void;
+}
+
+export function createAbortScope(): AbortScope {
+  const active = new Set<AbortController>();
+  return {
+    track: (ac) => active.add(ac),
+    untrack: (ac) => active.delete(ac),
+    abortAll: () => {
+      active.forEach((ac) => ac.abort());
+      active.clear();
+    },
+  };
+}
+
 export interface CallTarget<T extends SignalRContract> {
   waitForConnection: (
     hub: keyof T & HubString,
@@ -62,6 +85,7 @@ export function createInvoker<
           const connection = await waitForConnection(hub, timeout);
           return await connection.invoke<MethodReturn<T, H, M>>(method, ...args);
         } catch (error) {
+          if (ac.signal.aborted) throw error; // abort wins: never reclassify or retry
           const conn = getConnection(hub);
           const forced = o?.isRetriable?.(error);
           const retriable =

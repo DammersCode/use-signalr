@@ -154,10 +154,6 @@ See your framework's README for the exact join/leave code (React's `useEffect` c
 - The provider rebuilds connections when `baseUrl`, `enabled`, or `connectionKey` change. Token _rotation_ alone does **not** trigger a rebuild — `accessTokenFactory` is re-read on every negotiate.
 - `accessTokenFactory` and the `on*` callbacks always see your latest props. Passing a fresh closure each render/run is fine — it causes no reconnect storm, so you do not need to memoize them.
 
-## Which package do I need?
-
-Building an app? Install `@dammers/use-signalr-react`, `@dammers/use-signalr-solid`, or `@dammers/use-signalr-svelte`, whichever matches your framework. Building a new framework adapter? Depend on `@dammers/use-signalr-core` and see its README for the pieces it exposes.
-
 ## Migrating from `@dammers/use-signalr`
 
 `@dammers/use-signalr` (≤0.3.x, React-only) is superseded by `@dammers/use-signalr-react`. The API is unchanged — update the package name in your install and imports.

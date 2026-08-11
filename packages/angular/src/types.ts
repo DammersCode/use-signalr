@@ -11,12 +11,15 @@ import type { StatusStore } from "./status-store.js";
  *  make `provideSignalR` react to it (token rotation, enable/disable). */
 export type MaybeSignal<T> = T | Signal<T> | (() => T);
 
+export type TokenFactory = () => string | Promise<string>;
+
 export type SignalROptions = Omit<
   SignalRProviderPropsBase<never>,
   "children" | "baseUrl" | "accessTokenFactory" | "enabled" | "connectionKey"
 > & {
   baseUrl: MaybeSignal<string | undefined>;
-  accessTokenFactory: MaybeSignal<() => string | Promise<string>>;
+  /** A plain factory or a Signal of one — never a getter, which is indistinguishable from the factory itself. */
+  accessTokenFactory: TokenFactory | Signal<TokenFactory>;
   enabled?: MaybeSignal<boolean>;
   connectionKey?: MaybeSignal<string | number | undefined>;
 };

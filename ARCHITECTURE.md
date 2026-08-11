@@ -1,6 +1,6 @@
 # Architecture
 
-How responsibility splits between `packages/core` and the framework adapters (`packages/react`, `packages/solid`, `packages/svelte`, `packages/angular`), and what a new adapter needs to implement.
+How responsibility splits between `packages/core` and the framework adapters (`packages/react`, `packages/solid`, `packages/svelte`, `packages/angular`, `packages/vue`), and what a new adapter needs to implement.
 
 ## Core responsibilities vs adapter responsibilities
 
@@ -75,7 +75,7 @@ Adapters must not introduce `any` or untyped casts. Reuse the exported generic b
 
 ## New adapter checklist
 
-Building a Vue, Preact, or Lit adapter:
+Building a Preact or Lit adapter:
 
 1. Implement `StatusStore<H>` for the framework's reactivity (`get`/`set`, plus whatever subscription primitive the framework needs — see `packages/react/src/status-store.ts`, `packages/solid/src/status-store.ts`, and `packages/svelte/src/status-store.ts` for three different shapes of the same contract).
 2. Create a session per client with `createSignalRSession({ hubs, resolve, statusStore, getAccessToken, onStatusChange, onError })`.
@@ -92,9 +92,9 @@ Building a Vue, Preact, or Lit adapter:
 
 The core's concepts are fixed: provide/context, raw context access, hub status, server events, invoke, send, teardown, reconnect, keep-alive. Each adapter names its public surface using its own framework's vocabulary. An API that reads foreign is a tax on every consumer — a Svelte developer expects stores, not `useX`; a React developer expects hooks; an Angular developer expects services and Observables. The rename is free before an adapter ships, and it is what "framework-idiomatic" means in practice.
 
-| Concept | React / Solid | Svelte | Angular | Vue (planned) | Lit (planned) |
+| Concept | React / Solid | Svelte | Angular | Vue | Lit (planned) |
 | --- | --- | --- | --- | --- | --- |
-| provide/context | `SignalRProvider` | `provideSignalR` | `provideSignalR` | `provideSignalR` (plugin `install`) | host wiring |
+| provide/context | `SignalRProvider` | `provideSignalR` | `provideSignalR` | configured client plugin (`install`) | host wiring |
 | raw context access | `useSignalR` | `getSignalR` | `injectSignalR` | `useSignalR` | controller field |
 | hub status | `useHubStatus` | `hubStatus` | `injectHubStatus` (`Signal<HubConnectionStatus>`) | `useHubStatus` (ref) | `SignalRStatusController` |
 | server event | `useSignalREffect` | `onHubEvent` | `injectHubEvent` | `useSignalREvent` | controller subscribe |
@@ -104,6 +104,6 @@ The core's concepts are fixed: provide/context, raw context access, hub status, 
 | reconnect hook | `useOnReconnected` | `onReconnected` | `injectOnReconnected` | `useOnReconnected` | controller callback |
 | keep lazy hub alive | `useHubConsumer` | `keepHubAlive` | `injectKeepHubAlive` | `useHubConsumer` | controller lifecycle |
 
-React and Solid keep `use*` — that vocabulary is native to both. Svelte is done: stores are nouns, context access follows `getContext`, and providers stay `provideX`. Angular is done too: every public function is `inject*`, matching Angular's own `inject()` idiom, and `provideSignalR` matches the `provideX` convention used by Angular's own `provide*` functions (`provideRouter`, `provideHttpClient`, etc.). The Angular adapter is decorator-free — `InjectionToken` + `inject()` + `makeEnvironmentProviders`, no `@Injectable`/`@NgModule` — so it builds with plain `tsc` and needs no ng-packagr; connection start is deferred to `afterNextRender` for SSR safety. The Vue and Lit columns are planned and not binding until each adapter is built — Vue keeps `use*` because composables genuinely use that prefix; Lit uses a `ReactiveController` with plain methods instead of standalone functions.
+React and Solid keep `use*` because that vocabulary is native to both. Svelte stores are nouns, and context access follows `getContext`. Angular uses `inject*` and `provideSignalR`. The Angular adapter uses `InjectionToken`, `inject()`, and `makeEnvironmentProviders`. Vue installs the configured client through `app.use` and exposes `use*` composables. Lit remains planned and its names are not binding.
 
 The exported *type* names and `createSignalRClient`, `event`, `method` stay identical across all adapters — they are core concepts, not framework surface.

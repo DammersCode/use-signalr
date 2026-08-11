@@ -140,6 +140,49 @@ describe("createConnectionManager: pre-bound events", () => {
   });
 });
 
+describe("createConnectionManager: stop() failures", () => {
+  it("reports a lazy-stop rejection through onError", async () => {
+    const stopError = new Error("stop failed");
+    fakeConnection.stop = vi.fn(() => Promise.reject(stopError));
+    const onError = vi.fn();
+    const deps = makeDeps(() => baseResolved({ lazy: true, graceMs: 0 }));
+    const manager = createConnectionManager({ ...deps, onError });
+
+    deps.refCounts.set(HUB, 1);
+    manager.reconcile();
+    expect(fakeConnection.start).toHaveBeenCalledTimes(1);
+
+    deps.refCounts.set(HUB, 0);
+    manager.reconcile(); // last release: schedules the lazy stop
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fakeConnection.stop).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(HUB, stopError);
+
+    manager.dispose();
+  });
+
+  it("reports a dispose() stop rejection through onError", async () => {
+    const stopError = new Error("stop failed");
+    fakeConnection.stop = vi.fn(() => Promise.reject(stopError));
+    const onError = vi.fn();
+    const manager = createConnectionManager({
+      ...makeDeps(() => baseResolved()),
+      onError,
+    });
+
+    manager.reconcile();
+    manager.dispose();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fakeConnection.stop).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(HUB, stopError);
+  });
+});
+
 describe("createConnectionManager: timer cleanup", () => {
   it("waitForConnection clears its timeout timer once readiness wins", async () => {
     vi.useFakeTimers();

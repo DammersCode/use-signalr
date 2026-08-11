@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

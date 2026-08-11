@@ -54,15 +54,12 @@ up. Each app's own log lines carry a `[name]` prefix.
 | --- | --- |
 | server | 5299 |
 | react | 5301 |
-| solid | 5302 (planned) |
-| svelte | 5303 (planned) |
-| angular | 5304 (planned) |
+| solid | 5302 |
+| svelte | 5303 |
+| angular | 5304 |
 | vue | 5305 |
-| preact | 5306 (planned) |
-| lit | 5307 (planned) |
-
-The solid, svelte, angular, preact, and lit apps do not exist yet. A
-follow-up task adds them, on the ports reserved above.
+| preact | 5306 |
+| lit | 5307 |
 
 ## What each button proves
 

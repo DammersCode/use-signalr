@@ -47,6 +47,31 @@ describe("SignalRProvider", () => {
     expect(connections[0]!.stop).not.toHaveBeenCalled();
   });
 
+  it("reattaches an event handler exactly once after a reconnect", async () => {
+    function Listener() { eagerClient.useSignalREffect("/hub", "Tick", () => {}); return null; }
+    act(() => render(h(eagerClient.SignalRProvider, { baseUrl: "https://example.test", accessTokenFactory: () => "a" }, h(Listener, {})), root));
+
+    const connection = connections[0]!;
+    const onReconnecting = connection.onreconnecting.mock.calls[0]![0] as () => void;
+    const onReconnected = connection.onreconnected.mock.calls[0]![0] as () => void;
+    await act(async () => { await Promise.resolve(); });
+
+    // The manager pre-binds a noop per declared event, so count deltas only.
+    const tickOn = () => connection.on.mock.calls.filter((c) => c[0] === "Tick").length;
+    const tickOff = () => connection.off.mock.calls.filter((c) => c[0] === "Tick").length;
+    const onAfterConnect = tickOn();
+    expect(tickOff()).toBe(0);
+
+    await act(async () => { onReconnecting(); await Promise.resolve(); });
+    await act(async () => { onReconnected(); await Promise.resolve(); });
+
+    expect(tickOff()).toBe(1);
+    expect(tickOn() - onAfterConnect).toBe(1);
+
+    act(() => render(null, root));
+    expect(tickOff()).toBe(2);
+  });
+
   it("keeps reconnect listeners current and removes them on unmount", () => {
     const first = vi.fn();
     const second = vi.fn();

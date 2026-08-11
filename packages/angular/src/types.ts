@@ -8,7 +8,9 @@ import type { Signal } from "@angular/core";
 import type { StatusStore } from "./status-store.js";
 
 /** A value that can also be supplied as a zero-arg getter or a `Signal`, to
- *  make `provideSignalR` react to it (token rotation, enable/disable). */
+ *  make `provideSignalR` react to it (token rotation, enable/disable).
+ *  Never use a function type for `T`: a plain function and a getter are
+ *  the same thing at runtime. See `TokenFactory` for the safe pattern. */
 export type MaybeSignal<T> = T | Signal<T> | (() => T);
 
 export type TokenFactory = () => string | Promise<string>;

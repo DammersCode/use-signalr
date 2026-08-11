@@ -109,6 +109,7 @@ export function createConnectionManager<Hub extends HubString>(
     const conn = builder.build();
 
     // Pre-bind declared client events, so a server push never hits zero handlers.
+    // Tests must count `.on` deltas: this adds one call per declared event.
     for (const ev of rc.events) conn.on(ev, noop);
 
     let resolveReady!: () => void;

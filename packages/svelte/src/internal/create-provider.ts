@@ -44,7 +44,7 @@ export function createSignalRProvider<T extends SignalRContract>(
     const connectionKey$ = toReadable(props.connectionKey);
     const identity$ = derived(
       [baseUrl$, enabled$, connectionKey$],
-      ([baseUrl, enabled]) => [baseUrl, enabled] as const,
+      ([baseUrl, enabled, connectionKey]) => [baseUrl, enabled, connectionKey] as const,
     );
 
     // All connection work is client-side only: onMount never runs during SSR.

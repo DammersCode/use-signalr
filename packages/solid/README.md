@@ -165,6 +165,34 @@ It is best-effort and fire-and-forget: it resolves `true` once dispatched, `fals
 
 > If your leave already uses `useSignalRInvoke` and only needs to avoid the abort on cleanup, pass `{ keepAliveOnUnmount: true }`. This covers the abort case but **not** the still-connecting race. For that race, use `useSignalRTeardown`.
 
+## SSR (SolidStart)
+
+The import is server-safe. No connection work happens at module scope or during a server render.
+
+`SignalRProvider` starts connections inside `createEffect`, which does not run during SSR. Every hub reports `"disconnected"` until that effect runs in the browser.
+
+## Lazy hubs and `graceMs`
+
+Set `lazy: true` on a hub to connect it only when the first hook for that hub is set up. Consumers are ref-counted.
+
+After the last consumer is torn down, the connection stays open for `graceMs` milliseconds. If a new consumer appears inside that window, the connection stays. The default is `0`.
+
+```ts
+createSignalRClient({
+  hubs: {
+    "/hubs/presence": { lazy: true, graceMs: 5000 },
+  },
+});
+```
+
+## `InvokeError`
+
+`useSignalRInvoke` throws `InvokeError` when its retry budget is exhausted. The error carries `cause` (the last underlying error), `attempts` (the total number of attempts), and `retriable` (whether the final failure was classed as retriable).
+
+`InvokeError` is thrown only when you set `retries` above `0`. With the default `retries: 0`, the raw server error propagates unchanged.
+
+The `timeout` option bounds only the wait for a connected hub before dispatch. SignalR cannot cancel an invocation after dispatch.
+
 ## Solid-specific behavior
 
 - **`useHubStatus` returns an `Accessor<HubConnectionStatus>`.** A Solid component body runs once, so a hook cannot return a plain value that updates later — it has to return something callable that a tracking scope (JSX, a `createEffect`) reads on its own. Call it — `status()` — every time you need the current value.

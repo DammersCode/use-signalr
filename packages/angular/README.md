@@ -213,6 +213,8 @@ It is best-effort and fire-and-forget: it resolves `true` once dispatched, `fals
 
 With `lazy: true` on a hub's config, it connects only when the first `inject*` function for that hub is set up, and disconnects `graceMs` after the last one is torn down. Every `inject*` function acquires the hub for its injection scope's lifetime and releases it on `DestroyRef.onDestroy`, so this works automatically. Use `injectKeepHubAlive(hub)` directly when you want a lazy hub connected for a scope that does not otherwise touch it.
 
+`graceMs` defaults to `0`. If a new consumer appears inside the grace window, the connection stays open.
+
 ## Connection status
 
 `injectHubStatus(hub)` returns a granular `Signal<HubConnectionStatus>` — one signal per hub, backed by `createStatusStore`. Reading it in a `computed()`, an `effect()`, or a template re-runs only when **that** hub's status changes, never when another hub's status changes. Read the current value with `status()`.

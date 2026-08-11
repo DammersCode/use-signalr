@@ -143,12 +143,20 @@ The invoke hook fails fast by default (`retries: 0`) and rethrows the raw server
 ```ts
 const undo = useSignalRInvoke("/hubs/flow", "UndoAsync", {
   retries: 2, // retry RETRIABLE failures (transport drops, 5xx, timeouts)
-  timeout: 15000, // per-attempt deadline
+  timeout: 15000, // per-attempt deadline for the wait for a connected hub
   backoff: [250, 1000, 3000], // or (attempt) => ms; capped 30s, jittered
 });
 ```
 
 Business errors (a `HubException` thrown while still connected) are **never** retried.
+
+`timeout` bounds only the wait for a connected hub before dispatch. SignalR cannot cancel an invocation after dispatch. Component cleanup aborts pending waits and retry backoffs for every in-flight call, unless you pass `keepAliveOnUnmount`.
+
+### Errors
+
+Retriable connect errors retry silently with backoff. `onError` fires only when the retry budget is exhausted, or when the error is not retriable.
+
+`InvokeError` carries `cause` (the last underlying error), `attempts` (the total number of attempts), and `retriable` (whether the final failure was classed as retriable). It is thrown only when you set `retries` above `0`. With the default `retries: 0`, the raw server error propagates unchanged.
 
 ### send vs invoke vs teardown — which call to use
 
@@ -163,7 +171,7 @@ The three "call the server" hooks differ in how they wait, what they return, and
 | **Holds a lazy hub open** | while set up                            | while set up                                    | until the flush completes        |
 | **Use for**               | request/response you need the result of | high-frequency loss-OK signals (typing, cursor) | one-shot teardown that must land |
 
-¹ Only a mid-backoff retry is actually cancelled. Pass `{ keepAliveOnUnmount: true }` to keep it alive.
+¹ Only a pending wait or a mid-backoff retry is actually cancelled. A dispatched invocation runs to completion, because SignalR cannot cancel it. Pass `{ keepAliveOnUnmount: true }` to keep the call alive.
 
 #### Reliable join/leave (session pattern)
 

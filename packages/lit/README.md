@@ -197,3 +197,7 @@ Package import, client creation, session creation, and controller construction d
 ## More
 
 Read the [root README](https://github.com/DammersCode/use-signalr#readme) for shared connection options and retry behavior.
+
+## License
+
+MIT © [DammersCode](https://github.com/DammersCode)

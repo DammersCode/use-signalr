@@ -91,6 +91,18 @@ Independent of any button:
 - `reconnected` logs after the client reconnects, not after the first
   connect.
 
+## Test a reconnect
+
+`KillConnection` closes the connection cleanly. SignalR does not start an
+automatic reconnect after a clean close. To see a real reconnect, restart
+the server while an app runs:
+
+1. Start the server alone: `node scripts/dev.mjs server`.
+2. Start one app in a second terminal: `npm run dev -w examples/react`.
+3. Open the app and wait for `status /hubs/chat: connected`.
+4. Stop the server with Ctrl+C. The console shows `status /hubs/chat: reconnecting`.
+5. Start the server again within 30 seconds. The console shows `reconnected`.
+
 ## Backend
 
 `examples/server` is a minimal ASP.NET Core app with two hubs:
@@ -115,7 +127,7 @@ every framework app uses the same event and method names, and the same
 `examples/react` is the reference pattern. Each framework app that follows
 it keeps the same shape:
 
-```
+```text
 examples/react/
   index.html          entry HTML, loads src/main.tsx
   vite.config.ts       fixed port, strictPort: true

@@ -16,7 +16,7 @@ function readText(p) {
   return readFileSync(p, "utf8");
 }
 
-// 1. Version sync: root === every packages/*/package.json === react/solid's core dep range.
+// 1. Version sync: root === every packages/*/package.json === each adapter's core dep.
 const rootPkgPath = path.join(rootDir, "package.json");
 const rootPkg = readJson(rootPkgPath);
 const version = rootPkg.version;

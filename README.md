@@ -100,7 +100,6 @@ export const client = createSignalRClient({
 - **Auto-reconnect** with a retry budget for the first connect.
 - **Invoke retry** for idempotent methods, with jittered backoff.
 - **Lazy hubs.** Connect on first use, disconnect after a grace period on last unmount.
-- **Live per-hub status**, exposed to only the parts of your UI that watch it.
 - **Reconnect hooks** to refetch stale state after a reconnect.
 - **Auth via props** — `baseUrl` and `accessTokenFactory`, gated by `enabled`. Token rotation needs no rebuild.
 - **Zero runtime deps in core.** Peer deps only: `@microsoft/signalr`, plus your framework.

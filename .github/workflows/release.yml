@@ -38,7 +38,7 @@ jobs:
             echo "Tag v$TAG does not match root package.json $ROOT"
             exit 1
           fi
-          for PKG in core react solid svelte angular; do
+          for PKG in core react solid svelte angular vue; do
             V=$(node -p "require('./packages/$PKG/package.json').version")
             if [ "$TAG" != "$V" ]; then
               echo "Tag v$TAG does not match packages/$PKG/package.json $V"
@@ -53,6 +53,7 @@ jobs:
       - run: npm publish -w packages/solid --provenance
       - run: npm publish -w packages/svelte --provenance
       - run: npm publish -w packages/angular --provenance
+      - run: npm publish -w packages/vue --provenance
 
       - uses: softprops/action-gh-release@v2
         with:

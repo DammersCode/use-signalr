@@ -49,8 +49,10 @@ const requiredReadmes = [
   "packages/core/README.md",
   "packages/react/README.md",
   "packages/solid/README.md",
+  "packages/svelte/README.md",
   "README.md",
   "CONTRIBUTING.md",
+  "ARCHITECTURE.md",
 ];
 for (const rel of requiredReadmes) {
   if (!existsSync(path.join(rootDir, rel))) {
@@ -75,6 +77,7 @@ const nameCheckedFiles = [
   "packages/core/README.md",
   "packages/react/README.md",
   "packages/solid/README.md",
+  "packages/svelte/README.md",
 ];
 for (const rel of nameCheckedFiles) {
   const p = path.join(rootDir, rel);
@@ -104,6 +107,7 @@ for (const rel of pathCheckedFiles) {
 const sanityChecks = [
   ["packages/react/README.md", "@dammers/use-signalr-react"],
   ["packages/solid/README.md", "@dammers/use-signalr-solid"],
+  ["packages/svelte/README.md", "@dammers/use-signalr-svelte"],
   ["packages/core/README.md", "@dammers/use-signalr-core"],
 ];
 for (const [rel, mustMention] of sanityChecks) {
@@ -112,6 +116,23 @@ for (const [rel, mustMention] of sanityChecks) {
   const text = readText(p);
   if (!text.includes(mustMention)) {
     violations.push(`${rel} does not mention "${mustMention}"`);
+  }
+}
+
+// 6. Every workspace package is published by the release workflow, and built
+//    by the root build script. Guards against a new adapter being forgotten.
+const releasePath = path.join(rootDir, ".github/workflows/release.yml");
+if (existsSync(releasePath)) {
+  const release = readText(releasePath);
+  for (const name of packageDirs) {
+    if (!release.includes(`npm publish -w packages/${name}`)) {
+      violations.push(`release.yml does not publish packages/${name}`);
+    }
+  }
+}
+for (const name of packageDirs) {
+  if (!rootPkg.scripts?.build?.includes(`-w packages/${name}`)) {
+    violations.push(`Root build script does not build packages/${name}`);
   }
 }
 

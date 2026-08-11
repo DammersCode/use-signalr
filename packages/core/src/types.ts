@@ -170,12 +170,12 @@ export interface InvokeOptions {
    *  the default rule. */
   isRetriable?: (error: unknown) => boolean | undefined;
   /**
-   * Keeps an in-flight call alive when the calling component unmounts.
-   * Default false: in-flight invokes are aborted on unmount, which is
-   * correct for query-like reads. Set true for a method invoked in an effect
-   * cleanup, so it still reaches the server. The detached call survives
-   * unmount, but a still-pending retry loop is NOT cancelled. For the
-   * connecting-race and lazy-hub case, use `useSignalRTeardown` instead.
+   * Keeps an in-flight call alive when the calling consumer tears down.
+   * Default false: in-flight invokes are aborted on teardown, which is
+   * correct for query-like reads. Set true for a method invoked in a
+   * cleanup handler, so it still reaches the server. The detached call
+   * survives teardown, but a still-pending retry loop is NOT cancelled. For
+   * the connecting-race and lazy-hub case, use `useSignalRTeardown` instead.
    */
   keepAliveOnUnmount?: boolean;
 }

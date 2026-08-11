@@ -1,23 +1,24 @@
 {
-  "name": "@dammers/use-signalr-react",
+  "name": "@dammers/use-signalr-svelte",
   "version": "0.4.0",
-  "description": "Fully-typed multi-hub SignalR provider + hooks for React: auto-reconnect, invoke retry, lazy hubs, live status.",
+  "description": "Fully-typed multi-hub SignalR provider + stores for Svelte: auto-reconnect, invoke retry, lazy hubs, live status.",
   "author": "Dammers",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DammersCode/use-signalr.git",
-    "directory": "packages/react"
+    "directory": "packages/svelte"
   },
-  "homepage": "https://github.com/DammersCode/use-signalr/tree/main/packages/react#readme",
+  "homepage": "https://github.com/DammersCode/use-signalr/tree/main/packages/svelte#readme",
   "bugs": "https://github.com/DammersCode/use-signalr/issues",
   "keywords": [
+    "svelte",
+    "sveltekit",
     "signalr",
+    "stores",
     "typescript",
     "realtime",
-    "websocket",
-    "react",
-    "hooks"
+    "websocket"
   ],
   "engines": {
     "node": ">=18"
@@ -48,14 +49,12 @@
   },
   "peerDependencies": {
     "@microsoft/signalr": ">=8",
-    "react": ">=19",
-    "react-dom": ">=19"
+    "svelte": ">=4"
   },
   "devDependencies": {
     "@microsoft/signalr": ">=8",
-    "@testing-library/react": "^16.1.0",
-    "@types/react": ">=19",
-    "react": ">=19",
-    "react-dom": ">=19"
+    "svelte": "^5.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@testing-library/svelte": "^5.4.2"
   }
 }

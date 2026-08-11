@@ -40,3 +40,6 @@ export type { StatusStore } from "./status-store";
 export type { SignalRProviderPropsBase, SignalRContextValueBase } from "./context";
 export { createInvoker, createSender, createTeardownSender } from "./calls";
 export type { CallTarget } from "./calls";
+
+export { createSignalRSession } from "./session";
+export type { SignalRSession, SignalRSessionDeps } from "./session";

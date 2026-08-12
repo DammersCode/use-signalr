@@ -49,14 +49,17 @@ jobs:
 
       # No token: npm authenticates via OIDC trusted publishing, configured
       # per package on npmjs.com.
-      - run: npm publish -w packages/core --provenance
-      - run: npm publish -w packages/react --provenance
-      - run: npm publish -w packages/solid --provenance
-      - run: npm publish -w packages/svelte --provenance
-      - run: npm publish -w packages/angular --provenance
-      - run: npm publish -w packages/vue --provenance
-      - run: npm publish -w packages/preact --provenance
-      - run: npm publish -w packages/lit --provenance
+      # `npm view` makes each step idempotent: a version that is already on
+      # the registry is skipped, so a re-run after a partial publish or a
+      # duplicate tag event publishes only what is missing.
+      - run: npm view @dammers/use-signalr-core@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/core --provenance
+      - run: npm view @dammers/use-signalr-react@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/react --provenance
+      - run: npm view @dammers/use-signalr-solid@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/solid --provenance
+      - run: npm view @dammers/use-signalr-svelte@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/svelte --provenance
+      - run: npm view @dammers/use-signalr-angular@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/angular --provenance
+      - run: npm view @dammers/use-signalr-vue@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/vue --provenance
+      - run: npm view @dammers/use-signalr-preact@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/preact --provenance
+      - run: npm view @dammers/use-signalr-lit@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/lit --provenance
 
       - uses: softprops/action-gh-release@v2
         with:

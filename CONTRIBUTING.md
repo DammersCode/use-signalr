@@ -19,7 +19,7 @@ Core has no runtime dependencies. Each adapter depends on core, its framework pe
 
 ## Layout
 
-```
+```text
 packages/
   core/     @dammers/use-signalr-core     framework-free: connection lifecycle, contracts, retry
   react/    @dammers/use-signalr-react    React provider + hooks
@@ -91,6 +91,12 @@ buttons and console output instead of a test runner. See
 2. `npm run typecheck && npm test && npm run build` must pass clean.
 3. Update the relevant package README (and the root README, if the change is framework-neutral) if you changed a public API.
 4. One focused change per PR — small diffs get merged fast. A cross-adapter parity change is one PR, not two.
+
+## Landing page
+
+The package-picker page in [`site/`](./site) is plain HTML and CSS. `node scripts/build-site.mjs` reads every `packages/*/package.json` and writes the page to `dist-site/`. Card names, descriptions, and the version badge follow the packages. Open `dist-site/index.html` in a browser to preview it.
+
+[`pages.yml`](./.github/workflows/pages.yml) publishes the page to GitHub Pages on each push to `main` that touches the site, the build script, or a package manifest. You can also start it from the **Actions** tab. The page is served at `https://dammerscode.github.io/use-signalr/`.
 
 ## Releasing
 

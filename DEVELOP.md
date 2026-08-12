@@ -129,7 +129,7 @@ examples/react/
   index.html          entry HTML, loads src/main.tsx
   vite.config.ts       fixed port, strictPort: true
   tsconfig.json         noEmit, no test/typecheck script
-  package.json          private: true, depends on the adapter at 0.4.0
+  package.json          private: true, depends on the adapter at the workspace version
   src/
     client.ts           createSignalRClient(...) with the shared contract
     main.tsx             mounts the app

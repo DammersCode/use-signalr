@@ -1,7 +1,7 @@
 import { onCleanup, onMount } from "solid-js";
 import { describe, it, expect } from "vitest";
 import { render } from "@solidjs/testing-library";
-import { makeHarness } from "./test-harness";
+import { makeHarness } from "./test-harness.js";
 
 const HUB = "/hubs/chat" as const;
 const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));

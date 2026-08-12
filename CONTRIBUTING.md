@@ -69,6 +69,13 @@ Rebuild the package here after each change and the app picks it up. Unlink with 
 
 If your change touches core, rebuild core first — the adapter you linked resolves core through its own `node_modules`, which points at the workspace-linked `packages/core/dist`.
 
+## Example apps
+
+`examples/` holds small reference apps that run against a real SignalR
+backend, one per framework. Use them to debug a package by hand, with plain
+buttons and console output instead of a test runner. See
+[DEVELOP.md](./DEVELOP.md) for setup, ports, and the console protocol.
+
 ## Ground rules
 
 - **No new runtime dependencies.** If a few lines can do it, write the few lines. Anything framework/SignalR-related belongs in peer deps.

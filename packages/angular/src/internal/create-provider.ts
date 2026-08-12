@@ -8,16 +8,26 @@ import {
   makeEnvironmentProviders,
   untracked,
 } from "@angular/core";
-import type { EnvironmentProviders, InjectionToken } from "@angular/core";
+import type { EnvironmentProviders, InjectionToken, Signal } from "@angular/core";
 import { createSignalRSession } from "@dammers/use-signalr-core";
 import type { HubString, ResolvedHubConfig, SignalRContract } from "@dammers/use-signalr-core";
-import { createStatusStore } from "../status-store";
-import type { MaybeSignal, SignalRContextValue, SignalROptions } from "../types";
+import { createStatusStore } from "../status-store.js";
+import type {
+  MaybeSignal,
+  SignalRContextValue,
+  SignalROptions,
+  TokenFactory,
+} from "../types.js";
 
 function resolveMaybeSignal<T>(value: MaybeSignal<T>): T {
   if (isSignal(value)) return value();
   if (typeof value === "function") return (value as () => T)();
   return value;
+}
+
+/** A plain factory is the value itself — only a Signal wrapper may be unwrapped. */
+function resolveTokenFactory(value: TokenFactory | Signal<TokenFactory>): TokenFactory {
+  return isSignal(value) ? value() : value;
 }
 
 /** Builds the `provideSignalR` function bound to one client's context token. */
@@ -38,7 +48,7 @@ export function createSignalRProvider<T extends SignalRContract>(
             hubs,
             resolve,
             statusStore,
-            getAccessToken: () => resolveMaybeSignal(options.accessTokenFactory)(),
+            getAccessToken: () => resolveTokenFactory(options.accessTokenFactory)(),
             onStatusChange: (hub, status) => options.onStatusChange?.(hub, status),
             onError: (hub, err) => options.onError?.(hub, err),
           });

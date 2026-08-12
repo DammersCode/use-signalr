@@ -3,10 +3,10 @@ import { useEffect, useMemo, useRef } from "preact/hooks";
 import { createSignalRSession } from "@dammers/use-signalr-core";
 import type { Context } from "preact";
 import type { HubString, ResolvedHubConfig, SignalRContract, SignalRSession } from "@dammers/use-signalr-core";
-import { useLatest } from "../internal-hooks";
-import { createStatusStore } from "../status-store";
-import type { StatusStore } from "../status-store";
-import type { SignalRContextValue, SignalRProviderProps } from "../types";
+import { useLatest } from "../internal-hooks.js";
+import { createStatusStore } from "../status-store.js";
+import type { StatusStore } from "../status-store.js";
+import type { SignalRContextValue, SignalRProviderProps } from "../types.js";
 
 export function createSignalRProvider<T extends SignalRContract>(
   Context: Context<SignalRContextValue<T> | null>, hubs: Array<keyof T & HubString>, resolve: (hub: keyof T & HubString) => ResolvedHubConfig,

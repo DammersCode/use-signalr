@@ -4,9 +4,9 @@ import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HubConnectionState } from "@microsoft/signalr";
 import type { HubConnection, HubString, SignalRContract } from "@dammers/use-signalr-core";
-import { createStatusStore } from "../status-store";
-import type { SignalRContextValue } from "../types";
-import { createSignalRHooks } from "./create-hooks";
+import { createStatusStore } from "../status-store.js";
+import type { SignalRContextValue } from "../types.js";
+import { createSignalRHooks } from "./create-hooks.js";
 
 const root = document.createElement("div");
 afterEach(() => { act(() => render(null, root)); });

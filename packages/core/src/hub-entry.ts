@@ -1,5 +1,5 @@
 import type { HubConnection } from "@microsoft/signalr";
-import type { HubConnectionStatus } from "./types";
+import type { HubConnectionStatus } from "./types.js";
 
 /** Live state for one hub connection, owned by the connection manager. */
 export interface HubEntry {

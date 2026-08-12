@@ -161,6 +161,36 @@ It is best-effort and fire-and-forget: it resolves `true` once dispatched, `fals
 
 > If your leave already uses `useSignalRInvoke` and only needs to avoid the abort on unmount, pass `{ keepAliveOnUnmount: true }`. This covers the abort case but **not** the still-connecting race. For that race, use `useSignalRTeardown`.
 
+## SSR (Next.js)
+
+The import is server-safe. No connection work happens at module scope or during a server render.
+
+`SignalRProvider` starts connections inside `useEffect`, which runs only in the browser. Every hub reports `"disconnected"` until that effect runs.
+
+Mark the component that mounts the provider with `"use client"`.
+
+## Lazy hubs and `graceMs`
+
+Set `lazy: true` on a hub to connect it only when the first hook for that hub mounts. Consumers are ref-counted.
+
+After the last consumer unmounts, the connection stays open for `graceMs` milliseconds. If a new consumer mounts inside that window, the connection stays. The default is `0`.
+
+```ts
+createSignalRClient({
+  hubs: {
+    "/hubs/presence": { lazy: true, graceMs: 5000 },
+  },
+});
+```
+
+## `InvokeError`
+
+`useSignalRInvoke` throws `InvokeError` when its retry budget is exhausted. The error carries `cause` (the last underlying error), `attempts` (the total number of attempts), and `retriable` (whether the final failure was classed as retriable).
+
+`InvokeError` is thrown only when you set `retries` above `0`. With the default `retries: 0`, the raw server error propagates unchanged.
+
+The `timeout` option bounds only the wait for a connected hub before dispatch. SignalR cannot cancel an invocation after dispatch.
+
 ## API
 
 | Export                                   | What it does                                                                                                                                                            |
@@ -170,13 +200,14 @@ It is best-effort and fire-and-forget: it resolves `true` once dispatched, `fals
 | `method<Args, Return?>()`                | Declares an invocable server method inside a hub's `methods`. `Args` is the argument tuple; `Return` is the resolved return type (default `void`).                      |
 | `<SignalRProvider>`                      | Builds and starts connections, retries, and auto-reconnects.                                                                                                            |
 | `useSignalREffect(hub, event, handler)`  | Subscribes to a server event for the component's lifetime.                                                                                                              |
-| `useSignalRInvoke(hub, method, opts?)`   | Typed request/response invoker. Waits for the connection and returns the method's result. Optional retry/backoff/timeout; `keepAliveOnUnmount` skips the unmount abort. |
+| `useSignalRInvoke(hub, method, opts?)`   | Typed request/response invoker. Returns the method's result. `timeout` bounds only the wait for a connected hub. `keepAliveOnUnmount` skips the unmount abort.          |
 | `useSignalRSend(hub, method)`            | Typed fire-and-forget sender. **Drops** if not connected. For high-frequency signals where loss is acceptable. Safe in unmount cleanups.                                |
 | `useSignalRTeardown(hub, method, opts?)` | Reliable teardown sender for a method called in cleanup: survives unmount, **queues** while connecting instead of dropping, and holds a lazy hub open until flushed.    |
 | `useHubStatus(hub)`                      | Live connection status. Re-renders only when that hub changes.                                                                                                          |
 | `useOnReconnected(hub, cb)`              | Runs `cb` after the hub reconnects, for example to refetch.                                                                                                             |
 | `useHubConsumer(hub)`                    | Keeps a lazy hub connected for the component's lifetime without subscribing.                                                                                            |
 | `useSignalR()`                           | Last-resort raw context: `getConnection`, `isHubConnected`, `getStatus`.                                                                                                |
+| `InvokeError`                            | Thrown by `useSignalRInvoke` once retries are exhausted. Wraps the last failure.                                                                                        |
 
 ### Provider props
 

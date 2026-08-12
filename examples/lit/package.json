@@ -1,0 +1,19 @@
+{
+  "name": "@examples/lit",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@dammers/use-signalr-lit": "0.4.0",
+    "@examples/contract": "0.4.0",
+    "lit": "^3.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^8.2.1"
+  }
+}

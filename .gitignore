@@ -7,3 +7,9 @@ tarballs/
 
 .superpowers/
 dist-site/
+
+bin/
+obj/
+
+.angular/
+out-tsc/

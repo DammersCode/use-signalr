@@ -1,4 +1,4 @@
-export { event, method } from "./types";
+export { event, method } from "./types.js";
 export type {
   HubString,
   HubContract,
@@ -19,9 +19,9 @@ export type {
   ResolvedHubConfig,
   InvokeOptions,
   TeardownOptions,
-} from "./types";
+} from "./types.js";
 
-export { hubKeys, resolveHubConfig, isRetriableConnectError } from "./config";
+export { hubKeys, resolveHubConfig, isRetriableConnectError } from "./config.js";
 
 export {
   DEFAULT_BACKOFF,
@@ -29,17 +29,23 @@ export {
   isRetriableInvokeError,
   resolveBackoff,
   sleep,
-} from "./retry";
+} from "./retry.js";
 
-export type { HubEntry } from "./hub-entry";
+export type { HubEntry } from "./hub-entry.js";
 
-export { createConnectionManager } from "./connection-manager";
-export type { ConnectionManager, ConnectionManagerDeps } from "./connection-manager";
+export { createConnectionManager } from "./connection-manager.js";
+export type { ConnectionManager, ConnectionManagerDeps } from "./connection-manager.js";
 
-export type { StatusStore } from "./status-store";
-export type { SignalRProviderPropsBase, SignalRContextValueBase } from "./context";
-export { createInvoker, createSender, createTeardownSender } from "./calls";
-export type { CallTarget } from "./calls";
+export type { StatusStore } from "./status-store.js";
+export type { SignalRProviderPropsBase, SignalRContextValueBase } from "./context.js";
+export {
+  createAbortScope,
+  createInvoker,
+  createSender,
+  createTeardownSender,
+} from "./calls.js";
+export type { AbortScope } from "./calls.js";
+export type { CallTarget } from "./calls.js";
 
-export { createSignalRSession } from "./session";
-export type { SignalRSession, SignalRSessionDeps } from "./session";
+export { createSignalRSession } from "./session.js";
+export type { SignalRSession, SignalRSessionDeps } from "./session.js";

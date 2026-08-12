@@ -10,8 +10,8 @@ import {
 import type { Ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HubConnectionStatus } from "@dammers/use-signalr-core";
-import { createSignalRClient } from "../create-signalr-client";
-import { createStatusStore } from "../status-store";
+import { createSignalRClient } from "../create-signalr-client.js";
+import { createStatusStore } from "../status-store.js";
 
 const HUB = "/hubs/chat" as const;
 let connection: ReturnType<typeof fakeConnection>;
@@ -194,5 +194,24 @@ describe("Vue plugin lifecycle", () => {
     expect(connection.on).toHaveBeenCalledTimes(2);
     app.unmount();
     expect(connection.off).toHaveBeenCalledTimes(2);
+  });
+
+  // Behavioral performance baseline: repeated mounts must not leak handlers.
+  it("balances handlers and connections across 50 mount cycles", async () => {
+    const CYCLES = 50;
+    for (let i = 0; i < CYCLES; i += 1) {
+      const { app } = mount((client) => {
+        client.useSignalREvent(HUB, "OnFoo", () => {});
+      });
+      await nextTick();
+      await connect();
+      app.unmount();
+      await nextTick();
+    }
+
+    expect(connection.on).toHaveBeenCalledTimes(CYCLES);
+    expect(connection.off).toHaveBeenCalledTimes(CYCLES);
+    // One lazy build per cycle: no churn from repeated mounting.
+    expect(buildCalls).toBe(CYCLES);
   });
 });

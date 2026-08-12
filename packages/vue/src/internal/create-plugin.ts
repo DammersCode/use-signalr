@@ -6,8 +6,8 @@ import type {
   ResolvedHubConfig,
   SignalRContract,
 } from "@dammers/use-signalr-core";
-import { createStatusStore } from "../status-store";
-import type { SignalRContextValue, SignalROptions } from "../types";
+import { createStatusStore } from "../status-store.js";
+import type { SignalRContextValue, SignalROptions } from "../types.js";
 
 export function createPlugin<T extends SignalRContract>(
   key: InjectionKey<SignalRContextValue<T>>,

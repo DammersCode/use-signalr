@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SignalRProviderProps } from "../../types";
+  import type { SignalRProviderProps } from "../../types.js";
 
   // setContext/getContext share one Map per component instance, so calling
   // `provide` (setContext) then `run` (getContext-based hooks) in the same

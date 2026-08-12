@@ -6,7 +6,7 @@ import type {
   SignalRContextValueBase,
   SignalRProviderPropsBase,
 } from "@dammers/use-signalr-core";
-import type { StatusStore } from "./status-store";
+import type { StatusStore } from "./status-store.js";
 
 export type { MaybeRefOrGetter } from "vue";
 

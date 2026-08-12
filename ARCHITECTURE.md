@@ -27,7 +27,7 @@ Every adapter follows the same sequence, built on `packages/core/src/session.ts`
 
 1. **Create a `StatusStore`** — the adapter's own reactive implementation (`packages/*/src/status-store.ts`), keyed per hub. Angular's is backed by one `signal()` per hub (`packages/angular/src/status-store.ts`).
 2. **Create a session** — `createSignalRSession({ hubs, resolve, statusStore, getAccessToken, onStatusChange, onError })`. This is the single call that replaces what used to be ~35 duplicated lines per provider.
-3. **Expose `session.context`** through the framework's context mechanism (React context, Solid context, Svelte's `setContext`). `session.context` has a stable identity — build it once.
+3. **Expose `session.context`** through the framework's context mechanism (React/Solid/Preact context, Svelte's `setContext`, an Angular injection token, Vue `provide`, Lit's shared session object). `session.context` has a stable identity — build it once.
 4. **On identity change** (`baseUrl`, `enabled`, or `connectionKey`), call `session.stop()` then, if enabled and a `baseUrl` is present, `session.start(baseUrl)`. This is the only place an adapter touches connection lifecycle directly.
 5. **On teardown** (unmount / cleanup / destroy), call `session.stop()`.
 
@@ -59,6 +59,7 @@ No connection work happens at module scope or during a synchronous render/setup 
 - Solid: inside `createEffect` (which does not run during SSR render).
 - Svelte: inside `onMount`.
 - Angular: inside `afterNextRender`, which never runs on the server.
+- Vue: the plugin skips its `effectScope` when `typeof window === "undefined"`.
 - Preact: inside `useEffect`, which does not run during server rendering.
 - Lit: inside `ReactiveController.hostConnected()`.
 
@@ -83,7 +84,7 @@ Building a new adapter:
 2. Create a session per client with `createSignalRSession({ hubs, resolve, statusStore, getAccessToken, onStatusChange, onError })`.
 3. Wire `session.context` into the framework's context/injection mechanism, built once per provider instance.
 4. Bind lifecycle: call `session.start(baseUrl)` / `session.stop()` from a client-only reactive effect keyed on `baseUrl`/`enabled`/`connectionKey`, and `session.stop()` on teardown.
-5. Map the 8 hooks/equivalents onto the framework's primitives, delegating to core: `useSignalR`, `useHubConsumer`, `useHubStatus`, `useOnReconnected`, `useSignalREffect`, `useSignalRInvoke` (`createInvoker`), `useSignalRSend` (`createSender`), `useSignalRTeardown` (`createTeardownSender`).
+5. Map the provider plus the 8 hooks/equivalents onto the framework's primitives, delegating to core: `useSignalR`, `useHubConsumer`, `useHubStatus`, `useOnReconnected`, `useSignalREffect`, `useSignalRInvoke` (`createInvoker`), `useSignalRSend` (`createSender`), `useSignalRTeardown` (`createTeardownSender`).
 6. Name the public surface with the target framework's vocabulary — see [Naming conventions](#naming-conventions).
 7. Add a type-test file proving inference flows end to end from a sample contract (see `packages/*/src/**/*.type-test.ts`).
 8. Add lifecycle tests (mount/unmount rebuild, SSR-safe no-op) and ref-count tests (lazy connect/disconnect, grace period, survival across a rebuild) — mirror `packages/core/src/session.test.ts` and the existing adapters' provider tests.

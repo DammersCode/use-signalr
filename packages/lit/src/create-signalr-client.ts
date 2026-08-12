@@ -21,8 +21,8 @@ import type {
   SignalRContract,
   TeardownOptions,
 } from "@dammers/use-signalr-core";
-import { createStatusStore } from "./status-store";
-import type { SignalRContextValue, SignalRSessionOptions } from "./types";
+import { createStatusStore } from "./status-store.js";
+import type { SignalRContextValue, SignalRSessionOptions } from "./types.js";
 
 export function createSignalRClient<const H extends Record<HubString, HubDef>>(
   config: SignalRClientConfig<H>,

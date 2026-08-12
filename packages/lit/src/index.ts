@@ -1,6 +1,6 @@
-export { createSignalRClient } from "./create-signalr-client";
+export { createSignalRClient } from "./create-signalr-client.js";
 export { InvokeError, event, method } from "@dammers/use-signalr-core";
-export type { SignalRContextValue, SignalRSessionOptions } from "./types";
+export type { SignalRContextValue, SignalRSessionOptions } from "./types.js";
 export type {
   EventArgs,
   EventDef,

@@ -92,7 +92,9 @@ createSignalRClient({
 });
 ```
 
-`lazy: true` waits for a consumer before it connects. `graceMs` delays the final stop. `reconnect` enables SignalR reconnect. `maxConnectRetries` controls initial connection retry.
+`lazy: true` waits for a consumer before it connects. `reconnect` enables SignalR reconnect. `maxConnectRetries` controls initial connection retry.
+
+`graceMs` delays the final stop. After the last consumer of a lazy hub unmounts, the connection stays open for `graceMs` milliseconds. If a new consumer mounts inside that window, the connection stays. The default is `0`.
 
 ### 3. Use the hooks
 
@@ -110,7 +112,7 @@ const send = signalR.useSignalRSend("/hubs/chat", "LeaveRoom");
 
 `useSignalR` returns the raw context. `useHubConsumer` keeps a lazy hub alive. `useHubStatus` updates only for its hub. `useSignalREffect` attaches an event handler and reattaches after reconnect. `useOnReconnected` runs a callback after reconnect.
 
-`useSignalRInvoke` waits for a connection and returns the server result. It aborts retry work at unmount unless `keepAliveOnUnmount` is true. Enable retries only for idempotent methods.
+`useSignalRInvoke` waits for a connection and returns the server result. It aborts pending waits and retry backoffs at unmount unless `keepAliveOnUnmount` is true. Its `timeout` bounds only the wait for a connected hub. SignalR cannot cancel an invocation after dispatch. Enable retries only for idempotent methods.
 
 `useSignalRSend` does not wait for a connection. It returns `false` when the hub is disconnected. It returns `true` after it sends a call.
 
@@ -131,6 +133,18 @@ useEffect(() => {
 ```
 
 Do not use `useSignalRSend` for a required leave. It drops a call when the hub is disconnected.
+
+## SSR
+
+The import is server-safe. No connection work happens at module scope or during a server render.
+
+`SignalRProvider` starts connections inside `useEffect`, which does not run during server rendering. Every hub reports `"disconnected"` until that effect runs in the browser.
+
+## `InvokeError`
+
+`useSignalRInvoke` throws `InvokeError` when its retry budget is exhausted. The error carries `cause` (the last underlying error), `attempts` (the total number of attempts), and `retriable` (whether the final failure was classed as retriable).
+
+`InvokeError` is thrown only when you set `retries` above `0`. With the default `retries: 0`, the raw server error propagates unchanged.
 
 ## Preact-specific behavior
 
@@ -158,6 +172,7 @@ Do not use `useSignalRSend` for a required leave. It drops a call when the hub i
 | `useSignalRTeardown(hub, method, options?)` | Sends a reliable cleanup call. |
 | `useHubStatus(hub)` | Returns the live status for one hub. |
 | `useOnReconnected(hub, callback)` | Runs a callback after reconnect. |
+| `InvokeError` | Wraps the last invoke failure after configured retries are exhausted. |
 
 ## Why a native Preact adapter
 

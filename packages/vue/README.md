@@ -185,6 +185,20 @@ It resolves `true` after dispatch. It resolves `false` after a connection timeou
 
 > If an invoke only needs to survive disposal, pass `{ keepAliveOnUnmount: true }`. Use teardown for the connecting race.
 
+## Lazy hubs and `graceMs`
+
+Set `lazy: true` on a hub to connect it only when the first composable for that hub is set up. Consumers are ref-counted.
+
+After the last consumer is disposed, the connection stays open for `graceMs` milliseconds. If a new consumer appears inside that window, the connection stays. The default is `0`.
+
+```ts
+createSignalRClient({
+  hubs: {
+    "/hubs/presence": { lazy: true, graceMs: 5000 },
+  },
+});
+```
+
 ## Vue-specific behavior
 
 - **The configured client is the plugin.** Pass it to `app.use(signalR, options)` before the application mounts.

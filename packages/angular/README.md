@@ -102,7 +102,7 @@ import { AppComponent } from "./app/app.component";
 bootstrapApplication(AppComponent, appConfig);
 ```
 
-`baseUrl`, `accessTokenFactory`, `enabled`, and `connectionKey` each accept a plain value, a zero-arg getter, or a `Signal`. Passing a getter/`Signal` for `baseUrl`, `enabled`, or `connectionKey` makes the provider react to it — the connection rebuilds whenever the value changes. `accessTokenFactory` is read on every negotiate regardless, so **token rotation never rebuilds the connection**, whether it is a plain function or a `Signal`-backed one:
+`baseUrl`, `enabled`, and `connectionKey` each accept a plain value, a zero-arg getter, or a `Signal`; passing a getter/`Signal` makes the provider react to it — the connection rebuilds whenever the value changes. `accessTokenFactory` is the token factory itself, or a `Signal` holding one. It is called on every negotiate, so **token rotation never rebuilds the connection**:
 
 ```ts
 provideSignalR({
@@ -212,6 +212,8 @@ It is best-effort and fire-and-forget: it resolves `true` once dispatched, `fals
 ## Lazy hubs
 
 With `lazy: true` on a hub's config, it connects only when the first `inject*` function for that hub is set up, and disconnects `graceMs` after the last one is torn down. Every `inject*` function acquires the hub for its injection scope's lifetime and releases it on `DestroyRef.onDestroy`, so this works automatically. Use `injectKeepHubAlive(hub)` directly when you want a lazy hub connected for a scope that does not otherwise touch it.
+
+`graceMs` defaults to `0`. If a new consumer appears inside the grace window, the connection stays open.
 
 ## Connection status
 

@@ -118,7 +118,27 @@ Set `reactiveStatus: true` when status changes must render the host. The control
 
 `send(method)` returns `false` when the hub is disconnected. `teardown(method, options?)` waits for a connection and remains active after host disconnection. Use teardown calls for leave operations.
 
-Lazy hubs connect when a controller host connects. They stop after all hosts disconnect and the configured grace period passes. Eager hubs remain active until `signalRSession.stop()` runs.
+`invoke` accepts a `timeout`. It bounds only the wait for a connected hub before dispatch. SignalR cannot cancel an invocation after dispatch.
+
+Lazy hubs connect when a controller host connects. They stop after all hosts disconnect and the configured `graceMs` period passes.
+
+Set `graceMs` for each hub in the client configuration. After the last host disconnects, the connection stays open for `graceMs` milliseconds. If a new host connects inside that window, the connection stays. The default is `0`.
+
+```ts
+createSignalRClient({
+  hubs: {
+    "/hubs/chat": { lazy: true, graceMs: 5000 },
+  },
+});
+```
+
+Eager hubs remain active until `signalRSession.stop()` runs.
+
+## `InvokeError`
+
+`invoke` throws `InvokeError` when its retry budget is exhausted. The error carries `cause` (the last underlying error), `attempts` (the total number of attempts), and `retriable` (whether the final failure was classed as retriable).
+
+`InvokeError` is thrown only when you set `retries` above `0`. With the default `retries: 0`, the raw server error propagates unchanged.
 
 ## Sharing across custom elements
 
@@ -129,6 +149,29 @@ This pattern does not require a global application root or `@lit/context`. Compo
 Create a different session when an application needs an independent base URL or authentication boundary. Call `signalRSession.stop()` during logout or application shutdown.
 
 The current token is read through `accessTokenFactory` during each negotiation. Token rotation does not create a new session.
+
+## Session options are read once
+
+The session reads `baseUrl` and `enabled` once, when the first host connects. There is no `connectionKey`.
+
+To change either option, call `session.stop()` and create a new session with the new values. This is intentional. Lit has no application-wide provider to watch for a changed option.
+
+```ts
+signalRSession.stop();
+export const signalRSession = signalR.createSession({ baseUrl: nextUrl });
+```
+
+Every other adapter rebuilds its connections when `baseUrl`, `enabled`, or `connectionKey` change.
+
+## Raw escape hatch
+
+`session.context` exposes the raw core context: `getConnection`, `isHubConnected`, and `getStatus`. Use it only when the typed controller surface cannot express a call.
+
+```ts
+signalRSession.context.getConnection("/hubs/chat")?.send("Typing", "general");
+```
+
+This member has the same role as `useSignalR()` in React, `getSignalR()` in Svelte, and `injectSignalR()` in Angular.
 
 ## SSR
 
@@ -147,8 +190,14 @@ Package import, client creation, session creation, and controller construction d
 | `controller.send()` | Creates a typed lossy sender. |
 | `controller.teardown()` | Creates a typed reliable teardown sender. |
 | `controller.onReconnected()` | Registers a callback that runs after reconnect. |
+| `session.context` | Reads the raw core context: `getConnection`, `isHubConnected`, `getStatus`. |
 | `session.stop()` | Stops all connections in the shared session. |
+| `InvokeError` | Wraps the last invoke failure after configured retries are exhausted. |
 
 ## More
 
 Read the [root README](https://github.com/DammersCode/use-signalr#readme) for shared connection options and retry behavior.
+
+## License
+
+MIT © [DammersCode](https://github.com/DammersCode)

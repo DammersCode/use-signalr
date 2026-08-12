@@ -21,7 +21,7 @@ vi.mock("@microsoft/signalr", async (importOriginal) => {
 describe("SSR", () => {
   it("imports and renders the provider without starting a connection", async () => {
     expect(typeof globalThis.window).toBe("undefined");
-    const mod = await import("./index");
+    const mod = await import("./index.js");
     const client = mod.createSignalRClient({ hubs: { "/hub": {} } });
     expect(renderToString(h(client.SignalRProvider, {
       baseUrl: "https://example.test",

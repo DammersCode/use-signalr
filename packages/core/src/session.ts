@@ -1,13 +1,13 @@
-import { createConnectionManager } from "./connection-manager";
-import type { ConnectionManager } from "./connection-manager";
-import type { StatusStore } from "./status-store";
+import { createConnectionManager } from "./connection-manager.js";
+import type { ConnectionManager } from "./connection-manager.js";
+import type { StatusStore } from "./status-store.js";
 import type {
   HubConnectionStatus,
   HubString,
   ResolvedHubConfig,
   SignalRContract,
-} from "./types";
-import type { SignalRContextValueBase } from "./context";
+} from "./types.js";
+import type { SignalRContextValueBase } from "./context.js";
 
 export interface SignalRSessionDeps<
   T extends SignalRContract,

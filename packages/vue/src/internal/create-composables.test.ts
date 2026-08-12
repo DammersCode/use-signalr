@@ -1,6 +1,6 @@
 import { createApp } from "vue";
 import { describe, expect, it } from "vitest";
-import { makeHarness } from "./test-harness";
+import { makeHarness } from "./test-harness.js";
 
 const HUB = "/hubs/chat" as const;
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));

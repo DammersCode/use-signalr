@@ -43,6 +43,7 @@
     "access": "public"
   },
   "scripts": {
+    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -52,7 +53,13 @@
   },
   "peerDependencies": {
     "@microsoft/signalr": ">=8",
-    "@angular/core": ">=20"
+    "@angular/core": ">=20",
+    "rxjs": ">=7"
+  },
+  "peerDependenciesMeta": {
+    "rxjs": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@microsoft/signalr": ">=8",

@@ -1,7 +1,7 @@
 import type { HubConnection } from "@microsoft/signalr";
-import { createSignalRHooks } from "./create-hooks";
+import { createSignalRHooks } from "./create-hooks.js";
 import type { SignalRContract } from "@dammers/use-signalr-core";
-import type { SignalRContextValue } from "../types";
+import type { SignalRContextValue } from "../types.js";
 
 export type Hubs = {
   "/hubs/chat": {

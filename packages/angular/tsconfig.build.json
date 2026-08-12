@@ -5,6 +5,7 @@
     "node_modules",
     "src/**/*.test.ts",
     "src/**/*.type-test.ts",
-    "src/**/test-harness.ts"
+    "src/**/test-harness.ts",
+    "src/test-setup.ts"
   ]
 }

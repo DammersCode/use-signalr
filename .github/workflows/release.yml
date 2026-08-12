@@ -28,6 +28,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run check:dist
 
       # A mistyped tag must fail here, not publish the wrong version.
       - name: Verify tag matches versions

@@ -1,6 +1,12 @@
 import { use, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { useLatest } from "../internal-hooks";
-import { createInvoker, createSender, createTeardownSender } from "@dammers/use-signalr-core";
+import { useLatest } from "../internal-hooks.js";
+import {
+  createAbortScope,
+  createInvoker,
+  createSender,
+  createTeardownSender,
+} from "@dammers/use-signalr-core";
+import type { AbortScope } from "@dammers/use-signalr-core";
 import type { Context } from "react";
 import type {
   EventArgs,
@@ -14,7 +20,7 @@ import type {
   MethodReturn,
   SignalRContract,
 } from "@dammers/use-signalr-core";
-import type { SignalRContextValue } from "../types";
+import type { SignalRContextValue } from "../types.js";
 
 /** Builds the hooks bound to one client's context. */
 export function createSignalRHooks<T extends SignalRContract>(
@@ -66,8 +72,12 @@ export function createSignalRHooks<T extends SignalRContract>(
   function useHubStatus<H extends Hub>(hub: H): HubConnectionStatus {
     const { statusStore } = useSignalR();
     useHubConsumer(hub);
+    const subscribe = useMemo(
+      () => (listener: () => void) => statusStore.subscribe(hub, listener),
+      [statusStore, hub],
+    );
     return useSyncExternalStore(
-      statusStore.subscribe,
+      subscribe,
       () => statusStore.get(hub),
       () => statusStore.get(hub),
     );
@@ -158,12 +168,14 @@ export function createSignalRHooks<T extends SignalRContract>(
     const { waitForConnection, getConnection } = useSignalR();
     useHubConsumer(hub);
     const optsRef = useLatest(options);
-    const abortRef = useRef<AbortController | null>(null);
+    const scopeRef = useRef<AbortScope>(null);
+    scopeRef.current ??= createAbortScope();
+    const scope = scopeRef.current;
     useEffect(
       () => () => {
-        if (!optsRef.current?.keepAliveOnUnmount) abortRef.current?.abort();
+        if (!optsRef.current?.keepAliveOnUnmount) scope.abortAll();
       },
-      [optsRef],
+      [optsRef, scope],
     );
 
     return useMemo(
@@ -173,11 +185,10 @@ export function createSignalRHooks<T extends SignalRContract>(
           hub,
           method,
           () => optsRef.current,
-          (ac) => {
-            abortRef.current = ac;
-          },
+          scope.track,
+          scope.untrack,
         ),
-      [waitForConnection, getConnection, hub, method, optsRef],
+      [waitForConnection, getConnection, hub, method, optsRef, scope],
     );
   }
 

@@ -1,13 +1,13 @@
-import { createConnectionManager } from "./connection-manager";
-import type { ConnectionManager } from "./connection-manager";
-import type { StatusStore } from "./status-store";
+import { createConnectionManager } from "./connection-manager.js";
+import type { ConnectionManager } from "./connection-manager.js";
+import type { StatusStore } from "./status-store.js";
 import type {
   HubConnectionStatus,
   HubString,
   ResolvedHubConfig,
   SignalRContract,
-} from "./types";
-import type { SignalRContextValueBase } from "./context";
+} from "./types.js";
+import type { SignalRContextValueBase } from "./context.js";
 
 export interface SignalRSessionDeps<
   T extends SignalRContract,
@@ -78,9 +78,11 @@ export function createSignalRSession<
   };
 
   const stop = () => {
+    // Notify synchronous adapter stores while the live connections are still
+    // available, so they can detach event handlers deterministically.
+    hubs.forEach((h) => statusStore.set(h, "disconnected"));
     current?.dispose();
     current = null;
-    hubs.forEach((h) => statusStore.set(h, "disconnected"));
   };
 
   const context: SignalRContextValueBase<T, TStore> = {

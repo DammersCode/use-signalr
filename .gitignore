@@ -4,3 +4,12 @@ dist/
 .DS_Store
 *.log
 tarballs/
+
+.superpowers/
+dist-site/
+
+bin/
+obj/
+
+.angular/
+out-tsc/

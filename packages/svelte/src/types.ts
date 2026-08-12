@@ -5,7 +5,7 @@ import type {
   SignalRContextValueBase,
   HubString,
 } from "@dammers/use-signalr-core";
-import type { StatusStore } from "./status-store";
+import type { StatusStore } from "./status-store.js";
 
 /** A value that can also be supplied as a store, to make the provider react to it. */
 export type MaybeReadable<T> = T | Readable<T>;

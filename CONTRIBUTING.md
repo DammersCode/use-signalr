@@ -15,7 +15,7 @@ cd use-signalr
 npm install        # installs and links all workspace packages
 ```
 
-Core has no runtime dependencies. React, Solid, and Svelte depend on core plus their framework as a peer dependency (`react`/`react-dom`, `solid-js`, or `svelte`) and on `@microsoft/signalr` as a peer dependency in every adapter. Peers are listed in `devDependencies` too, so local type-checking and builds resolve without a consuming app.
+Core has no runtime dependencies. Each adapter depends on core, its framework peer, and `@microsoft/signalr`. Preact uses `preact` only and does not use `preact/compat`. Peers are also development dependencies for local checks.
 
 ## Layout
 
@@ -25,6 +25,10 @@ packages/
   react/    @dammers/use-signalr-react    React provider + hooks
   solid/    @dammers/use-signalr-solid    SolidJS provider + hooks
   svelte/   @dammers/use-signalr-svelte   Svelte provider + stores
+  angular/  @dammers/use-signalr-angular  Angular provider + signals
+  vue/      @dammers/use-signalr-vue      Vue plugin + composables
+  preact/   @dammers/use-signalr-preact   Native Preact provider + hooks
+  lit/      @dammers/use-signalr-lit      Lit Reactive Controllers
 scripts/
   sync-versions.mjs   writes the root version into every package + adapter->core dep
   check-docs.mjs      docs-staleness guard (see "Ground rules")
@@ -42,28 +46,35 @@ Run from the repo root:
 
 | Command | What it does |
 | --- | --- |
-| `npm run build` | Builds core, then react, then solid, then svelte (`tsc -p tsconfig.build.json` per package). |
+| `npm run build` | Builds core, then all adapter packages. |
 | `npm run typecheck` | Builds core (adapters need its `dist` to resolve types), then type-checks every package with a `typecheck` script. |
 | `npm test` | Builds core, then runs `vitest run` in every package with a `test` script. |
 | `npm run check` | Runs `scripts/check-docs.mjs` — fails if versions drift or docs go stale. |
 
-Inside one package (`npm run build -w packages/react`, etc.) works too, but core must already be built for react/solid/svelte to type-check or test cleanly.
+Inside one package (`npm run build -w packages/lit`, for example) works too. Core must already be built before an adapter check.
 
 ## Testing your change in a real app
 
 The fastest loop is a local link, from whichever package you're changing:
 
 ```bash
-npm run build -w packages/react     # or packages/solid, packages/core
-npm link -w packages/react          # in this repo
+npm run build -w packages/lit
+npm link -w packages/lit
 
 cd ../my-app
-npm link @dammers/use-signalr-react
+npm link @dammers/use-signalr-lit
 ```
 
-Rebuild the package here after each change and the app picks it up. Unlink with `npm unlink @dammers/use-signalr-react` in the app when done.
+Rebuild the package here after each change and the app picks it up. Unlink with `npm unlink @dammers/use-signalr-lit` in the app when done.
 
 If your change touches core, rebuild core first — the adapter you linked resolves core through its own `node_modules`, which points at the workspace-linked `packages/core/dist`.
+
+## Example apps
+
+`examples/` holds small reference apps that run against a real SignalR
+backend, one per framework. Use them to debug a package by hand, with plain
+buttons and console output instead of a test runner. See
+[DEVELOP.md](./DEVELOP.md) for setup, ports, and the console protocol.
 
 ## Ground rules
 
@@ -71,7 +82,7 @@ If your change touches core, rebuild core first — the adapter you linked resol
 - **Stay self-contained per package.** No imports across `packages/*/src` boundaries except an adapter importing from `@dammers/use-signalr-core`.
 - **Keep it typed.** Public APIs are inferred from the contract — avoid `any` and casts; any existing cast is documented in code, don't add an undocumented one.
 - **Match the surrounding style.** Same comment density and naming as the existing files, per package.
-- **Parity policy.** A behavior change that lives entirely in `packages/core` lands there once and every adapter picks it up automatically. A behavior change that touches an adapter surface (a hook's options, the provider's props, a hook's return shape) must land in **all** of `packages/react`, `packages/solid`, and `packages/svelte` in the same PR, with matching tests in each. Don't ship a hook improvement to one framework and leave the others behind.
+- **Parity policy.** A core behavior change lands once and every adapter picks it up. An adapter API change must be reviewed for React, Solid, Svelte, Angular, Vue, Preact, and Lit parity, with matching tests where the API exists.
 - **Docs stay in sync.** `npm run check` enforces version sync across all `package.json` files and catches stale package-name/path references left over from the pre-monorepo layout. It runs in CI and in `preversion` — fix violations rather than working around them.
 
 ## Pull requests
@@ -103,7 +114,7 @@ Never edit `version` by hand in any `package.json`. The release workflow fails i
 
 `npm publish` via OIDC only works once a package already exists on npm with a Trusted Publisher configured for it. Each package needs its own Trusted Publisher entry on npmjs.com, pointing at this repo's `release.yml` workflow. Until that's set up per package:
 
-- The **first** publish of each of `@dammers/use-signalr-core`, `@dammers/use-signalr-react`, `@dammers/use-signalr-solid`, and `@dammers/use-signalr-svelte` has to be done manually (`npm publish` from a maintainer's authenticated machine, from the built `packages/*/dist`).
+- The first publish of each package, including `@dammers/use-signalr-lit`, must be done manually from a maintainer's authenticated machine.
 - After each package's first manual publish, configure its Trusted Publisher entry on npmjs.com to point at `release.yml`. Every release after that flows through CI automatically.
 
 ### Deprecating the old package

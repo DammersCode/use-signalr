@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>use-signalr — typed SignalR clients for every framework</title>
+    <meta
+      name="description"
+      content="Typed multi-hub SignalR clients for React, Vue, Svelte, Angular, SolidJS, Preact and Lit, sharing one framework-free core."
+    />
+    <meta property="og:title" content="use-signalr" />
+    <meta property="og:description" content="Want to use SignalR? You're in the right place. Pick your poison." />
+    <meta name="theme-color" content="#08090c" />
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📡</text></svg>"
+    />
+  </head>
+  <body>
+    <div class="glow" aria-hidden="true"><span class="glow-core"></span></div>
+
+    <header class="hero">
+      <p class="eyebrow">v<!--VERSION--> · MIT · zero-dependency core</p>
+      <h1>Want to use SignalR?<br /><span class="accent">You're in the right place.</span></h1>
+      <p class="lede">
+        Typed multi-hub clients for every framework worth arguing about — one factory call, fully
+        inferred events and methods, auto-reconnect and invoke retry included.
+      </p>
+      <div class="hero-links">
+        <a class="btn" href="https://github.com/DammersCode/use-signalr" rel="noopener">GitHub</a>
+        <a class="btn ghost" href="https://github.com/DammersCode/use-signalr#the-contract" rel="noopener">
+          Read the docs
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <section class="picker" aria-labelledby="picker-heading">
+        <h2 id="picker-heading">Pick your poison.</h2>
+        <div class="grid">
+<!--CARDS-->
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        MIT licensed · built by
+        <a href="https://github.com/DammersCode" rel="noopener">Dammers</a> ·
+        <a href="https://github.com/DammersCode/use-signalr/issues" rel="noopener">report an issue</a>
+      </p>
+    </footer>
+
+    <div class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const toast = document.querySelector(".toast");
+
+      const flash = (msg) => {
+        toast.textContent = msg;
+        toast.classList.add("show");
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove("show"), 1800);
+      };
+
+      const write = async (text) => {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch {
+          // clipboard API needs a secure context; execCommand still works on file://
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "");
+          ta.style.cssText = "position:fixed;opacity:0";
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand?.("copy");
+          ta.remove();
+          return !!ok;
+        }
+      };
+
+      document.querySelectorAll("[data-copy]").forEach((btn) => {
+        const idle = btn.innerHTML;
+        btn.addEventListener("click", async () => {
+          if (btn.classList.contains("copied")) return;
+          const ok = await write(btn.dataset.copy);
+          btn.classList.add(ok ? "copied" : "failed");
+          btn.innerHTML = ok
+            ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7"/></svg>'
+            : '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M18 6 6 18M6 6l12 12"/></svg>';
+          flash(ok ? "Copied  " + btn.dataset.copy : "Copy failed — select it manually.");
+          setTimeout(() => {
+            btn.classList.remove("copied", "failed");
+            btn.innerHTML = idle;
+          }, 1600);
+        });
+      });
+    </script>
+  </body>
+</html>

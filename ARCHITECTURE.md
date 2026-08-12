@@ -1,6 +1,6 @@
 # Architecture
 
-How responsibility splits between `packages/core` and the framework adapters (`packages/react`, `packages/solid`, `packages/svelte`), and what a new adapter needs to implement.
+How responsibility splits between `packages/core` and the framework adapters (`packages/react`, `packages/solid`, `packages/svelte`, `packages/angular`, `packages/vue`, `packages/preact`, `packages/lit`), and what a new adapter needs to implement.
 
 ## Core responsibilities vs adapter responsibilities
 
@@ -25,9 +25,9 @@ Core has no framework dependency anywhere in its code. Adapters never reach into
 
 Every adapter follows the same sequence, built on `packages/core/src/session.ts`:
 
-1. **Create a `StatusStore`** — the adapter's own reactive implementation (`packages/*/src/status-store.ts`), keyed per hub.
+1. **Create a `StatusStore`** — the adapter's own reactive implementation (`packages/*/src/status-store.ts`), keyed per hub. Angular's is backed by one `signal()` per hub (`packages/angular/src/status-store.ts`).
 2. **Create a session** — `createSignalRSession({ hubs, resolve, statusStore, getAccessToken, onStatusChange, onError })`. This is the single call that replaces what used to be ~35 duplicated lines per provider.
-3. **Expose `session.context`** through the framework's context mechanism (React context, Solid context, Svelte's `setContext`). `session.context` has a stable identity — build it once.
+3. **Expose `session.context`** through the framework's context mechanism (React/Solid/Preact context, Svelte's `setContext`, an Angular injection token, Vue `provide`, Lit's shared session object). `session.context` has a stable identity — build it once.
 4. **On identity change** (`baseUrl`, `enabled`, or `connectionKey`), call `session.stop()` then, if enabled and a `baseUrl` is present, `session.start(baseUrl)`. This is the only place an adapter touches connection lifecycle directly.
 5. **On teardown** (unmount / cleanup / destroy), call `session.stop()`.
 
@@ -58,6 +58,10 @@ No connection work happens at module scope or during a synchronous render/setup 
 - React: inside `useEffect`.
 - Solid: inside `createEffect` (which does not run during SSR render).
 - Svelte: inside `onMount`.
+- Angular: inside `afterNextRender`, which never runs on the server.
+- Vue: the plugin skips its `effectScope` when `typeof window === "undefined"`.
+- Preact: inside `useEffect`, which does not run during server rendering.
+- Lit: inside `ReactiveController.hostConnected()`.
 
 A server render therefore never opens a socket. Every hub reports `"disconnected"` until a client-side lifecycle hook calls `session.start()`.
 
@@ -74,13 +78,13 @@ Adapters must not introduce `any` or untyped casts. Reuse the exported generic b
 
 ## New adapter checklist
 
-Building a Vue, Angular, Preact, or Lit adapter:
+Building a new adapter:
 
 1. Implement `StatusStore<H>` for the framework's reactivity (`get`/`set`, plus whatever subscription primitive the framework needs — see `packages/react/src/status-store.ts`, `packages/solid/src/status-store.ts`, and `packages/svelte/src/status-store.ts` for three different shapes of the same contract).
 2. Create a session per client with `createSignalRSession({ hubs, resolve, statusStore, getAccessToken, onStatusChange, onError })`.
 3. Wire `session.context` into the framework's context/injection mechanism, built once per provider instance.
 4. Bind lifecycle: call `session.start(baseUrl)` / `session.stop()` from a client-only reactive effect keyed on `baseUrl`/`enabled`/`connectionKey`, and `session.stop()` on teardown.
-5. Map the 8 hooks/equivalents onto the framework's primitives, delegating to core: `useSignalR`, `useHubConsumer`, `useHubStatus`, `useOnReconnected`, `useSignalREffect`, `useSignalRInvoke` (`createInvoker`), `useSignalRSend` (`createSender`), `useSignalRTeardown` (`createTeardownSender`).
+5. Map the provider plus the 8 hooks/equivalents onto the framework's primitives, delegating to core: `useSignalR`, `useHubConsumer`, `useHubStatus`, `useOnReconnected`, `useSignalREffect`, `useSignalRInvoke` (`createInvoker`), `useSignalRSend` (`createSender`), `useSignalRTeardown` (`createTeardownSender`).
 6. Name the public surface with the target framework's vocabulary — see [Naming conventions](#naming-conventions).
 7. Add a type-test file proving inference flows end to end from a sample contract (see `packages/*/src/**/*.type-test.ts`).
 8. Add lifecycle tests (mount/unmount rebuild, SSR-safe no-op) and ref-count tests (lazy connect/disconnect, grace period, survival across a rebuild) — mirror `packages/core/src/session.test.ts` and the existing adapters' provider tests.
@@ -91,18 +95,18 @@ Building a Vue, Angular, Preact, or Lit adapter:
 
 The core's concepts are fixed: provide/context, raw context access, hub status, server events, invoke, send, teardown, reconnect, keep-alive. Each adapter names its public surface using its own framework's vocabulary. An API that reads foreign is a tax on every consumer — a Svelte developer expects stores, not `useX`; a React developer expects hooks; an Angular developer expects services and Observables. The rename is free before an adapter ships, and it is what "framework-idiomatic" means in practice.
 
-| Concept | React / Solid | Svelte | Vue (planned) | Angular (planned) | Lit (planned) |
+| Concept | React / Solid / Preact | Svelte | Angular | Vue | Lit |
 | --- | --- | --- | --- | --- | --- |
-| provide/context | `SignalRProvider` | `provideSignalR` | `provideSignalR` (plugin `install`) | `SignalRModule` / DI provider | host wiring |
-| raw context access | `useSignalR` | `getSignalR` | `useSignalR` | `SignalRService` | controller field |
-| hub status | `useHubStatus` | `hubStatus` | `useHubStatus` (ref) | `hubStatus$` (Observable) | `SignalRStatusController` |
-| server event | `useSignalREffect` | `onHubEvent` | `useSignalREvent` | `hubEvent$(...)` | controller subscribe |
-| invoke | `useSignalRInvoke` | `hubInvoke` | `useSignalRInvoke` | `invoke(...)` | controller method |
-| send | `useSignalRSend` | `hubSend` | `useSignalRSend` | `send(...)` | controller method |
-| teardown | `useSignalRTeardown` | `hubTeardown` | `useSignalRTeardown` | `teardown(...)` | controller method |
-| reconnect hook | `useOnReconnected` | `onReconnected` | `useOnReconnected` | `reconnected$` | controller callback |
-| keep lazy hub alive | `useHubConsumer` | `keepHubAlive` | `useHubConsumer` | `keepAlive(...)` | controller lifecycle |
+| provide/context | `SignalRProvider` | `provideSignalR` | `provideSignalR` | configured client plugin (`install`) | explicit shared `createSession` |
+| raw context access | `useSignalR` | `getSignalR` | `injectSignalR` | `useSignalR` | `session.context` |
+| hub status | `useHubStatus` | `hubStatus` | `injectHubStatus` (`Signal<HubConnectionStatus>`) | `useHubStatus` (ref) | `controller.status` |
+| server event | `useSignalREffect` | `onHubEvent` | `injectHubEvent` | `useSignalREvent` | `controller.on` |
+| invoke | `useSignalRInvoke` | `hubInvoke` | `injectHubInvoke` | `useSignalRInvoke` | `controller.invoke` |
+| send | `useSignalRSend` | `hubSend` | `injectHubSend` | `useSignalRSend` | `controller.send` |
+| teardown | `useSignalRTeardown` | `hubTeardown` | `injectHubTeardown` | `useSignalRTeardown` | `controller.teardown` |
+| reconnect hook | `useOnReconnected` | `onReconnected` | `injectOnReconnected` | `useOnReconnected` | `controller.onReconnected` |
+| keep lazy hub alive | `useHubConsumer` | `keepHubAlive` | `injectKeepHubAlive` | `useHubConsumer` | controller host lifecycle |
 
-React and Solid keep `use*` — that vocabulary is native to both. Svelte is done: stores are nouns, context access follows `getContext`, and providers stay `provideX`. The Vue, Angular, and Lit columns are planned and not binding until each adapter is built — Vue keeps `use*` because composables genuinely use that prefix; Angular uses services plus RxJS Observables (`$` suffix) instead of hook-shaped functions; Lit uses a `ReactiveController` with plain methods instead of standalone functions.
+React, Solid, and Preact keep `use*` because that vocabulary is native to them. The Preact adapter uses `preact` and `preact/hooks` only. Svelte stores are nouns, and context access follows `getContext`. Angular uses `inject*` and `provideSignalR`. Vue installs the configured client through `app.use` and exposes `use*` composables. Lit uses Reactive Controllers and an explicit shared session, without a global provider element.
 
 The exported *type* names and `createSignalRClient`, `event`, `method` stay identical across all adapters — they are core concepts, not framework surface.

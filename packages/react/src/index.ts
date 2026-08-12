@@ -1,6 +1,6 @@
-export { createSignalRClient } from "./create-signalr-client";
+export { createSignalRClient } from "./create-signalr-client.js";
 export { InvokeError, event, method } from "@dammers/use-signalr-core";
-export type { StatusStore } from "./status-store";
+export type { StatusStore } from "./status-store.js";
 export type {
   HubString,
   HubContract,
@@ -22,4 +22,4 @@ export type {
   MethodArgs,
   MethodReturn,
 } from "@dammers/use-signalr-core";
-export type { SignalRProviderProps, SignalRContextValue } from "./types";
+export type { SignalRProviderProps, SignalRContextValue } from "./types.js";

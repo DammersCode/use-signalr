@@ -1,0 +1,72 @@
+{
+  "name": "@dammers/use-signalr-angular",
+  "version": "0.4.0",
+  "description": "Fully-typed multi-hub SignalR provider + signals for Angular: auto-reconnect, invoke retry, lazy hubs, live status.",
+  "author": "Dammers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DammersCode/use-signalr.git",
+    "directory": "packages/angular"
+  },
+  "homepage": "https://github.com/DammersCode/use-signalr/tree/main/packages/angular#readme",
+  "bugs": "https://github.com/DammersCode/use-signalr/issues",
+  "keywords": [
+    "angular",
+    "signalr",
+    "signals",
+    "typescript",
+    "realtime",
+    "websocket"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./rxjs-interop": {
+      "types": "./dist/rxjs-interop.d.ts",
+      "import": "./dist/rxjs-interop.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dammers/use-signalr-core": "0.4.0"
+  },
+  "peerDependencies": {
+    "@microsoft/signalr": ">=8",
+    "@angular/core": ">=20",
+    "rxjs": ">=7"
+  },
+  "peerDependenciesMeta": {
+    "rxjs": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@microsoft/signalr": ">=8",
+    "@angular/core": "^22.1.1",
+    "@angular/compiler": "^22.1.1",
+    "@angular/platform-browser": "^22.1.1",
+    "rxjs": "^7.8.2",
+    "zone.js": "~0.15.0"
+  }
+}

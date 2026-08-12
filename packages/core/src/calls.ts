@@ -5,7 +5,7 @@ import {
   isRetriableInvokeError,
   resolveBackoff,
   sleep,
-} from "./retry";
+} from "./retry.js";
 import type { HubConnection } from "@microsoft/signalr";
 import type {
   HubString,
@@ -15,10 +15,33 @@ import type {
   MethodName,
   MethodReturn,
   SignalRContract,
-} from "./types";
+} from "./types.js";
 
 const DEFAULT_TIMEOUT = 10_000;
 const DEFAULT_TEARDOWN_TIMEOUT = 10_000;
+
+/**
+ * Tracks every in-flight invocation of one consumer, so its cleanup aborts
+ * ALL of them — not just the most recent. Adapters pass `track`/`untrack`
+ * straight to `createInvoker` and call `abortAll` from their teardown hook.
+ */
+export interface AbortScope {
+  track: (ac: AbortController) => void;
+  untrack: (ac: AbortController) => void;
+  abortAll: () => void;
+}
+
+export function createAbortScope(): AbortScope {
+  const active = new Set<AbortController>();
+  return {
+    track: (ac) => active.add(ac),
+    untrack: (ac) => active.delete(ac),
+    abortAll: () => {
+      active.forEach((ac) => ac.abort());
+      active.clear();
+    },
+  };
+}
 
 export interface CallTarget<T extends SignalRContract> {
   waitForConnection: (
@@ -33,7 +56,8 @@ export interface CallTarget<T extends SignalRContract> {
  * called at CALL time (not build time), so the adapter can pass a ref/latest
  * accessor and preserve latest-options semantics. `setAbort` is called once
  * per invocation with the new controller, so the adapter's unmount/cleanup
- * handler can abort the in-flight call.
+ * handler can abort the in-flight call. `clearAbort` runs when that call
+ * settles, so adapters can retain only active controllers.
  */
 export function createInvoker<
   T extends SignalRContract,
@@ -45,6 +69,7 @@ export function createInvoker<
   method: M,
   getOptions: () => InvokeOptions | undefined,
   setAbort: (ac: AbortController) => void,
+  clearAbort?: (ac: AbortController) => void,
 ): (...args: MethodArgs<T, H, M>) => Promise<MethodReturn<T, H, M>> {
   const { waitForConnection, getConnection } = target;
   return async (...args: MethodArgs<T, H, M>): Promise<MethodReturn<T, H, M>> => {
@@ -53,29 +78,34 @@ export function createInvoker<
     const retries = o?.retries ?? 0;
     const ac = new AbortController();
     setAbort(ac);
-    let attempt = 0;
-    for (;;) {
-      try {
-        const connection = await waitForConnection(hub, timeout);
-        return await connection.invoke<MethodReturn<T, H, M>>(method, ...args);
-      } catch (error) {
-        const conn = getConnection(hub);
-        const forced = o?.isRetriable?.(error);
-        const retriable =
-          forced ?? (conn ? isRetriableInvokeError(error, conn) : true);
-        if (!retriable || attempt >= retries) {
-          // No retries: rethrow the raw error, so callers see the original.
-          if (retries === 0) throw error;
-          throw new InvokeError(
-            `SignalR invoke ${hub}/${String(method)} failed after ${attempt + 1} attempts`,
-            error,
-            attempt + 1,
-            retriable,
-          );
+    try {
+      let attempt = 0;
+      for (;;) {
+        try {
+          const connection = await waitForConnection(hub, timeout);
+          return await connection.invoke<MethodReturn<T, H, M>>(method, ...args);
+        } catch (error) {
+          if (ac.signal.aborted) throw error; // abort wins: never reclassify or retry
+          const conn = getConnection(hub);
+          const forced = o?.isRetriable?.(error);
+          const retriable =
+            forced ?? (conn ? isRetriableInvokeError(error, conn) : true);
+          if (!retriable || attempt >= retries) {
+            // No retries: rethrow the raw error, so callers see the original.
+            if (retries === 0) throw error;
+            throw new InvokeError(
+              `SignalR invoke ${hub}/${String(method)} failed after ${attempt + 1} attempts`,
+              error,
+              attempt + 1,
+              retriable,
+            );
+          }
+          await sleep(resolveBackoff(o?.backoff ?? DEFAULT_BACKOFF, attempt), ac.signal);
+          attempt += 1;
         }
-        await sleep(resolveBackoff(o?.backoff ?? DEFAULT_BACKOFF, attempt), ac.signal);
-        attempt += 1;
       }
+    } finally {
+      clearAbort?.(ac);
     }
   };
 }

@@ -5,7 +5,7 @@ import type {
   SignalRProviderPropsBase,
   SignalRContextValueBase,
 } from "@dammers/use-signalr-core";
-import type { StatusStore } from "./status-store";
+import type { StatusStore } from "./status-store.js";
 
 export type SignalRProviderProps = SignalRProviderPropsBase<ReactNode>;
 

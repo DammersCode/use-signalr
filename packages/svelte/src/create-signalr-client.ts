@@ -1,6 +1,6 @@
 import { hubKeys, resolveHubConfig } from "@dammers/use-signalr-core";
-import { createSignalRProvider } from "./internal/create-provider";
-import { createSignalRHooks } from "./internal/create-hooks";
+import { createSignalRProvider } from "./internal/create-provider.js";
+import { createSignalRHooks } from "./internal/create-hooks.js";
 import type {
   HubDef,
   HubString,

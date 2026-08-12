@@ -1,12 +1,12 @@
 import { HubConnectionBuilder, HubConnectionState } from "@microsoft/signalr";
-import { isRetriableConnectError } from "./config";
+import { isRetriableConnectError } from "./config.js";
 import type { HubConnection } from "@microsoft/signalr";
-import type { HubEntry } from "./hub-entry";
+import type { HubEntry } from "./hub-entry.js";
 import type {
   HubConnectionStatus,
   HubString,
   ResolvedHubConfig,
-} from "./types";
+} from "./types.js";
 
 const CONNECT_RETRY_BASE_MS = 2500;
 
@@ -61,12 +61,19 @@ export function createConnectionManager<Hub extends HubString>(
   } = deps;
 
   const built = new Map<Hub, HubEntry>();
+  const retryTimers = new Set<ReturnType<typeof setTimeout>>();
   let disposing = false;
 
   const setStatus = (hub: Hub, status: HubConnectionStatus) => {
     const e = built.get(hub);
     if (e) e.status = status;
     onStatus(hub, status);
+  };
+
+  // stop() stays fire-and-forget so the public API remains synchronous, but a
+  // rejection must surface instead of becoming an unhandled rejection.
+  const stopConnection = (hub: Hub, connection: HubConnection) => {
+    void connection.stop().catch((err: unknown) => onError(hub, err));
   };
 
   const clearStopTimer = (hub: Hub) => {
@@ -102,6 +109,7 @@ export function createConnectionManager<Hub extends HubString>(
     const conn = builder.build();
 
     // Pre-bind declared client events, so a server push never hits zero handlers.
+    // Tests must count `.on` deltas: this adds one call per declared event.
     for (const ev of rc.events) conn.on(ev, noop);
 
     let resolveReady!: () => void;
@@ -119,6 +127,8 @@ export function createConnectionManager<Hub extends HubString>(
 
     // Attach lifecycle handlers ONCE — SignalR has no removal API.
     conn.onclose((err) => {
+      // A stale generation's late callback must never overwrite the live one's status.
+      if (!isCurrent()) return;
       // A deliberate stop() (logout, rebuild, lazy stop) leaves err undefined: stay silent.
       if (disposing || err === undefined) {
         setStatus(hub, "disconnected");
@@ -127,10 +137,13 @@ export function createConnectionManager<Hub extends HubString>(
       setStatus(hub, "disconnected");
       onError(hub, err);
     });
-    conn.onreconnecting(() => setStatus(hub, "reconnecting"));
+    conn.onreconnecting(() => {
+      if (isCurrent()) setStatus(hub, "reconnecting");
+    });
     conn.onreconnected(() => {
       entry.resolveReady();
-      if (!disposing && isCurrent()) {
+      if (!isCurrent()) return;
+      if (!disposing) {
         onStatus(hub, "reconnected");
         reconnectListeners.get(hub)?.forEach((cb) => cb());
       }
@@ -155,7 +168,11 @@ export function createConnectionManager<Hub extends HubString>(
         }
         retries += 1;
         setStatus(hub, "disconnected");
-        setTimeout(start, CONNECT_RETRY_BASE_MS * retries);
+        const id = setTimeout(() => {
+          retryTimers.delete(id);
+          void start();
+        }, CONNECT_RETRY_BASE_MS * retries);
+        retryTimers.add(id);
       }
     };
     void start();
@@ -174,7 +191,7 @@ export function createConnectionManager<Hub extends HubString>(
       e.stopping = true;
       built.delete(hub);
       setStatus(hub, "disconnected");
-      void e.connection.stop();
+      stopConnection(hub, e.connection);
     };
     if (graceMs <= 0) queueMicrotask(stopNow);
     else stopTimers.set(hub, setTimeout(stopNow, graceMs));
@@ -210,13 +227,14 @@ export function createConnectionManager<Hub extends HubString>(
       if (entry?.connection.state === HubConnectionState.Connected) {
         return entry.connection;
       }
-      const timeout = new Promise<"timeout">((res) =>
-        setTimeout(() => res("timeout"), deadline - Date.now()),
-      );
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeout = new Promise<"timeout">((res) => {
+        timeoutId = setTimeout(() => res("timeout"), deadline - Date.now());
+      });
       const result = await Promise.race([
         entry?.ready.then(() => "ready" as const) ?? timeout,
         timeout,
-      ]);
+      ]).finally(() => clearTimeout(timeoutId));
       if (result === "timeout") break;
     }
     throw new Error(
@@ -228,7 +246,9 @@ export function createConnectionManager<Hub extends HubString>(
     disposing = true;
     stopTimers.forEach((id) => clearTimeout(id));
     stopTimers.clear();
-    built.forEach((e) => void e.connection.stop());
+    retryTimers.forEach((id) => clearTimeout(id));
+    retryTimers.clear();
+    built.forEach((e, hub) => stopConnection(hub, e.connection));
     // refCounts are kept across rebuilds on purpose.
   };
 

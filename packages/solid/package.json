@@ -1,6 +1,6 @@
 {
   "name": "@dammers/use-signalr-solid",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Fully-typed multi-hub SignalR provider + hooks for SolidJS: auto-reconnect, invoke retry, lazy hubs, live status.",
   "author": "Dammers",
   "license": "MIT",
@@ -45,7 +45,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@dammers/use-signalr-core": "0.4.0"
+    "@dammers/use-signalr-core": "0.5.0"
   },
   "peerDependencies": {
     "@microsoft/signalr": ">=8",

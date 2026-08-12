@@ -16,7 +16,7 @@ function readText(p) {
   return readFileSync(p, "utf8");
 }
 
-// 1. Version sync: root === every packages/*/package.json === react/solid's core dep range.
+// 1. Version sync: root === every packages/*/package.json === each adapter's core dep.
 const rootPkgPath = path.join(rootDir, "package.json");
 const rootPkg = readJson(rootPkgPath);
 const version = rootPkg.version;
@@ -50,6 +50,10 @@ const requiredReadmes = [
   "packages/react/README.md",
   "packages/solid/README.md",
   "packages/svelte/README.md",
+  "packages/angular/README.md",
+  "packages/vue/README.md",
+  "packages/preact/README.md",
+  "packages/lit/README.md",
   "README.md",
   "CONTRIBUTING.md",
   "ARCHITECTURE.md",
@@ -78,6 +82,10 @@ const nameCheckedFiles = [
   "packages/react/README.md",
   "packages/solid/README.md",
   "packages/svelte/README.md",
+  "packages/angular/README.md",
+  "packages/vue/README.md",
+  "packages/preact/README.md",
+  "packages/lit/README.md",
 ];
 for (const rel of nameCheckedFiles) {
   const p = path.join(rootDir, rel);
@@ -108,6 +116,10 @@ const sanityChecks = [
   ["packages/react/README.md", "@dammers/use-signalr-react"],
   ["packages/solid/README.md", "@dammers/use-signalr-solid"],
   ["packages/svelte/README.md", "@dammers/use-signalr-svelte"],
+  ["packages/angular/README.md", "@dammers/use-signalr-angular"],
+  ["packages/vue/README.md", "@dammers/use-signalr-vue"],
+  ["packages/preact/README.md", "@dammers/use-signalr-preact"],
+  ["packages/lit/README.md", "@dammers/use-signalr-lit"],
   ["packages/core/README.md", "@dammers/use-signalr-core"],
 ];
 for (const [rel, mustMention] of sanityChecks) {

@@ -1,0 +1,23 @@
+{
+  "name": "@examples/react",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@dammers/use-signalr-react": "0.4.0",
+    "@examples/contract": "0.4.0",
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "devDependencies": {
+    "@types/react": ">=19",
+    "@types/react-dom": ">=19",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^6.0.3",
+    "vite": "^8.2.1"
+  }
+}

@@ -1,5 +1,5 @@
 import type { HubConnection } from "@microsoft/signalr";
-import type { HubConnectionStatus, HubString, SignalRContract } from "./types";
+import type { HubConnectionStatus, HubString, SignalRContract } from "./types.js";
 
 export interface SignalRProviderPropsBase<TChildren> {
   children: TChildren;

@@ -1,7 +1,12 @@
 import { getContext, onDestroy } from "svelte";
 import type { Readable } from "svelte/store";
 import type { HubConnection } from "@microsoft/signalr";
-import { createInvoker, createSender, createTeardownSender } from "@dammers/use-signalr-core";
+import {
+  createAbortScope,
+  createInvoker,
+  createSender,
+  createTeardownSender,
+} from "@dammers/use-signalr-core";
 import type {
   EventArgs,
   EventName,
@@ -14,7 +19,7 @@ import type {
   MethodReturn,
   SignalRContract,
 } from "@dammers/use-signalr-core";
-import type { SignalRContextValue } from "../types";
+import type { SignalRContextValue } from "../types.js";
 
 /** Builds the functions bound to one client's context. */
 export function createSignalRHooks<T extends SignalRContract>(contextKey: symbol) {
@@ -158,9 +163,9 @@ export function createSignalRHooks<T extends SignalRContract>(contextKey: symbol
   ) {
     const { waitForConnection, getConnection } = getSignalR();
     keepHubAlive(hub);
-    let abort: AbortController | null = null;
+    const scope = createAbortScope();
     onDestroy(() => {
-      if (!options?.keepAliveOnUnmount) abort?.abort();
+      if (!options?.keepAliveOnUnmount) scope.abortAll();
     });
 
     return createInvoker<T, H, M>(
@@ -168,9 +173,8 @@ export function createSignalRHooks<T extends SignalRContract>(contextKey: symbol
       hub,
       method,
       () => options,
-      (ac) => {
-        abort = ac;
-      },
+      scope.track,
+      scope.untrack,
     );
   }
 

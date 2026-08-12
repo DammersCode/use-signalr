@@ -1,9 +1,9 @@
 import { createComponent, createEffect, on, onCleanup } from "solid-js";
-import { createStatusStore } from "../status-store";
+import { createStatusStore } from "../status-store.js";
 import { createSignalRSession } from "@dammers/use-signalr-core";
 import type { Context } from "solid-js";
 import type { HubString, ResolvedHubConfig, SignalRContract } from "@dammers/use-signalr-core";
-import type { SignalRContextValue, SignalRProviderProps } from "../types";
+import type { SignalRContextValue, SignalRProviderProps } from "../types.js";
 
 /** Builds the `SignalRProvider` component bound to one client's context. */
 export function createSignalRProvider<T extends SignalRContract>(

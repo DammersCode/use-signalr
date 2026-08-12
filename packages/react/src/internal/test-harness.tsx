@@ -1,8 +1,8 @@
 import { createContext } from "react";
 import type { HubConnection } from "@microsoft/signalr";
-import { createSignalRHooks } from "./create-hooks";
+import { createSignalRHooks } from "./create-hooks.js";
 import type { SignalRContract } from "@dammers/use-signalr-core";
-import type { SignalRContextValue } from "../types";
+import type { SignalRContextValue } from "../types.js";
 
 type Hubs = {
   "/hubs/chat": {
@@ -94,7 +94,7 @@ export function makeHarness(opts?: {
     isHubConnected: () => connected,
     getStatus: () => (connected ? "connected" : "connecting"),
     statusStore: {
-      subscribe: () => () => {},
+      subscribe: (_hub: Hub, _listener: () => void) => () => {},
       get: () => (connected ? "connected" : "connecting"),
       set: () => {},
     } as unknown as SignalRContextValue<Hubs>["statusStore"],

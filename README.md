@@ -200,20 +200,6 @@ See your framework's README for the exact join/leave code (React's `useEffect` c
 
 `@dammers/use-signalr` (≤0.3.x, React-only) is superseded by `@dammers/use-signalr-react`. The API is unchanged — update the package name in your install and imports.
 
-## Landing page
-
-The package-picker page in [`site/`](./site) is plain HTML and CSS. `node scripts/build-site.mjs` reads every `packages/*/package.json` and writes the rendered page to `dist-site/`, so card names, descriptions, and the version badge follow the packages themselves. Open `dist-site/index.html` in a browser to preview it.
-
-[`.github/workflows/pages.yml`](./.github/workflows/pages.yml) builds and publishes it to GitHub Pages on every push to `main` that touches the site, the build script, or a package manifest. It can also be run by hand from the **Actions** tab.
-
-Pages has to be switched on once, after the workflow is on `main`:
-
-1. Open the repository on GitHub and go to **Settings → Pages**.
-2. Under **Build and deployment**, set **Source** to **GitHub Actions**. There is nothing to save; the choice applies immediately.
-3. Go to the **Actions** tab and wait for **Deploy site** to finish, or start it with **Run workflow**.
-
-The site is then served at `https://dammerscode.github.io/use-signalr/`. All links and assets are relative, so the `/use-signalr/` subpath needs no extra configuration.
-
 ## Contributing
 
 Setup, scripts, and workflow live in [CONTRIBUTING.md](./CONTRIBUTING.md).

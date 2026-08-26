@@ -16,6 +16,7 @@
     "test": "npm run build -w packages/core && npm run test --workspaces --if-present",
     "check": "node scripts/check-docs.mjs",
     "check:dist": "node scripts/check-dist.mjs",
+    "build:og": "node scripts/build-og.mjs",
     "dev": "node scripts/dev.mjs",
     "preversion": "npm run check && npm run typecheck && npm test",
     "version": "node scripts/sync-versions.mjs && git add packages/*/package.json package-lock.json",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "jsdom": "^29.1.1",
+    "simple-icons": "^16.28.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }

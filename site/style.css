@@ -3,11 +3,17 @@
   --panel: #101218;
   --panel-hi: #161923;
   --line: #23262f;
+  --line-hi: #313644;
   --text: #e8eaf0;
+  --text-2: #c8cede;
   --muted: #9aa1b1;
+  --dim: #838b9e;
+  --panel-lo: #0b0d12;
   --accent: #61dafb;
   --radius: 14px;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: dark;
 }
 
 * {
@@ -29,85 +35,113 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* signal waves: rings broadcasting from --y behind the headline, fading with distance */
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: #fff;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-hi) transparent;
+}
+
+/* signal waves: rings broadcasting from --y, three emitters staggered across one cycle */
 .glow {
-  --y: 30%;
+  --y: 15%;
   position: absolute;
   inset: 0 0 auto;
-  height: min(110vh, 1040px);
+  height: min(120vh, 1180px);
   pointer-events: none;
   overflow: hidden;
   background:
-    radial-gradient(46% 34% at 50% var(--y), rgba(97, 218, 251, 0.13), transparent 68%),
-    radial-gradient(64% 44% at 50% var(--y), rgba(167, 139, 250, 0.09), transparent 72%);
-  -webkit-mask-image: radial-gradient(78% 66% at 50% var(--y), #000 42%, transparent 82%);
-  mask-image: radial-gradient(78% 66% at 50% var(--y), #000 42%, transparent 82%);
+    radial-gradient(34% 26% at 50% var(--y), rgba(120, 226, 255, 0.18), transparent 70%),
+    radial-gradient(58% 42% at 50% var(--y), rgba(167, 139, 250, 0.11), transparent 78%),
+    radial-gradient(90% 60% at 50% 30%, rgba(94, 233, 168, 0.05), transparent 80%);
+  -webkit-mask-image: linear-gradient(180deg, #000 30%, rgba(0, 0, 0, 0.55) 66%, transparent 98%);
+  mask-image: linear-gradient(180deg, #000 30%, rgba(0, 0, 0, 0.55) 66%, transparent 98%);
 }
 
-.glow::before,
-.glow::after {
-  content: "";
+/* a shell, not a hairline: bright leading edge with a soft inward wash, so it reads as emitted energy */
+.ring {
+  --hue: 150, 218, 255;
   position: absolute;
   left: 50%;
   top: var(--y);
-  width: 2400px;
+  width: 1180px;
   aspect-ratio: 1;
   translate: -50% -50%;
   border-radius: 50%;
-  background: repeating-radial-gradient(
-    circle,
-    transparent 0 78px,
-    rgba(120, 200, 255, 0.13) 78px 79.5px,
-    transparent 79.5px 158px
+  opacity: 0;
+  background: radial-gradient(
+    circle closest-side,
+    transparent 0 96.5%,
+    rgba(var(--hue), 0.16) 98.4%,
+    rgba(var(--hue), 0.42) 99.5%,
+    transparent 100%
   );
+  animation: emit 6s linear infinite;
+  animation-delay: var(--d, 0s);
 }
 
-.glow::after {
-  background: repeating-radial-gradient(
-    circle,
-    transparent 0 158px,
-    rgba(167, 139, 250, 0.1) 158px 159.5px,
-    transparent 159.5px 316px
-  );
-  animation: emit 7s ease-out infinite;
+.ring:nth-child(2) {
+  --d: 2s;
+  --hue: 178, 152, 255;
+}
+
+.ring:nth-child(3) {
+  --d: 4s;
+  --hue: 110, 240, 180;
 }
 
 @keyframes emit {
   0% {
-    scale: 0.82;
+    scale: 0.18;
     opacity: 0;
-  }
-  22% {
-    opacity: 1;
-  }
-  100% {
-    scale: 1.35;
-    opacity: 0;
-  }
-}
-
-.glow-core {
-  position: absolute;
-  left: 50%;
-  top: var(--y, 30%);
-  width: 10px;
-  height: 10px;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: #9fe4ff;
-  box-shadow: 0 0 22px 6px rgba(97, 218, 251, 0.55);
-  animation: beat 7s ease-out infinite;
-}
-
-@keyframes beat {
-  0%,
-  100% {
-    opacity: 0.35;
-    scale: 0.85;
   }
   14% {
     opacity: 1;
-    scale: 1.25;
+  }
+  72% {
+    opacity: 0.5;
+  }
+  100% {
+    scale: 1;
+    opacity: 0;
+  }
+}
+
+/* the emitter fires once per ring, on the same 2s beat the rings leave on.
+   the glow is a static shadow on a pseudo-element: animating box-shadow itself
+   cost ~107 style recalcs per 3s vs ~5 for scale/opacity alone */
+.glow-core {
+  position: absolute;
+  left: 50%;
+  top: var(--y);
+  width: 7px;
+  height: 7px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: #d6f4ff;
+  animation: beat 2s var(--ease) infinite;
+}
+
+.glow-core::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  box-shadow: 0 0 22px 7px rgba(110, 222, 255, 0.5);
+}
+
+@keyframes beat {
+  0% {
+    opacity: 1;
+    scale: 1.5;
+  }
+  45%,
+  100% {
+    opacity: 0.45;
+    scale: 0.9;
   }
 }
 
@@ -124,17 +158,8 @@ footer {
 }
 
 .hero {
-  padding: clamp(4rem, 12vw, 7.5rem) 0 clamp(3rem, 7vw, 5rem);
+  padding: clamp(2.75rem, 7vw, 4.25rem) 0 clamp(2rem, 4vw, 2.75rem);
   text-align: center;
-}
-
-.eyebrow {
-  margin: 0 0 1.25rem;
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 h1 {
@@ -143,36 +168,28 @@ h1 {
   line-height: 1.08;
   letter-spacing: -0.03em;
   font-weight: 680;
-}
-
-.accent {
-  background: linear-gradient(100deg, #7fe3ff, #a78bfa 55%, #5ee9a8);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-h1 {
+  text-wrap: balance;
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55);
 }
 
-.lede,
-.eyebrow {
-  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.6);
+.accent {
+  color: inherit;
 }
 
 .lede {
-  margin: 1.5rem auto 0;
-  max-width: 62ch;
+  margin: 1.15rem auto 0;
+  max-width: 60ch;
   color: var(--muted);
   font-size: clamp(1rem, 1.6vw, 1.12rem);
+  text-wrap: pretty;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.6);
 }
 
 .hero-links {
   display: flex;
   gap: 0.75rem;
   justify-content: center;
-  margin-top: 2.25rem;
+  margin-top: 1.75rem;
   flex-wrap: wrap;
 }
 
@@ -181,56 +198,199 @@ h1 {
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--panel-hi);
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   font-weight: 550;
   text-decoration: none;
-  transition: transform 0.15s, border-color 0.15s, background 0.15s;
+  transition: transform 0.15s var(--ease), border-color 0.15s, background 0.15s;
 }
 
 .btn:hover {
   transform: translateY(-2px);
-  border-color: #3a3f4d;
+  border-color: var(--line-hi);
   background: #1b1f2a;
 }
 
 .btn.ghost {
-  background: transparent;
+  background: var(--panel);
+}
+
+/* the pitch: inference is the product, so the preview shows a type coming back */
+.preview {
+  width: min(860px, 100%);
+  margin: clamp(1.5rem, 3vw, 2rem) auto 0;
+  text-align: left;
+}
+
+/* tabs sit on the panel: the active one loses its bottom border so the two read as one object */
+.tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 0.5rem;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  flex: none;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab[aria-selected="true"] {
+  border-color: var(--line);
+  background: var(--panel-lo);
+  color: var(--accent);
+}
+
+/* covers the panel's top border under the active tab, welding the two together */
+.tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 1px -1px;
+  height: 1px;
+  background: var(--panel-lo);
+}
+
+.pane {
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: 0 var(--radius) 0 var(--radius);
+  background: var(--panel-lo);
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: clamp(0.72rem, 1.4vw, 0.8rem);
+  line-height: 1.7;
+  tab-size: 2;
+}
+
+.pane pre {
+  margin: 0;
+  min-height: 12.6em;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* the pane scrolls on narrow screens; fade the edge so that reads as scrollable, not clipped */
+@media (max-width: 760px) {
+  .pane {
+    -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent);
+    mask-image: linear-gradient(90deg, #000 90%, transparent);
+  }
+}
+
+.pane .k {
+  color: #c792ea;
+}
+
+.pane .f {
+  color: #82aaff;
+}
+
+.pane .s {
+  color: #5ee9a8;
+}
+
+.pane .c {
+  color: var(--dim);
+}
+
+.pane .t {
+  color: #7fe3ff;
 }
 
 .picker {
   padding-bottom: 4rem;
 }
 
-.picker h2 {
-  margin: 0 0 1.75rem;
+.picker h2,
+.aside h2 {
+  margin: 0 0 0.4rem;
   font-size: clamp(1.35rem, 3vw, 1.9rem);
   letter-spacing: -0.02em;
   font-weight: 640;
 }
 
-.picker h2::after {
-  content: "";
-  display: block;
-  width: 3rem;
-  height: 2px;
-  margin-top: 0.85rem;
-  background: linear-gradient(90deg, #61dafb, transparent);
+.picker p.sub,
+.aside p.sub {
+  margin: 0 0 1.75rem;
+  color: var(--muted);
+  font-size: 0.94rem;
 }
 
+/* 7 adapters never fill a 3-column row, so the short last row centres instead of orphaning */
 .grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(330px, 100%), 1fr));
+  justify-content: center;
 }
 
+/* 2-col band: the odd 7th card spans both columns rather than orphaning left */
+@media (min-width: 660px) and (max-width: 1059px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .card:nth-child(7):last-child {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 1060px) {
+  .grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .card {
+    grid-column: span 2;
+  }
+  .card:nth-child(7):last-child {
+    grid-column: 3 / span 2;
+  }
+}
+
+/* rows share tracks so every install bar lands on one line, whatever the copy length */
 .card {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
   position: relative;
   padding: 1.4rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: linear-gradient(180deg, var(--panel-hi), var(--panel));
   overflow: hidden;
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.18s var(--ease), border-color 0.18s, box-shadow 0.18s;
+}
+
+@supports not (grid-template-rows: subgrid) {
+  .card {
+    display: flex;
+    flex-direction: column;
+  }
+  .desc {
+    flex: 1;
+  }
 }
 
 .card::before {
@@ -256,10 +416,35 @@ h1 {
 }
 
 .card h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   margin: 0;
   font-size: 1.2rem;
   letter-spacing: -0.01em;
   color: var(--accent);
+}
+
+.brand {
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.tab .brand {
+  width: 0.95em;
+  height: 0.95em;
+  opacity: 0.75;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tab[aria-selected="true"] .brand {
+  opacity: 1;
 }
 
 .pkg {
@@ -295,6 +480,21 @@ h1 {
   height: 18px;
 }
 
+/* keep the 34px visual but meet the 44px touch minimum on touch devices */
+@media (pointer: coarse) {
+  .icon-btn::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+  }
+  .icon-btn {
+    position: relative;
+  }
+  .actions {
+    gap: 0.6rem;
+  }
+}
+
 .icon-btn:hover {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
@@ -314,7 +514,7 @@ h1 {
 }
 
 .icon-btn.copied svg {
-  animation: pop 0.28s ease-out;
+  animation: pop 0.28s var(--ease);
 }
 
 @keyframes pop {
@@ -337,7 +537,8 @@ h1 {
 
 .icon-btn:focus-visible,
 .btn:focus-visible,
-a:focus-visible {
+a:focus-visible,
+.skip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -345,26 +546,38 @@ a:focus-visible {
 .desc {
   margin: 1rem 0 1.15rem;
   color: var(--muted);
-  font-size: 0.92rem;
-  min-height: 3.2em;
+  font-size: 0.94rem;
+  text-wrap: pretty;
 }
 
 .install {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  align-self: end;
   padding: 0.45rem 0.45rem 0.45rem 0.8rem;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #0b0d12;
+  background: var(--panel-lo);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.install:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+.install:hover .icon-btn.copy {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
 }
 
 .install code {
   flex: 1;
   overflow-x: auto;
   font-family: var(--mono);
-  font-size: 0.8rem;
-  color: #cfd4e0;
+  font-size: 0.82rem;
+  color: var(--text-2);
   white-space: nowrap;
   scrollbar-width: none;
 }
@@ -373,16 +586,71 @@ a:focus-visible {
   display: none;
 }
 
+/* core is not a peer of the adapters: adapter authors only */
+.aside {
+  padding-bottom: 4.5rem;
+}
+
+.aside .card {
+  display: block;
+  max-width: 560px;
+  background: var(--panel);
+}
+
+.aside .card:hover {
+  transform: none;
+}
+
+.aside .install {
+  margin-top: 1.15rem;
+}
+
+.skip {
+  position: absolute;
+  left: 50%;
+  top: 0.75rem;
+  translate: -50% -200%;
+  z-index: 5;
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-hi);
+  background: var(--panel-hi);
+  font-size: 0.94rem;
+  text-decoration: none;
+  transition: translate 0.2s var(--ease);
+}
+
+.skip:focus-visible {
+  translate: -50% 0;
+}
+
 footer {
-  padding: 2.5rem 0 3.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem 0 3rem;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 0.88rem;
-  text-align: center;
+  font-size: 0.94rem;
+}
+
+footer p {
+  margin: 0;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--dim);
+  letter-spacing: 0.02em;
 }
 
 footer a {
-  color: #c3c9d6;
+  display: inline-block;
+  padding: 0.35rem 0;
+  color: var(--text-2);
 }
 
 .toast {
@@ -395,10 +663,10 @@ footer a {
   border-radius: 999px;
   background: var(--panel-hi);
   font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s, translate 0.2s;
+  transition: opacity 0.2s, translate 0.2s var(--ease);
 }
 
 .toast.show {
@@ -410,24 +678,55 @@ footer a {
   .grid {
     grid-template-columns: 1fr;
   }
-  .desc {
-    min-height: 0;
+  footer {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* accents are the wayfinding system; in forced colors they collapse, so restore the borders */
+@media (forced-colors: active) {
+  .glow {
+    display: none;
+  }
+  .card,
+  .pane,
+  .tab[aria-selected="true"] {
+    border: 1px solid CanvasText;
+  }
+  .card::before {
+    background: CanvasText;
+  }
+  .tab[aria-selected="true"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-    animation: none !important;
+  html {
     scroll-behavior: auto;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
   }
   .card:hover,
   .btn:hover {
     transform: none;
   }
-  .glow::after {
-    scale: 1.05;
-    opacity: 1;
+  .ring {
+    opacity: 0.55;
+  }
+  .ring:nth-child(1) {
+    scale: 0.32;
+  }
+  .ring:nth-child(2) {
+    scale: 0.58;
+  }
+  .ring:nth-child(3) {
+    scale: 0.86;
   }
   .glow-core {
     opacity: 0.9;

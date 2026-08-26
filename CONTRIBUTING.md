@@ -96,6 +96,10 @@ buttons and console output instead of a test runner. See
 
 The package-picker page in [`site/`](./site) is plain HTML and CSS. `node scripts/build-site.mjs` reads every `packages/*/package.json` and writes the page to `dist-site/`. Card names, descriptions, and the version badge follow the packages. Open `dist-site/index.html` in a browser to preview it.
 
+Framework brand marks come from [`simple-icons`](https://simpleicons.org), a development dependency inlined at build time — nothing ships to package consumers. The card accent supplies the colour, since Angular's and Solid's official hexes are too dark to read on this background.
+
+The social preview image is committed at `site/og.png` (1200×630). Regenerate it with `npm run build:og` after changing the hero copy or the version; that script needs `playwright` available and is not part of the normal build, so the committed PNG is what deploys.
+
 [`pages.yml`](./.github/workflows/pages.yml) publishes the page to GitHub Pages on each push to `main` that touches the site, the build script, or a package manifest. You can also start it from the **Actions** tab. The page is served at `https://dammerscode.github.io/use-signalr/`.
 
 ## Releasing

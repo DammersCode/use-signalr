@@ -8,8 +8,22 @@
       name="description"
       content="Typed multi-hub SignalR clients for React, Vue, Svelte, Angular, SolidJS, Preact and Lit, sharing one framework-free core."
     />
-    <meta property="og:title" content="use-signalr" />
+    <link rel="canonical" href="https://dammerscode.github.io/use-signalr/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="use-signalr" />
+    <meta property="og:url" content="https://dammerscode.github.io/use-signalr/" />
+    <meta property="og:title" content="use-signalr — typed SignalR clients for every framework" />
     <meta property="og:description" content="Want to use SignalR? You're in the right place. Pick your poison." />
+    <meta property="og:image" content="https://dammerscode.github.io/use-signalr/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="use-signalr — typed multi-hub SignalR clients for React, Vue, Svelte, Angular, SolidJS, Preact and Lit." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="use-signalr — typed SignalR clients for every framework" />
+    <meta name="twitter:description" content="Want to use SignalR? You're in the right place. Pick your poison." />
+    <meta name="twitter:image" content="https://dammerscode.github.io/use-signalr/og.png" />
+    <meta name="twitter:image:alt" content="use-signalr — typed multi-hub SignalR clients for seven frameworks." />
     <meta name="theme-color" content="#08090c" />
     <link rel="stylesheet" href="style.css" />
     <link
@@ -18,43 +32,86 @@
     />
   </head>
   <body>
-    <div class="glow" aria-hidden="true"><span class="glow-core"></span></div>
+    <a class="skip" href="#picker-heading">Skip to the packages</a>
+
+    <div class="glow" aria-hidden="true">
+      <span class="ring"></span>
+      <span class="ring"></span>
+      <span class="ring"></span>
+      <span class="glow-core"></span>
+    </div>
 
     <header class="hero">
-      <p class="eyebrow">v<!--VERSION--> · MIT · zero-dependency core</p>
       <h1>Want to use SignalR?<br /><span class="accent">You're in the right place.</span></h1>
       <p class="lede">
-        Typed multi-hub clients for every framework worth arguing about — one factory call, fully
+        Typed multi-hub clients for every framework worth arguing about. One factory call, fully
         inferred events and methods, auto-reconnect and invoke retry included.
       </p>
       <div class="hero-links">
-        <a class="btn" href="https://github.com/DammersCode/use-signalr" rel="noopener">GitHub</a>
-        <a class="btn ghost" href="https://github.com/DammersCode/use-signalr#the-contract" rel="noopener">
+        <a class="btn" href="https://github.com/DammersCode/use-signalr" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn ghost" href="https://github.com/DammersCode/use-signalr#the-contract" target="_blank" rel="noopener">
           Read the docs
         </a>
+      </div>
+
+      <div class="preview">
+        <div class="tabs" role="tablist" aria-label="Framework example">
+<!--TABS-->
+        </div>
+<!--PANES-->
       </div>
     </header>
 
     <main>
       <section class="picker" aria-labelledby="picker-heading">
-        <h2 id="picker-heading">Pick your poison.</h2>
+        <h2 id="picker-heading" tabindex="-1">Pick your poison.</h2>
+        <p class="sub">Same contract, same capabilities, seven adapters. Install one and go.</p>
         <div class="grid">
 <!--CARDS-->
         </div>
+      </section>
+
+      <section class="aside" aria-labelledby="core-heading">
+        <h2 id="core-heading">Writing your own adapter?</h2>
+        <p class="sub">The framework-free core the seven above are built on. You do not need it otherwise.</p>
+<!--CORE-->
       </section>
     </main>
 
     <footer>
       <p>
         MIT licensed · built by
-        <a href="https://github.com/DammersCode" rel="noopener">Dammers</a> ·
-        <a href="https://github.com/DammersCode/use-signalr/issues" rel="noopener">report an issue</a>
+        <a href="https://github.com/DammersCode" target="_blank" rel="noopener">Dammers</a> ·
+        <a href="https://github.com/DammersCode/use-signalr/issues" target="_blank" rel="noopener">report an issue</a>
       </p>
+      <p class="meta">v<!--VERSION--> · zero-dependency core</p>
     </footer>
 
     <div class="toast" role="status" aria-live="polite"></div>
 
     <script>
+      const tabs = [...document.querySelectorAll(".tab")];
+
+      const select = (next, focus) => {
+        tabs.forEach((t) => {
+          const on = t === next;
+          t.setAttribute("aria-selected", on);
+          t.tabIndex = on ? 0 : -1;
+          document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+        });
+        if (focus) next.focus();
+      };
+
+      tabs.forEach((t, i) => {
+        t.addEventListener("click", () => select(t));
+        t.addEventListener("keydown", (e) => {
+          const step = { ArrowRight: 1, ArrowLeft: -1, Home: -i, End: tabs.length - 1 - i }[e.key];
+          if (step === undefined) return;
+          e.preventDefault();
+          select(tabs[(i + step + tabs.length) % tabs.length], true);
+        });
+      });
+
       const toast = document.querySelector(".toast");
 
       const flash = (msg) => {
@@ -84,6 +141,10 @@
 
       document.querySelectorAll("[data-copy]").forEach((btn) => {
         const idle = btn.innerHTML;
+        // the command text is the obvious target; forward its clicks to the button
+        btn.closest(".install")?.addEventListener("click", (e) => {
+          if (!e.target.closest("[data-copy]")) btn.click();
+        });
         btn.addEventListener("click", async () => {
           if (btn.classList.contains("copied")) return;
           const ok = await write(btn.dataset.copy);
@@ -91,10 +152,12 @@
           btn.innerHTML = ok
             ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7"/></svg>'
             : '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M18 6 6 18M6 6l12 12"/></svg>';
-          flash(ok ? "Copied  " + btn.dataset.copy : "Copy failed — select it manually.");
+          btn.title = ok ? "Copied" : "Copy failed";
+          flash(ok ? "Copied " + btn.dataset.copy : "Copy failed — select it manually.");
           setTimeout(() => {
             btn.classList.remove("copied", "failed");
             btn.innerHTML = idle;
+            btn.title = "Copy";
           }, 1600);
         });
       });

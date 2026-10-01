@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { appName, siteUrl } from "@/lib/shared";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -19,6 +20,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <body className="flex min-h-screen flex-col">
         <RootProvider>{children}</RootProvider>
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );

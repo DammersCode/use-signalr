@@ -31,6 +31,7 @@ packages/
   lit/      @dammers/use-signalr-lit      Lit Reactive Controllers
 apps/
   docs/     the documentation site (Next.js and Fumadocs), see apps/docs/README.md
+brand/      logo source: gen_kit.py builds the SVGs in apps/docs/public/brand
 examples/   one runnable app per framework, plus the example server
 scripts/
   sync-versions.mjs   writes the root version into every package + adapter->core dep

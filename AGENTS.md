@@ -27,6 +27,7 @@ Everything in this repo is written in English: code, comments, docs, plans, comm
 - Adapter tests read core from `packages/core/dist`. After a core change, build core before adapter tests (`npm test` does it).
 - Every adapter keeps the integration scenarios S1 to S9 (`CONTRIBUTING.md`, "Adapter integration scenarios") in its `integration.test.*`, against the real core session with only `@microsoft/signalr` mocked.
 - Peer floors in `package.json` are the lowest versions the CI `floor` job proves. Raise a floor only with a failing run as evidence.
+- The CI `compat` job tests the newest release of each supported major that the lockfile does not cover. Widen a peer range only together with a `compat` entry for the new major.
 
 ## Workflow
 

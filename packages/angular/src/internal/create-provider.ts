@@ -14,7 +14,7 @@ import {
 } from "@angular/core";
 import type { EnvironmentProviders, InjectionToken, Signal } from "@angular/core";
 import { createSignalRSession } from "@dammers/use-signalr-core";
-import type { HubString, ResolvedHubConfig, SignalRContract } from "@dammers/use-signalr-core";
+import type { HubString, ResolvedHubConfig, SignalRContract, SignalRErrorInfo } from "@dammers/use-signalr-core";
 import { createStatusStore } from "../status-store.js";
 import type {
   MaybeSignal,
@@ -58,6 +58,23 @@ export function createSignalRProvider<T extends SignalRContract>(
           const options =
             typeof optionsOrFactory === "function" ? optionsOrFactory() : optionsOrFactory;
           const statusStore = createStatusStore<keyof T & HubString>();
+          // Depth of synchronous session work that runs outside the zone, often inside a change detection tick.
+          let outsideDepth = 0;
+          const outside = <R,>(work: () => R): R => {
+            outsideDepth++;
+            try {
+              return ngZone.runOutsideAngular(work);
+            } finally {
+              outsideDepth--;
+            }
+          };
+          // Entering the zone during a tick starts a nested tick (NG0101), so such callbacks wait one microtask.
+          const report = (hub: keyof T & HubString, err: unknown, info: SignalRErrorInfo) =>
+            options.onError ? options.onError(hub, err, info) : errorHandler.handleError(err);
+          const inZone = (callback: () => void) => {
+            if (outsideDepth > 0) queueMicrotask(() => ngZone.run(callback));
+            else ngZone.run(callback);
+          };
 
           const session = createSignalRSession<T, typeof statusStore>({
             hubs,
@@ -65,11 +82,15 @@ export function createSignalRProvider<T extends SignalRContract>(
             statusStore,
             getAccessToken: () => resolveTokenFactory(options.accessTokenFactory)(),
             onStatusChange: (hub, status) =>
-              ngZone.run(() => options.onStatusChange?.(hub, status)),
-            onError: (hub, err, info) =>
-              ngZone.run(() =>
-                options.onError ? options.onError(hub, err, info) : errorHandler.handleError(err),
-              ),
+              inZone(() => {
+                // A deferred call runs outside the session's own guard, so it reports its error itself.
+                try {
+                  options.onStatusChange?.(hub, status);
+                } catch (error) {
+                  report(hub, error, { source: "callback" });
+                }
+              }),
+            onError: (hub, err, info) => inZone(() => report(hub, err, info)),
           });
 
           const sync = () => {
@@ -79,7 +100,7 @@ export function createSignalRProvider<T extends SignalRContract>(
               connectionKey: resolveMaybeSignal(options.connectionKey),
             };
             // session.update reads store state, so only the values above can be tracked.
-            untracked(() => ngZone.runOutsideAngular(() => session.update(values)));
+            untracked(() => outside(() => session.update(values)));
           };
 
           if (isServer) {
@@ -98,8 +119,8 @@ export function createSignalRProvider<T extends SignalRContract>(
           const { context } = session;
           return {
             ...context,
-            acquire: (hub) => ngZone.runOutsideAngular(() => context.acquire(hub)),
-            release: (hub) => ngZone.runOutsideAngular(() => context.release(hub)),
+            acquire: (hub) => outside(() => context.acquire(hub)),
+            release: (hub) => outside(() => context.release(hub)),
             subscribe: (hub, event, handler) =>
               context.subscribe(hub, event, (...args) => ngZone.run(() => handler(...args))),
             registerReconnect: (hub, callback) =>

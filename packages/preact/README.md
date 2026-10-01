@@ -11,7 +11,7 @@ Provider and hooks for typed [SignalR](https://learn.microsoft.com/aspnet/core/s
 npm install @dammers/use-signalr-preact @microsoft/signalr
 ```
 
-It needs Preact ^10.20, `@microsoft/signalr` ^8 || ^9 || ^10, and Node 20.19 or later.
+It needs Preact ^10.20 or ^11, `@microsoft/signalr` ^8 || ^9 || ^10, and Node 20.19 or later.
 
 ## Example
 

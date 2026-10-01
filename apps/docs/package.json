@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@dammers/use-signalr-core": "1.0.0",
+    "@vercel/speed-insights": "^2.0.0",
     "fumadocs-core": "^16.15.17",
     "fumadocs-mdx": "^15.4.5",
     "fumadocs-typescript": "^5.4.1",

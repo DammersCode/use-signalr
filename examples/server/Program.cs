@@ -35,5 +35,7 @@ app.UseCors();
 app.MapGet("/", () => "use-signalr example server");
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapHub<CounterHub>("/hubs/counter");
+app.MapHub<RoomHub>("/hubs/rooms");
+app.MapHub<PresenceHub>("/hubs/presence");
 
 app.Run();

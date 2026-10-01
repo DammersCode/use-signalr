@@ -1,0 +1,123 @@
+---
+title: Quick start
+description: Install the package, declare a contract, and call a hub from a component.
+---
+
+## Requirements
+
+- Node 20.19 or later.
+- `@microsoft/signalr` 8, 9, or 10.
+- A server with ASP.NET Core SignalR. The older ASP.NET SignalR for .NET Framework uses a different protocol and does not work with this client.
+<Only in="react">
+- React 19.
+</Only>
+<Only in="preact">
+- Preact 10.20 or later.
+</Only>
+<Only in="solid">
+- Solid 1.7 or later.
+</Only>
+<Only in="svelte">
+- Svelte 5.15 or later. Svelte 4 is not supported.
+</Only>
+<Only in="vue">
+- Vue 3.3 or later.
+</Only>
+<Only in="angular">
+- Angular 20, 21, or 22. The `rxjs-interop` entry point also needs `rxjs` 7.6 or later.
+</Only>
+<Only in="lit">
+- Lit 3.
+</Only>
+
+## Install
+
+Install the package and its SignalR peer:
+
+<InstallCommand />
+
+## Set up
+
+<Steps>
+
+<Step>
+
+### Write the server hub
+
+The samples in this documentation use this hub:
+
+<Snippet file="examples/server/Hubs/RoomHub.cs" />
+
+</Step>
+
+<Step>
+
+### Declare the contract
+
+List each hub path, its events, and its methods. Names and argument types must match the server hub:
+
+<Snippet id="contract" />
+
+</Step>
+
+<Step>
+
+### Create the client
+
+Pass the contract to `createSignalRClient`. The call returns the typed helpers that your components use:
+
+<Snippet id="client" />
+
+</Step>
+
+<Step>
+
+### Start the session
+
+Give <Api of="provider" /> the base URL of your server and a function that returns the access token:
+
+<Snippet id="provider" />
+
+</Step>
+
+<Step>
+
+### Use a hub in a component
+
+This component shows the messages of a room and sends one message:
+
+<Snippet id="quick-start" />
+
+`ignoreAbort` ignores the `AbortError` that a call gets when the component unmounts while the call waits. See [Calls](./concepts/calls.mdx#abort-when-the-consumer-ends).
+
+</Step>
+
+</Steps>
+
+## Run the example app
+
+The repository has a runnable example app with a matching server.
+
+<Only in="react">
+Open [examples/react](https://github.com/DammersCode/use-signalr/tree/main/examples/react).
+</Only>
+<Only in="vue">
+Open [examples/vue](https://github.com/DammersCode/use-signalr/tree/main/examples/vue).
+</Only>
+<Only in="angular">
+Open [examples/angular](https://github.com/DammersCode/use-signalr/tree/main/examples/angular).
+</Only>
+<Only in="svelte">
+Open [examples/svelte](https://github.com/DammersCode/use-signalr/tree/main/examples/svelte).
+</Only>
+<Only in="preact">
+Open [examples/preact](https://github.com/DammersCode/use-signalr/tree/main/examples/preact).
+</Only>
+<Only in="solid">
+Open [examples/solid](https://github.com/DammersCode/use-signalr/tree/main/examples/solid).
+</Only>
+<Only in="lit">
+Open [examples/lit](https://github.com/DammersCode/use-signalr/tree/main/examples/lit).
+</Only>
+
+Next, read [Client config](./concepts/client-config.mdx) and [Connection status](./concepts/connection-status.mdx).

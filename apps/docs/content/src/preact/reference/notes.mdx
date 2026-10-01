@@ -1,0 +1,44 @@
+---
+title: Preact notes
+description: How the Preact adapter works without preact/compat, and how it handles status, handlers, and server rendering.
+---
+
+This page lists the parts of the Preact adapter that differ from the other frameworks.
+
+## Requirements
+
+The package needs Preact 10.20 or later.
+
+## No preact/compat
+
+The adapter imports `preact` and `preact/hooks` only. You need no alias for `react`, `react-dom`, or the JSX runtime. The bundle does not contain React or `preact/compat` because of this package.
+
+The React adapter does not run on `preact/compat`, because it needs React 19 APIs. Use the Preact adapter.
+
+## Signals
+
+The adapter does not use `@preact/signals`. <Api of="status" /> returns a plain `HubConnectionStatus` value. It keeps the value in component state, and the component renders again when the status of its hub changes. A change of a different hub does not render it.
+
+## One session per provider
+
+One mounted provider owns one session. All its descendants share each hub connection.
+
+When the provider unmounts, it waits one microtask and then stops the session. A cleanup in a child component can still call <Api of="send" /> before the stop.
+
+## Latest handlers
+
+<Api of="event" /> and <Api of="reconnected" /> run the latest function that you pass. The hook keeps the function in a ref and writes it during each render. A new closure on each render does not subscribe again. A handler always sees current props and state.
+
+The provider treats `accessTokenFactory`, `onStatusChange`, and `onError` the same way. `useSignalRInvoke` and `useSignalRTeardown` read the latest `options` on each call.
+
+## Stable call functions
+
+The functions from `useSignalRInvoke`, `useSignalRSend`, and `useSignalRTeardown` keep their identity while the hub and the method stay the same. You can use them in a dependency array.
+
+## Cleanup
+
+An effect releases its event handlers and its lazy hub reference when the component unmounts. An invoke that still waits at that time rejects with an `AbortError`. Ignore it in a fire-and-forget call, as the samples do. Use <Api of="teardown" /> for a call that must land in a cleanup.
+
+## Server rendering
+
+The import is safe on the server. The provider starts connections in `useEffect`, and Preact does not run effects during a server render. Every hub reports `idle` until the effect runs in the browser. The [SSR guide](/docs/preact/guides/ssr) has the rest of the rules.

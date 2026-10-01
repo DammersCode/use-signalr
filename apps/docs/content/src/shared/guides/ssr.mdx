@@ -1,0 +1,118 @@
+---
+title: Server rendering
+description: How <Fw /> behaves during server-side rendering and hydration.
+---
+
+Nothing connects on the server. Importing the package, calling `createSignalRClient`, and rendering a component start no connection.
+
+## What the server renders
+
+Every hub reports the status `"idle"` during a server render.
+
+<Only not="lit">
+The browser also reports `"idle"` on its first render. Because both sides match, hydration works and no mismatch warning appears.
+
+The connection starts in the browser, after the first render. Then the status changes to `"connecting"` and `"connected"`.
+</Only>
+<Only in="lit">
+In Lit, `hostConnected()` does nothing on the server, so a host render reads `"idle"`. In the browser, the first render shows `"connecting"`, because the controller starts the session in `hostConnected()`, before the first update. Render text that depends on the status after `firstUpdated`.
+</Only>
+
+## Calls during a server render
+
+<Only not="svelte,angular">
+An invoke during a server render waits for a connection that never comes. It ends with a `SignalRTimeoutError` when its `timeout` expires (10 seconds by default).
+</Only>
+<Only in="svelte,angular">
+<Fw /> disables the session on the server. An invoke or a wait rejects at once with `SignalRDisabledError`, and a teardown call resolves `false`. No timer stays pending.
+</Only>
+
+Call <Api of="invoke" /> in setup or component init, as with any helper. Do not call the function that it returns during a server render. Call that function in the browser, for example in an event handler. Use <Api of="status" /> to show an "offline" or loading state until the hub is connected.
+
+<Only in="react">
+## React and Next.js
+
+The provider starts connections inside `useEffect`. React does not run effects during a server render.
+
+In Next.js, mark two modules with `"use client"`: the module that calls `createSignalRClient`, and the component that mounts `SignalRProvider`. Server components cannot use the hooks, so every component that calls them is also a client component. This sample mounts the provider:
+
+```tsx title="app/providers.tsx"
+"use client";
+
+import { SignalRProvider } from "./signalr";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <SignalRProvider baseUrl="/" accessTokenFactory={() => ""}>
+      {children}
+    </SignalRProvider>
+  );
+}
+```
+
+For StrictMode in development, see [Notes](../reference/notes.mdx).
+</Only>
+<Only in="preact">
+## Preact
+
+The provider starts connections inside `useEffect`. Preact does not run effects during server rendering, so every hub reports `"idle"` until the browser runs the effect.
+</Only>
+<Only in="solid">
+## Solid and SolidStart
+
+The provider starts connections inside `createEffect`. Solid does not run this effect during SSR, so every hub reports `"idle"` until the browser runs the effect.
+
+In SolidStart, mount `SignalRProvider` in your root component. The import is safe on the server. Mount the provider above every `<Suspense>`: in SolidStart, wrap `<Router>` in `app.tsx`.
+
+Do not call <Api of="invoke" /> in a `createResource` or `createAsync` fetcher. Gate the call on `useHubStatus(hub)() === "connected"`.
+</Only>
+<Only in="svelte">
+## Svelte and SvelteKit
+
+`provideSignalR` builds no connection until the component mounts in the browser. `onMount` never runs during SSR. You can call `provideSignalR` in `+layout.svelte` without a guard for the server.
+
+On the server, `provideSignalR` disables the session. `hubInvoke` rejects with `SignalRDisabledError`, and `hubTeardown` resolves `false` at once. A call that starts during component init also rejects.
+
+Svelte 5 does not allow `await` at the top level of a component script, unless you enable experimental async mode.
+</Only>
+<Only in="vue">
+## Vue and Nuxt
+
+Package imports do not access browser globals. During a server render, the plugin provides an inert context, so composables work and report `"idle"`.
+
+The browser starts the session after `app.mount()`. This keeps the first client render equal to the server HTML.
+
+In Nuxt, use one universal plugin. Do not add the `.client` suffix, because server-rendered composables also need the provided context. This plugin installs the session:
+
+```ts title="plugins/signalr.ts"
+import { signalR } from "~/signalr";
+
+export default defineNuxtPlugin((nuxtApp) => {
+  const token = useCookie("token");
+
+  nuxtApp.vueApp.use(signalR, {
+    baseUrl: useRuntimeConfig().public.apiUrl,
+    enabled: () => import.meta.client && Boolean(token.value),
+    accessTokenFactory: () => token.value ?? "",
+  });
+});
+```
+
+A component that hydrates later, for example an async component under `Suspense` or one from `defineAsyncComponent`, also shows `"idle"` until it mounts.
+
+Do not use a top-level `await` in `<script setup>` for a hub call.
+</Only>
+<Only in="angular">
+## Angular SSR
+
+Angular opens no connection on the server. In the browser, `provideSignalR` starts the session in `afterNextRender`, and Angular does not run this callback on the server.
+
+You can import the package and call `provideSignalR` during a server render. It registers the provider and builds the context, but opens no connection. On the server, the provider disables the session. Waits reject at once with `SignalRDisabledError`, the status stays `"idle"`, and no timer stays pending.
+
+Angular runs an `effect` on the server, so do not call the function that <Api of="invoke" /> returns in a plain `effect`. Use `afterNextRender`, or an effect that runs only when the status is `"connected"`.
+</Only>
+<Only in="lit">
+## Lit SSR
+
+Importing the package, creating the client, creating the session, and creating a controller start no connection. `hostConnected()` does nothing on the server, even when Lit calls it. The connection starts in the browser. A host render reads `"idle"` on the server, so render text that depends on the status after `firstUpdated`.
+</Only>

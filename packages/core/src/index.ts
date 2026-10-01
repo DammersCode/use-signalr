@@ -13,7 +13,12 @@ export type {
   MethodArgs,
   MethodReturn,
   HubConnectionStatus,
+  SignalRErrorInfo,
   ReconnectConfig,
+  HubProtocolConfig,
+  HttpOptions,
+  ConfigureBuilder,
+  BuilderContext,
   PerHubConfig,
   SignalRClientConfig,
   ResolvedHubConfig,
@@ -21,31 +26,21 @@ export type {
   TeardownOptions,
 } from "./types.js";
 
-export { hubKeys, resolveHubConfig, isRetriableConnectError } from "./config.js";
-
-export {
-  DEFAULT_BACKOFF,
-  InvokeError,
-  isRetriableInvokeError,
-  resolveBackoff,
-  sleep,
-} from "./retry.js";
-
-export type { HubEntry } from "./hub-entry.js";
-
-export { createConnectionManager } from "./connection-manager.js";
-export type { ConnectionManager, ConnectionManagerDeps } from "./connection-manager.js";
+export { hubKeys, resolveHubConfig } from "./config.js";
 
 export type { StatusStore } from "./status-store.js";
-export type { SignalRProviderPropsBase, SignalRContextValueBase } from "./context.js";
+export type {
+  SignalRProviderPropsBase,
+  SignalRContextValueBase,
+  SignalRPublicContext,
+} from "./context.js";
 export {
   createAbortScope,
   createInvoker,
   createSender,
   createTeardownSender,
 } from "./calls.js";
-export type { AbortScope } from "./calls.js";
-export type { CallTarget } from "./calls.js";
+export type { AbortScope, CallTarget, InvokerOptions } from "./calls.js";
 
 export { createSignalRSession } from "./session.js";
-export type { SignalRSession, SignalRSessionDeps } from "./session.js";
+export type { SignalRSession, SignalRSessionDeps, SignalRSessionValues } from "./session.js";

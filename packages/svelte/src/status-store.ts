@@ -7,18 +7,14 @@ export interface StatusStore<H extends string> extends StatusStoreBase<H> {
   readable: (hub: H) => Readable<HubConnectionStatus>;
 }
 
-/**
- * Small store for hub statuses, backed by one Svelte writable per hub,
- * created lazily on first access. `set` dedupes by hand since a Svelte
- * writable notifies subscribers even on an equal value.
- */
+/** Hub statuses, backed by one Svelte writable per hub, created on first access. */
 export function createStatusStore<H extends string>(): StatusStore<H> {
   const stores = new Map<H, Writable<HubConnectionStatus>>();
 
   const getOrCreate = (hub: H) => {
     let store = stores.get(hub);
     if (!store) {
-      store = writable<HubConnectionStatus>("disconnected");
+      store = writable<HubConnectionStatus>("idle");
       stores.set(hub, store);
     }
     return store;
@@ -26,11 +22,7 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
 
   return {
     get: (hub) => readStore(getOrCreate(hub)),
-    set: (hub, status) => {
-      const store = getOrCreate(hub);
-      if (readStore(store) === status) return;
-      store.set(status);
-    },
-    readable: (hub) => getOrCreate(hub),
+    set: (hub, status) => getOrCreate(hub).set(status),
+    readable: (hub) => ({ subscribe: getOrCreate(hub).subscribe }),
   };
 }

@@ -1,0 +1,47 @@
+---
+title: Plugin
+description: Install the SignalR plugin in your Vue app, set its options, and learn when the session starts and stops.
+---
+
+In Vue, the client that `createSignalRClient` returns is also the plugin. You install it one time with `app.use(signalR, options)`. The plugin builds the session for that app and shares it with every component through `provide`. The sample shows the installation:
+
+<Snippet id="provider" />
+
+The sample uses the client module from the [client configuration](/docs/vue/concepts/client-config) page.
+
+## Options
+
+The second argument of `app.use` is the options object. The type is `SignalROptions`.
+
+<AutoTypeTable path="../../packages/vue/src/types.ts" name="SignalROptions" />
+
+`MaybeRefOrGetter<T>` is the Vue type: a plain value, a `Ref<T>`, a computed ref, or a getter `() => T`. The package exports the type.
+
+Without `onError`, the library drops errors silently.
+
+### Reactive options
+
+The plugin watches `baseUrl`, `enabled`, and `connectionKey`. When one of them changes, the session updates the connections. A new value that equals the old value does nothing.
+
+`accessTokenFactory`, `onStatusChange`, and `onError` are not reactive. The plugin calls them on each use, so they always see the current state of the closure. A new token needs no rebuild.
+
+Pass a ref, a computed ref, or a getter. Do not pass `ref.value`, because that copies the value one time.
+
+## When the session starts and stops
+
+The plugin starts the session after `app.mount()` returns, not at `app.use()`. The first client render is the same as the server HTML, because every status is `"idle"` until then.
+
+| Moment | What happens |
+| --- | --- |
+| `app.use(signalR, options)` | The plugin builds the session and provides the context. No connection starts. |
+| `app.mount()` returns | If `app.mount()` finds no container, nothing starts. Otherwise the plugin reads the options and starts the session. Eager hubs connect. Lazy hubs wait for their first consumer. |
+| An option changes | The session updates. The statuses go to `"idle"` and then to `"connecting"` again. When `enabled` turns `false`, the statuses go to `"idle"` only. |
+| `app.unmount()` | The plugin stops the watcher and closes all connections. |
+
+On the server, the plugin provides an inert context. Nothing connects and every status is `"idle"`.
+
+Vue 3.5 and later has `app.onUnmount`, and the plugin uses it. Older versions get a wrapped `app.unmount` that does the same work.
+
+## Placement errors
+
+A composable throws when the plugin is missing, when it runs outside a scope, or when it runs outside `setup()` and `app.runWithContext()`. Install the plugin before you mount the app. If you use a second app, install the plugin on it too, because each app has its own session. For the messages, see [Troubleshooting](/docs/vue/reference/troubleshooting#placement-errors).

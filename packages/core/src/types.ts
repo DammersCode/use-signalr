@@ -1,5 +1,7 @@
 import type {
-  HttpTransportType,
+  HubConnectionBuilder,
+  IHttpConnectionOptions,
+  IHubProtocol,
   IRetryPolicy,
   LogLevel,
 } from "@microsoft/signalr";
@@ -63,8 +65,7 @@ export function method<A extends unknown[] = [], R = void>(): MethodDef<A, R> {
   return {} as MethodDef<A, R>;
 }
 
-// Contract index helpers. NonNullable<> is required because events/methods are
-// optional — without it, `keyof (R | undefined)` collapses to `never` for every hub.
+// NonNullable: optional events/methods would collapse `keyof` to `never`.
 
 type Events<T, H extends keyof T> = NonNullable<
   T[H] extends { events?: infer E } ? E : never
@@ -95,94 +96,161 @@ export type MethodReturn<
 > = Methods<T, H>[M] extends (...args: any[]) => Promise<infer R> ? R : unknown;
 
 export type HubConnectionStatus =
-  | "disconnected"
+  /** No connection is wanted: not started, disabled, stopped, or a lazy hub with no consumer. */
+  | "idle"
   | "connecting"
   | "connected"
   | "reconnecting"
-  /** Transient: fires once after a successful reconnect (not on the first connect). */
-  | "reconnected";
+  /** The connection is wanted but down after a non-retriable error. */
+  | "disconnected";
+
+/** Says where an `onError` error came from. */
+export interface SignalRErrorInfo {
+  /** `"connection"`: connect, negotiate, build, close, or protocol errors.
+   *  `"callback"`: an error that your event handler, reconnect callback, or
+   *  `onStatusChange` throws or rejects with. */
+  source: "connection" | "callback";
+}
 
 /** Reconnect strategy: `true` for the library default, `false` for none, an
- *  array of retry delays in ms, or a custom policy. */
+ *  array of retry delays in ms, or a custom policy. `false` turns off SignalR
+ *  auto-reconnect only. The library still rebuilds a lost connection with its own delays. */
 export type ReconnectConfig = boolean | number[] | IRetryPolicy;
 
-/** Per-hub overrides. Anything omitted falls back to the global config. */
+/** Options for the SignalR HTTP connection. The library owns `accessTokenFactory`. */
+export type HttpOptions = Omit<IHttpConnectionOptions, "accessTokenFactory">;
+
+/** A hub protocol, or a factory that the library calls once per connection build. */
+export type HubProtocolConfig = IHubProtocol | (() => IHubProtocol);
+
+/** Context for {@link ConfigureBuilder}. */
+export interface BuilderContext {
+  hub: HubString;
+  baseUrl: string;
+}
+
+/** Changes the connection builder. It must return the builder to use. */
+export type ConfigureBuilder = (
+  builder: HubConnectionBuilder,
+  ctx: BuilderContext,
+) => HubConnectionBuilder;
+
+/** Per-hub overrides. The global value is the fallback for each option that you omit. */
 export interface PerHubConfig {
-  /** Connect this hub only when first consumed; disconnect when the last
-   *  consumer unmounts. Default: the global `lazy` (false). */
+  /**
+   * Connect this hub when its first consumer appears, and disconnect when the last consumer leaves. Falls back to the global `lazy`.
+   */
   lazy?: boolean;
-  /** Grace period in ms before a lazy hub disconnects after its last consumer
-   *  leaves. Avoids churn on quick remounts. Default 0. */
+  /**
+   * Time in ms that a lazy hub stays connected after its last consumer leaves. This option exists only per hub.
+   * @default 0
+   */
   graceMs?: number;
-  /** Reconnect strategy. Default: the global value, else `true`. */
+  /**
+   * The reconnect strategy of SignalR. `true` uses the SignalR default delays of 0, 2, 10, and 30 seconds. `false` turns off SignalR auto-reconnect only. The library still rebuilds a lost connection. Falls back to the global `reconnect`, else `true`.
+   */
   reconnect?: ReconnectConfig;
-  /** Connect retries before giving up. Default: the global value (2). */
-  maxConnectRetries?: number;
+  /**
+   * The log level of the SignalR client for this hub. Falls back to the global `logLevel`, else `LogLevel.Information`.
+   */
   logLevel?: LogLevel;
-  transport?: HttpTransportType;
-  skipNegotiation?: boolean;
+  /**
+   * Merged over the global `httpOptions`. The per-hub key wins. `headers` merge by name.
+   */
+  httpOptions?: HttpOptions;
+  /**
+   * The hub protocol, for example `() => new MessagePackHubProtocol()`. The per-hub value wins. Falls back to the global `hubProtocol`, else JSON.
+   */
+  hubProtocol?: HubProtocolConfig;
+  /** Runs on every connection build, after the library's own builder calls. The global hook runs first, then this hook. */
+  configureBuilder?: ConfigureBuilder;
 }
 
-/** Config passed to `createSignalRClient(config)`. The keys of `hubs` are the
- *  hubs; each value's `events`/`methods` (declared with {@link event}/{@link method})
- *  are that hub's contract. */
+/** Maps every key that a hub definition does not declare to `never`. */
+type NoUnknownHubKeys<H> = {
+  [P in keyof H]: { [K in Exclude<keyof H[P], keyof HubDef>]: never };
+};
+
+/** Config that you pass to `createSignalRClient`. These are the global defaults for all hubs. */
 export interface SignalRClientConfig<H extends Record<HubString, HubDef>> {
-  /** One entry per hub. Each value is a {@link HubDef}: per-hub config plus
-   *  its event/method declarations. */
-  hubs: H;
-  /** Global default: connect hubs only on demand. Default false — all
-   *  configured hubs connect upfront. */
+  /**
+   * One entry per hub. The key is the hub path, such as `/hubs/rooms`. The value holds the hub config and its `events` and `methods`. Unknown keys are a type error.
+   * @remarks `Record<HubString, HubDef>`
+   */
+  hubs: H & NoUnknownHubKeys<H>;
+  /**
+   * Connect hubs only when a consumer first uses them. By default, all configured hubs connect at the start.
+   * @default false
+   */
   lazy?: boolean;
-  /** Global reconnect strategy. Default true. */
+  /**
+   * The reconnect strategy of SignalR. `true` uses the SignalR default delays of 0, 2, 10, and 30 seconds. `false` turns off SignalR auto-reconnect only. The library still rebuilds a lost connection.
+   * @default true
+   */
   reconnect?: ReconnectConfig;
-  /** Global connect-retry budget. Default 2. */
-  maxConnectRetries?: number;
+  /**
+   * The log level of the SignalR client.
+   * @default LogLevel.Information
+   */
   logLevel?: LogLevel;
+  /**
+   * Options for the HTTP connection, such as `headers` and `transport`. The library sets `accessTokenFactory`, so it is not part of the type.
+   * @default {}
+   */
+  httpOptions?: HttpOptions;
+  /**
+   * The hub protocol, for example `() => new MessagePackHubProtocol()`. A factory runs once for each connection build.
+   * @default new JsonHubProtocol()
+   */
+  hubProtocol?: HubProtocolConfig;
+  /** Runs on every connection build, after the library's own builder calls. Return the builder to use. */
+  configureBuilder?: ConfigureBuilder;
 }
 
-/** Per-hub config with all defaults resolved. */
+/** Per-hub config with all defaults resolved. `resolve` returns the result of `resolveHubConfig`. The shape can grow. */
 export interface ResolvedHubConfig {
   lazy: boolean;
   graceMs: number;
   reconnect: ReconnectConfig;
-  maxConnectRetries: number;
   logLevel: LogLevel;
-  transport?: HttpTransportType;
-  skipNegotiation?: boolean;
+  httpOptions: HttpOptions;
+  hubProtocol: HubProtocolConfig | undefined;
+  /** The global hook first, then the per-hub hook. */
+  configureBuilders: ConfigureBuilder[];
   events: string[];
 }
 
 /** Options for an invoke call. */
 export interface InvokeOptions {
   /**
-   * Auto-retry count for RETRIABLE failures. Default 0 (fail fast).
-   * Warning: invoke is at-least-once. A drop after the server processed the
-   * call, but before its completion reaches the client, re-runs the call.
-   * Set this above 0 only for IDEMPOTENT methods.
+   * Number of retries for retriable failures. A retry can run the call twice, so use it only for idempotent methods.
+   * @default 0
    */
   retries?: number;
-  /** Per-attempt wait-for-connection plus invoke deadline in ms. Default 10_000. */
+  /**
+   * Maximum wait in ms for the connection, for each attempt. It does not limit the invoke itself. `Infinity` waits without a limit. A value above 2^31-1 is clamped to 2^31-1.
+   * @default 10000
+   */
   timeout?: number;
-  /** Backoff: fixed delays per attempt, or a fn(attempt) => ms. Capped at 30s
-   *  and jittered. Default [250, 1000, 3000, 5000]. */
+  /**
+   * The delay in ms before each retry. The last array value repeats. A function gets the attempt number, starting at 0. The cap is 30 seconds, and the delay has a jitter of 50 to 100 percent.
+   * @default [250, 1000, 3000, 5000]
+   */
   backoff?: number[] | ((attempt: number) => number);
-  /** Forces retriable or not. true = retry, false = throw now, undefined =
-   *  the default rule. */
+  /** `true` retries, `false` throws at once, `undefined` uses the default rule. */
   isRetriable?: (error: unknown) => boolean | undefined;
   /**
-   * Keeps an in-flight call alive when the calling consumer tears down.
-   * Default false: in-flight invokes are aborted on teardown, which is
-   * correct for query-like reads. Set true for a method invoked in a
-   * cleanup handler, so it still reaches the server. The detached call
-   * survives teardown, but a still-pending retry loop is NOT cancelled. For
-   * the connecting-race and lazy-hub case, use `useSignalRTeardown` instead.
+   * If `true`, a teardown does not abort the wait or the retry delays, and the call holds a lazy hub open until it settles. If `false`, a teardown aborts them with an `AbortError`. A call that was already sent finishes in both cases.
+   * @default false
    */
   keepAliveOnUnmount?: boolean;
 }
 
-/** Options for a `useSignalRTeardown` call. */
+/** Options for a teardown send. */
 export interface TeardownOptions {
-  /** Max time in ms to wait for the hub to (re)connect before giving up the
-   *  flush. Default 10_000. */
+  /**
+   * Maximum time in ms to wait for the hub to connect before the library gives up the send.
+   * @default 10000
+   */
   timeout?: number;
 }

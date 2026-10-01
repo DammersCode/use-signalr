@@ -1,0 +1,92 @@
+---
+title: Vue notes
+description: Vue-specific rules for the SignalR package. Nuxt, refs and getters, effect scopes, and why a hub call must not use top-level await.
+---
+
+## Requirements
+
+The package needs Vue 3.3 or later and `@microsoft/signalr` 8, 9, or 10. Vue 3.3 added `toValue` and `MaybeRefOrGetter`, which the plugin options use.
+
+## Refs and getters as inputs
+
+`baseUrl`, `enabled`, and `connectionKey` accept a plain value, a ref, a computed ref, or a getter. The plugin watches them. A change updates the session, and the connections rebuild. In this sample, a login sets `user` and `token`:
+
+```ts
+const user = ref<string>();
+const token = ref<string>();
+
+app.use(signalR, {
+  baseUrl: "https://api.example.com",
+  accessTokenFactory: () => token.value,
+  enabled: () => user.value !== undefined,
+  connectionKey: user,
+});
+```
+
+Pass the ref or a getter. A value such as `user.value` is a copy, and the plugin never sees the next change.
+
+The other inputs are read when you call the composable. The hub name, the event name, the method name, and the options object are not reactive. To use a different target, call the composable again for each target.
+
+Handlers are normal closures. A handler that reads a ref always sees the current value.
+
+## Effect scopes
+
+Each composable that holds a hub, except `useSignalR`, needs an active effect scope. Inside `setup()` there is one. The library registers its cleanup with `onScopeDispose`. The scope controls the subscription, the reference to the hub, and the abort of waiting calls.
+
+Outside a component, create the scope yourself and call the composable inside it. Use `app.runWithContext()` so the injection of the context works:
+
+```ts
+const scope = effectScope();
+
+app.runWithContext(() => {
+  scope.run(() => {
+    useSignalREvent("/hubs/rooms", "MessageReceived", (message) => store.add(message));
+  });
+});
+
+// later, for example when the feature closes
+scope.stop();
+```
+
+Later, `scope.stop()` removes the handler and releases the hub. A composable that runs with no scope throws `<name> must be called inside setup() or an effectScope`. A call inside a scope but outside `setup()` and `runWithContext` throws `<name> must be called inside setup() or app.runWithContext()`. A missing plugin throws `useSignalR must be used after app.use(signalR, options)`.
+
+## No top-level await
+
+Do not call a hub method with top-level `await` in `<script setup>`. A top-level `await` makes the component async, so it needs `<Suspense>`. The component does not render until the call ends. On the server, the call waits until its timeout, because no connection starts there.
+
+Start the call from `onMounted`, or from a function that an event calls. An unmount aborts a waiting call with an `AbortError`, so the sample ignores it:
+
+```vue
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { useSignalRInvoke } from "./client";
+import { ignoreAbort } from "./ignore-abort";
+
+const history = ref<string[]>([]);
+const getHistory = useSignalRInvoke("/hubs/rooms", "GetHistory");
+
+onMounted(async () => {
+  try {
+    history.value = (await getHistory("general")).map((message) => message.text);
+  } catch (error) {
+    ignoreAbort(error);
+  }
+});
+</script>
+```
+
+In a plain async function, call every composable before the first `await`. After an `await`, the scope can be gone.
+
+## Status refs
+
+`useHubStatus` returns a readonly ref. Templates unwrap it, and a script reads `.value`. Each hub has its own ref, so a status change of one hub does not re-render a component that uses another hub.
+
+The status is `"idle"` on the server and until `app.mount()` returns, so the first client render matches the server HTML.
+
+A component that hydrates shows `"idle"` until it mounts, then the live status. This holds for a component that hydrates later, such as an async component under `Suspense` or one from `defineAsyncComponent`. A component that renders for the first time on the client shows the live status at once. The ref type does not change.
+
+## Nuxt
+
+Package imports do not touch browser globals, and they start no connection. On the server, the plugin gives the composables an inert context. Use one universal Nuxt plugin, without the `.client` suffix. For the plugin sample and the SSR rules, see [Server rendering](/docs/vue/guides/ssr#vue-and-nuxt).
+
+A hub call that runs during a server render waits until its timeout, because no connection starts there. Start such calls from `onMounted`.

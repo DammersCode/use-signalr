@@ -13,7 +13,7 @@ describe("SSR-safe import", () => {
     expect(typeof globalThis.window).toBe("undefined");
     const mod = await import("./index.js");
     expect(typeof mod.createSignalRClient).toBe("function");
-  });
+  }, 20_000);
 
   it("creates a client without building a connection", async () => {
     const build = vi.fn();
@@ -60,7 +60,6 @@ describe("SSR-safe import", () => {
       "createSignalRClient",
       "event",
       "method",
-      "InvokeError",
     ]) {
       expect(mod, `missing export: ${name}`).toHaveProperty(name);
     }

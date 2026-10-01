@@ -1,7 +1,7 @@
 import { HubConnectionState } from "@microsoft/signalr";
+import { isFinalWaitError } from "./errors.js";
 import {
   DEFAULT_BACKOFF,
-  InvokeError,
   isRetriableInvokeError,
   resolveBackoff,
   sleep,
@@ -20,141 +20,157 @@ import type {
 const DEFAULT_TIMEOUT = 10_000;
 const DEFAULT_TEARDOWN_TIMEOUT = 10_000;
 
-/**
- * Tracks every in-flight invocation of one consumer, so its cleanup aborts
- * ALL of them — not just the most recent. Adapters pass `track`/`untrack`
- * straight to `createInvoker` and call `abortAll` from their teardown hook.
- */
+/** One shared signal for all in-flight calls of a consumer. `abort` cancels them and starts a fresh signal. */
 export interface AbortScope {
-  track: (ac: AbortController) => void;
-  untrack: (ac: AbortController) => void;
-  abortAll: () => void;
+  /** Returns the current signal. Pass it as `getSignal`. */
+  signal: () => AbortSignal;
+  /** Aborts the current signal with an `AbortError`, and starts a fresh signal. */
+  abort: () => void;
 }
 
 export function createAbortScope(): AbortScope {
-  const active = new Set<AbortController>();
+  let controller = new AbortController();
   return {
-    track: (ac) => active.add(ac),
-    untrack: (ac) => active.delete(ac),
-    abortAll: () => {
-      active.forEach((ac) => ac.abort());
-      active.clear();
+    signal: () => controller.signal,
+    abort: () => {
+      const stale = controller;
+      controller = new AbortController();
+      stale.abort(new DOMException("The consumer unmounted, so the call was aborted.", "AbortError"));
     },
   };
 }
 
+/** The members of the context that the invoker needs. */
 export interface CallTarget<T extends SignalRContract> {
+  /** Resolves when the hub is connected. */
   waitForConnection: (
     hub: keyof T & HubString,
     timeoutMs: number,
+    signal?: AbortSignal,
   ) => Promise<HubConnection>;
+  /** The live `HubConnection` of the hub, or `null` when none exists. */
   getConnection: (hub: keyof T & HubString) => HubConnection | null;
+  /** With `keepAliveOnUnmount`, a call holds a lazy hub with `acquire` and `release` until it settles. Pass both or neither. */
+  acquire?: (hub: keyof T & HubString) => void;
+  /** Lowers the count that `acquire` raised. */
+  release?: (hub: keyof T & HubString) => void;
 }
 
-/**
- * Builds the stable invoke function for `useSignalRInvoke`. `getOptions` is
- * called at CALL time (not build time), so the adapter can pass a ref/latest
- * accessor and preserve latest-options semantics. `setAbort` is called once
- * per invocation with the new controller, so the adapter's unmount/cleanup
- * handler can abort the in-flight call. `clearAbort` runs when that call
- * settles, so adapters can retain only active controllers.
- */
+export interface InvokerOptions<
+  T extends SignalRContract,
+  H extends keyof T & HubString,
+  M extends MethodName<T, H>,
+> {
+  /** The object that provides `waitForConnection` and `getConnection`. Pass the session context. */
+  target: CallTarget<T>;
+  /** The hub path. */
+  hub: H;
+  /** The method name. */
+  method: M;
+  /** Called at call time. Returns the `InvokeOptions` for this call. */
+  getOptions: () => InvokeOptions | undefined;
+  /** Called at call time. Aborting the returned signal aborts the call. */
+  getSignal?: () => AbortSignal | undefined;
+}
+
+/** Builds the stable invoke function for one hub method. */
 export function createInvoker<
   T extends SignalRContract,
   H extends keyof T & HubString,
   M extends MethodName<T, H>,
->(
-  target: CallTarget<T>,
-  hub: H,
-  method: M,
-  getOptions: () => InvokeOptions | undefined,
-  setAbort: (ac: AbortController) => void,
-  clearAbort?: (ac: AbortController) => void,
-): (...args: MethodArgs<T, H, M>) => Promise<MethodReturn<T, H, M>> {
-  const { waitForConnection, getConnection } = target;
-  return async (...args: MethodArgs<T, H, M>): Promise<MethodReturn<T, H, M>> => {
-    const o = getOptions();
+>({
+  target,
+  hub,
+  method,
+  getOptions,
+  getSignal,
+}: InvokerOptions<T, H, M>): (...args: MethodArgs<T, H, M>) => Promise<MethodReturn<T, H, M>> {
+  const { waitForConnection, getConnection, acquire, release } = target;
+  const attempts = async (
+    o: InvokeOptions | undefined,
+    args: MethodArgs<T, H, M>,
+  ): Promise<MethodReturn<T, H, M>> => {
     const timeout = o?.timeout ?? DEFAULT_TIMEOUT;
     const retries = o?.retries ?? 0;
-    const ac = new AbortController();
-    setAbort(ac);
-    try {
-      let attempt = 0;
-      for (;;) {
-        try {
-          const connection = await waitForConnection(hub, timeout);
-          return await connection.invoke<MethodReturn<T, H, M>>(method, ...args);
-        } catch (error) {
-          if (ac.signal.aborted) throw error; // abort wins: never reclassify or retry
-          const conn = getConnection(hub);
-          const forced = o?.isRetriable?.(error);
-          const retriable =
-            forced ?? (conn ? isRetriableInvokeError(error, conn) : true);
-          if (!retriable || attempt >= retries) {
-            // No retries: rethrow the raw error, so callers see the original.
-            if (retries === 0) throw error;
-            throw new InvokeError(
-              `SignalR invoke ${hub}/${String(method)} failed after ${attempt + 1} attempts`,
-              error,
-              attempt + 1,
-              retriable,
-            );
-          }
-          await sleep(resolveBackoff(o?.backoff ?? DEFAULT_BACKOFF, attempt), ac.signal);
-          attempt += 1;
-        }
+    const signal = getSignal?.() ?? new AbortController().signal;
+    let attempt = 0;
+    for (;;) {
+      try {
+        const connection = await waitForConnection(hub, timeout, signal);
+        signal.throwIfAborted();
+        return await connection.invoke<MethodReturn<T, H, M>>(method, ...args);
+      } catch (error) {
+        if (signal.aborted) throw error; // abort wins: never reclassify or retry
+        const conn = getConnection(hub);
+        const forced = o?.isRetriable?.(error);
+        const retriable =
+          forced ??
+          (isFinalWaitError(error) ? false : conn ? isRetriableInvokeError(error, conn) : true);
+        if (!retriable || attempt >= retries) throw error;
+        await sleep(resolveBackoff(o?.backoff ?? DEFAULT_BACKOFF, attempt), signal);
+        attempt += 1;
       }
+    }
+  };
+  return async (...args: MethodArgs<T, H, M>): Promise<MethodReturn<T, H, M>> => {
+    const o = getOptions();
+    const holdsHub = o?.keepAliveOnUnmount === true && acquire && release;
+    if (holdsHub) acquire(hub);
+    try {
+      return await attempts(o, args);
     } finally {
-      clearAbort?.(ac);
+      if (holdsHub) release(hub);
     }
   };
 }
 
-/**
- * Builds the stable fire-and-forget sender for `useSignalRSend`. Reads the
- * connection at call time and never depends on the adapter's tracked state,
- * so it is safe to capture in a teardown handler.
- */
+/** Fire-and-forget sender. It reads the connection at call time, so a teardown handler can capture it. */
 export function createSender<
   T extends SignalRContract,
   H extends keyof T & HubString,
   M extends MethodName<T, H>,
->(
-  getConnection: (hub: H) => HubConnection | null,
-  hub: H,
-  method: M,
-): (...args: MethodArgs<T, H, M>) => Promise<boolean> {
+>({
+  getConnection,
+  hub,
+  method,
+}: {
+  getConnection: (hub: H) => HubConnection | null;
+  hub: H;
+  method: M;
+}): (...args: MethodArgs<T, H, M>) => Promise<boolean> {
   return (...args: MethodArgs<T, H, M>): Promise<boolean> => {
     const connection = getConnection(hub);
     if (!connection || connection.state !== HubConnectionState.Connected) {
       return Promise.resolve(false); // dropped: not connected
     }
     // send() is variadic and untyped; args are enforced at the call site.
-    return connection.send(method, ...(args as unknown[])).then(() => true);
+    return connection.send(method, ...(args as unknown[])).then(
+      () => true,
+      () => false,
+    );
   };
 }
 
-/**
- * Builds the stable RELIABLE teardown sender for `useSignalRTeardown`. Runs
- * detached from the caller's lifecycle: it acquires the hub itself, waits
- * for a connection, sends, then releases — independent of the consumer
- * that created it having already torn down.
- */
+/** Teardown sender. It acquires the hub itself, so it still works after its consumer is gone. */
 export function createTeardownSender<
   T extends SignalRContract,
   H extends keyof T & HubString,
   M extends MethodName<T, H>,
->(
-  deps: {
+>({
+  target: { acquire, release, waitForConnection },
+  hub,
+  method,
+  getOptions,
+}: {
+  target: {
     acquire: (hub: H) => void;
     release: (hub: H) => void;
     waitForConnection: (hub: H, timeoutMs: number) => Promise<HubConnection>;
-  },
-  hub: H,
-  method: M,
-  getOptions: () => TeardownOptions | undefined,
-): (...args: MethodArgs<T, H, M>) => Promise<boolean> {
-  const { acquire, release, waitForConnection } = deps;
+  };
+  hub: H;
+  method: M;
+  getOptions: () => TeardownOptions | undefined;
+}): (...args: MethodArgs<T, H, M>) => Promise<boolean> {
   return (...args: MethodArgs<T, H, M>): Promise<boolean> => {
     const timeout = getOptions()?.timeout ?? DEFAULT_TEARDOWN_TIMEOUT;
     acquire(hub); // hold the hub open past our own unmount, until flushed

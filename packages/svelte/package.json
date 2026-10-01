@@ -1,6 +1,6 @@
 {
   "name": "@dammers/use-signalr-svelte",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Fully-typed multi-hub SignalR provider + stores for Svelte: auto-reconnect, invoke retry, lazy hubs, live status.",
   "author": "Dammers",
   "license": "MIT",
@@ -9,7 +9,7 @@
     "url": "git+https://github.com/DammersCode/use-signalr.git",
     "directory": "packages/svelte"
   },
-  "homepage": "https://github.com/DammersCode/use-signalr/tree/main/packages/svelte#readme",
+  "homepage": "https://use-signalr.vercel.app/docs/svelte",
   "bugs": "https://github.com/DammersCode/use-signalr/issues",
   "keywords": [
     "svelte",
@@ -21,7 +21,7 @@
     "websocket"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "type": "module",
   "sideEffects": false,
@@ -30,8 +30,10 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -46,15 +48,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@dammers/use-signalr-core": "0.5.0"
+    "@dammers/use-signalr-core": "1.0.0"
   },
   "peerDependencies": {
-    "@microsoft/signalr": ">=8",
-    "svelte": ">=4"
+    "@microsoft/signalr": "^8.0.0 || ^9.0.0 || ^10.0.0",
+    "svelte": "^5.15.0"
   },
   "devDependencies": {
-    "@microsoft/signalr": ">=8",
-    "svelte": "^5.0.0",
+    "@microsoft/signalr": "^8.0.0 || ^9.0.0 || ^10.0.0",
+    "svelte": "^5.15.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@testing-library/svelte": "^5.4.2"
   }

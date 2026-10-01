@@ -23,5 +23,29 @@ describe("SSR", () => {
     expect(host.addController).toHaveBeenCalledTimes(1);
     expect(session.context.getConnection("/hub")).toBeNull();
     expect(host.requestUpdate).not.toHaveBeenCalled();
+    expect(session.context.getStatus("/hub")).toBe("idle");
+  });
+});
+
+describe("SSR with a real LitElement", () => {
+  it("builds no connection when connectedCallback runs on the server", async () => {
+    const { LitElement, isServer } = await import("lit");
+    expect(isServer).toBe(true);
+    const client = createSignalRClient({ hubs: { "/hub": {} } });
+    const session = client.createSession({
+      baseUrl: "https://example.test",
+      accessTokenFactory: () => "",
+    });
+    class Host extends LitElement {
+      controller = session.hub(this, "/hub");
+      protected override update() {}
+    }
+    const host = new Host();
+
+    host.connectedCallback();
+
+    expect(session.context.getConnection("/hub")).toBeNull();
+    expect(session.context.getStatus("/hub")).toBe("idle");
+    host.disconnectedCallback();
   });
 });

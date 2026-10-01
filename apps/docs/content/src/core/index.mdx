@@ -1,0 +1,52 @@
+---
+title: Core
+description: The framework-free package that owns all connection behavior. Read it if you build an adapter for another framework.
+---
+
+`@dammers/use-signalr-core` holds all connection behavior of use-signalr. It has no framework dependency. Its only peer dependency is `@microsoft/signalr`.
+
+## Who needs core
+
+Adapter authors need core. An adapter connects the session of core to the reactivity and the lifecycle of one framework.
+
+If you build an app, you do not need core. Install the adapter for your framework. The adapter installs core for you, and its API uses the vocabulary of your framework.
+
+## What core does
+
+Core owns these parts:
+
+- Sessions that create and share one connection for each hub.
+- Lazy hubs, reference counts, and grace periods before a lazy hub disconnects.
+- Auto-reconnect, and a rebuild with backoff when a connection cannot recover.
+- Per-hub connection status.
+- The event registry, which keeps handlers across reconnects and rebuilds.
+- The `invoke`, `send`, and teardown call helpers.
+- Typed config resolution for global and per-hub options.
+- Cleanup and disposal.
+
+An adapter owns only the framework side: reactive status, context propagation, lifecycle binding, and the public API names. [Build an adapter](/docs/core/build-an-adapter) describes this split and the contract in detail.
+
+## Official adapters
+
+Each adapter is a thin layer over core. The adapters never import from each other.
+
+- [React](/docs/react)
+- [Vue](/docs/vue)
+- [Angular](/docs/angular)
+- [Svelte](/docs/svelte)
+- [Preact](/docs/preact)
+- [Solid](/docs/solid)
+- [Lit](/docs/lit)
+
+## Install
+
+Install core together with `@microsoft/signalr`:
+
+<InstallCommand />
+
+The package is an ES module and ships its own types. The [API reference](/docs/core/reference/api) lists every export of `<Pkg />`.
+
+## Where to go next
+
+- [Build an adapter](/docs/core/build-an-adapter): the contract, the lifecycle, and a checklist.
+- [API reference](/docs/core/reference/api): every export with its signature.

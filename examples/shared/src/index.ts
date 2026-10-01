@@ -44,8 +44,6 @@ export function createLogger(framework: string) {
     tick: (n: number) => log(`tick ${n}`),
     count: (n: number) => log(`count ${n}`),
     result: (name: string, value: unknown) => log(`${name} -> ${value}`),
-    invokeFailed: (err: { attempts?: number; retriable?: boolean }) =>
-      log(`invoke failed: attempts=${err.attempts} retriable=${err.retriable}`),
     sent: (name: string, ok: boolean) => log(`${name} sent: ${ok}`),
     echoed: (text: string, at: string) => log(`echoed ${text} at ${at}`),
     left: (connectionId: string) => log(`left ${connectionId}`),

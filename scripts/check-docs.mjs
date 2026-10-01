@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -44,6 +45,21 @@ for (const name of packageDirs) {
   }
 }
 
+// 1b. Apps pin the workspace version of every package they use.
+const appsDir = path.join(rootDir, "apps");
+for (const name of existsSync(appsDir) ? readdirSync(appsDir) : []) {
+  const pkgPath = path.join(appsDir, name, "package.json");
+  if (!existsSync(pkgPath)) continue;
+  const pkg = readJson(pkgPath);
+  for (const field of ["dependencies", "devDependencies"]) {
+    for (const [dep, range] of Object.entries(pkg[field] ?? {})) {
+      if (dep.startsWith("@dammers/use-signalr") && range !== version) {
+        violations.push(`apps/${name}/package.json ${field}["${dep}"] is ${range}, expected ${version}`);
+      }
+    }
+  }
+}
+
 // 2. READMEs exist.
 const requiredReadmes = [
   "packages/core/README.md",
@@ -56,13 +72,25 @@ const requiredReadmes = [
   "packages/lit/README.md",
   "README.md",
   "CONTRIBUTING.md",
-  "ARCHITECTURE.md",
 ];
 for (const rel of requiredReadmes) {
   if (!existsSync(path.join(rootDir, rel))) {
     violations.push(`Missing required doc: ${rel}`);
   }
 }
+
+// 2b. READMEs stay short and point to the docs site; their examples match the hero snippets.
+const SITE = "https://use-signalr.vercel.app";
+for (const rel of requiredReadmes.filter((r) => r.endsWith("README.md"))) {
+  const p = path.join(rootDir, rel);
+  if (!existsSync(p)) continue;
+  const text = readText(p);
+  if (!text.includes(SITE)) violations.push(`${rel} does not link to ${SITE}`);
+  const lines = text.split("\n").length;
+  if (lines > 90) violations.push(`${rel} has ${lines} lines; keep READMEs short and move details to the docs site`);
+}
+const sync = spawnSync(process.execPath, [path.join(rootDir, "scripts/sync-readmes.mjs"), "--check"], { encoding: "utf8" });
+if (sync.status !== 0) violations.push(sync.stderr.trim());
 
 // 3 & 4. Stale-name / stale-path patterns.
 const staleNamePatterns = [
@@ -74,8 +102,7 @@ const stalePathPatterns = [
   { re: /\bsrc\/internal\//, label: "pre-monorepo path src/internal/" },
 ];
 
-// Files checked for stale-name patterns (CONTRIBUTING.md legitimately
-// references the old name for the deprecation instruction).
+// Files checked for stale-name patterns.
 const nameCheckedFiles = [
   "README.md",
   "packages/core/README.md",

@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useLatest } from "../internal-hooks.js";
 import { createStatusStore } from "../status-store.js";
 import { createSignalRSession } from "@dammers/use-signalr-core";
 import type { Context } from "react";
-import type { HubString, ResolvedHubConfig, SignalRContract } from "@dammers/use-signalr-core";
+import type {
+  HubString,
+  ResolvedHubConfig,
+  SignalRContract,
+  SignalRSession,
+} from "@dammers/use-signalr-core";
+import type { StatusStore } from "../status-store.js";
 import type { SignalRContextValue, SignalRProviderProps } from "../types.js";
 
 /** Builds the `SignalRProvider` component bound to one client's context. */
@@ -22,39 +28,36 @@ export function createSignalRProvider<T extends SignalRContract>(
     connectionKey,
     onStatusChange,
     onError,
-  }: SignalRProviderProps) {
-    const statusStore = useRef(createStatusStore<Hub>()).current;
-
-    // Latest props via refs, so once-attached handlers call the current props.
+  }: SignalRProviderProps<Hub>) {
     const tokenFactoryRef = useLatest(accessTokenFactory);
     const onStatusChangeRef = useLatest(onStatusChange);
     const onErrorRef = useLatest(onError);
 
-    const session = useRef(
-      createSignalRSession({
-        hubs,
-        resolve,
-        statusStore,
-        getAccessToken: () => tokenFactoryRef.current(),
-        onStatusChange: (hub, status) => onStatusChangeRef.current?.(hub, status),
-        onError: (hub, err) => onErrorRef.current?.(hub, err),
-      }),
-    ).current;
+    const sessionRef = useRef<SignalRSession<T, StatusStore<Hub>>>(null);
+    sessionRef.current ??= createSignalRSession<T, StatusStore<Hub>>({
+      hubs,
+      resolve,
+      statusStore: createStatusStore<Hub>(),
+      getAccessToken: () => tokenFactoryRef.current(),
+      onStatusChange: (hub, status) => onStatusChangeRef.current?.(hub, status),
+      onError: (hub, err, info) => onErrorRef.current?.(hub, err, info),
+    });
+    const session = sessionRef.current;
+
+    const stopPending = useRef(false);
 
     useEffect(() => {
-      if (!enabled || !baseUrl) {
-        session.stop();
-        return;
-      }
-      session.start(baseUrl);
-      return () => session.stop();
-      // Rebuild only when the connection identity changes. tokenFactoryRef and
-      // on*Ref are stable; props are read through .current.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [baseUrl, enabled, connectionKey]);
+      stopPending.current = false;
+      session.update({ baseUrl, enabled, connectionKey });
+      return () => {
+        stopPending.current = true;
+        // StrictMode re-runs the effect synchronously, so a deferred stop can be cancelled.
+        queueMicrotask(() => {
+          if (stopPending.current) session.stop();
+        });
+      };
+    }, [session, baseUrl, enabled, connectionKey]);
 
-    const value = useMemo<SignalRContextValue<T>>(() => session.context, [session]);
-
-    return <ReactContext value={value}>{children}</ReactContext>;
+    return <ReactContext value={session.context}>{children}</ReactContext>;
   };
 }

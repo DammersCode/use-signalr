@@ -1,0 +1,105 @@
+---
+title: API reference
+description: Every export of @dammers/use-signalr-angular and its rxjs-interop entry point, with signatures, lifetimes, and types.
+---
+
+`@dammers/use-signalr-angular` exports `createSignalRClient`, the `event` and `method` markers, and types. `createSignalRClient` returns the provider function and the `inject*` functions. Each of them is typed against your contract. This is the signature:
+
+```ts
+createSignalRClient<const H extends Record<HubString, HubDef>>(config: SignalRClientConfig<H>)
+```
+
+See [Configuration](./config.mdx) for the options of `config`, `injectHubInvoke`, and `injectHubTeardown`.
+
+## Members
+
+In the signatures below, `hub` is a hub path from your contract. `event` and `method` are names from the contract of that hub.
+
+| Name | Signature | Returns | Lifetime | Keeps a lazy hub alive |
+| --- | --- | --- | --- | --- |
+| `provideSignalR` | `(options \| factory)` | `EnvironmentProviders` | The injector that holds the providers. A route injector lives as long as the app. | n/a |
+| `injectSignalR` | `()` | `SignalRPublicContext` | None. It reads the context. | no |
+| `injectKeepHubAlive` | `(hub)` | `void` | The injection scope. | yes |
+| `injectHubEvent` | `(hub, event, handler)` | `void` | The injection scope. | yes |
+| `injectHubInvoke` | `(hub, method, options?)` | `(...args) => Promise<Return>` | The injection scope. A pending call aborts on destroy. | yes |
+| `injectHubSend` | `(hub, method)` | `(...args) => Promise<boolean>` | The injection scope. | yes |
+| `injectHubTeardown` | `(hub, method, options?)` | `(...args) => Promise<boolean>` | The injection scope. A call survives destroy. | yes |
+| `injectHubStatus` | `(hub)` | `Signal<HubConnectionStatus>` | The injection scope. | yes |
+| `injectOnReconnected` | `(hub, callback)` | `void` | The injection scope. | yes |
+| `event` | `event<Args>()` | `EventDef` | none | n/a |
+| `method` | `method<Args, Return>()` | `MethodDef` | none | n/a |
+
+Each `inject*` function acquires its hub when it runs and releases the hub on `DestroyRef.onDestroy`. `injectSignalR` does not acquire a hub. See [Provider](../concepts/provider.mdx) for the options of `provideSignalR`.
+
+### injectSignalR
+
+Returns the context of the session. Use it only when you need the underlying `HubConnection` or a point read. It has these members:
+
+| Member | Signature |
+| --- | --- |
+| `getConnection` | `(hub) => HubConnection \| null` |
+| `getStatus` | `(hub) => HubConnectionStatus` |
+| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` |
+
+`getStatus` reads the status once and does not subscribe. To follow the status, use `injectHubStatus`.
+
+### injectHubInvoke
+
+Returns a typed function. The function waits for the connection and resolves with the return value of the server method. When the scope is destroyed and `keepAliveOnUnmount` is `false`, a pending call rejects with an `AbortError`.
+
+### injectHubSend
+
+Returns a typed function that does not wait for the connection. The function resolves `true` when it sends the call. It resolves `false` when the hub is not connected or when the send fails. It never rejects.
+
+### injectHubTeardown
+
+Returns a typed function for a call in a cleanup. The function waits for the hub, then sends. It resolves `true` when it sends the call. It resolves `false` when one of these happens:
+
+- The hub does not connect in time.
+- The session is disabled.
+- The hub failed.
+- The send fails.
+
+It never rejects. The call is not aborted when the scope is destroyed. Each call also acquires the hub until its send ends, so it holds a lazy hub open after the scope is destroyed.
+
+### injectHubStatus
+
+Returns a `Signal<HubConnectionStatus>` for one hub. A `computed()`, an `effect()`, or a template that reads it runs again only when the status of this hub changes. See [Connection status](../concepts/connection-status.mdx) for the meaning of each value.
+
+### injectOnReconnected
+
+Runs `callback` after each reconnect, not after the first connect. Use it to load data again that went stale while the connection was down.
+
+### hubStatus$
+
+The entry point `@dammers/use-signalr-angular/rxjs-interop` needs `rxjs` ^7.6. The package declares `rxjs` as an optional peer. `hubStatus$(statusSignal, options?)` returns an `Observable<HubConnectionStatus>`. `options` is `{ injector?: Injector }`.
+
+`hubStatus$` wraps `toObservable`. Call it in an injection context, or pass `{ injector }`. Without an injector outside an injection context, it throws `NG0203`. This sample wraps a status signal:
+
+```ts
+import { hubStatus$ } from "@dammers/use-signalr-angular/rxjs-interop";
+import { injectHubStatus } from "./client";
+
+const status$ = hubStatus$(injectHubStatus("/hubs/rooms"));
+```
+
+## Types
+
+| Name | Meaning |
+| --- | --- |
+| `SignalROptions` | Options of `provideSignalR`. |
+| `MaybeSignal<T>` | A value, a `Signal<T>`, or a getter `() => T`. |
+| `TokenFactory` | `() => string \| Promise<string>`. |
+| `HubConnectionStatus` | `"idle" \| "connecting" \| "connected" \| "reconnecting" \| "disconnected"`. |
+| `SignalRErrorInfo` | The third argument of `onError`. Its `source` is `"connection"` or `"callback"`. |
+| `SignalRPublicContext` | The return type of `injectSignalR`. |
+| `SignalRClientConfig`, `PerHubConfig`, `HubContract`, `HubDef`, `HubString`, `SignalRContract`, `InferContract` | Types of the client configuration and the contract. |
+| `EventDef`, `MethodDef` | The return types of `event()` and `method()`. |
+| `EventName`, `MethodName`, `EventArgs`, `MethodArgs`, `MethodReturn` | Helper types that read names and signatures from a contract. |
+| `InvokeOptions`, `TeardownOptions` | Options of `injectHubInvoke` and `injectHubTeardown`. |
+| `ReconnectConfig`, `HubProtocolConfig`, `ConfigureBuilder`, `BuilderContext`, `HttpOptions` | Types for the hub options in the client configuration. |
+| `HubStatusObservableOptions` | The options of `hubStatus$`. |
+
+## Errors
+
+A wrong placement and a failed call throw errors with fixed messages. See [Troubleshooting](../reference/troubleshooting.mdx) for the messages and the fixes.

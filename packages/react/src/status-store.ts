@@ -3,12 +3,7 @@ import type {
   StatusStore as StatusStoreBase,
 } from "@dammers/use-signalr-core";
 
-/**
- * Small external store for hub statuses, consumed with `useSyncExternalStore`.
- * Exposes only `subscribe`, `get`, and `set` — no whole-record snapshot — so
- * a per-hub selector lets React skip a re-render when an unrelated hub's
- * status changes.
- */
+/** External store for hub statuses, read with `useSyncExternalStore`. */
 export interface StatusStore<H extends string> extends StatusStoreBase<H> {
   subscribe: (hub: H, listener: () => void) => () => void;
 }
@@ -24,7 +19,7 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
       set.add(listener);
       return () => set!.delete(listener);
     },
-    get: (hub) => snapshot.get(hub) ?? "disconnected",
+    get: (hub) => snapshot.get(hub) ?? "idle",
     set: (hub, status) => {
       if (snapshot.get(hub) === status) return; // dedupe: skip a spurious notify
       snapshot.set(hub, status);

@@ -1,0 +1,50 @@
+---
+title: Events
+description: Listen to events that the server pushes, with arguments typed from the contract.
+---
+
+An event is a message that the server pushes to the client. You declare each event in the contract with `event<Args>()`. The handler gets the typed arguments. Only events that the contract declares reach a handler.
+
+<Only not="core">
+
+## Listen to an event
+
+<Api of="event" /> subscribes to one event of one hub. The subscription ends when the consumer ends. This sample shows the messages of a room:
+
+<Snippet id="event" />
+
+The helper also counts as a consumer of the hub. See [Lazy hubs](./lazy-hubs.mdx).
+
+</Only>
+
+## Handlers across rebuilds
+
+The library keeps the handlers in the session, not in the connection. A reconnect or a rebuild of the connection does not remove them. After a rebuild, the new connection delivers events to the same handlers.
+
+You can register several handlers for one event, in one component or in many. Each handler gets every event. Your code must not rely on the order in which the handlers run.
+
+<Only in="react,preact">
+
+## Latest handler
+
+The helper reads the latest handler on each render. A new function on each render causes no resubscribe. You do not need `useCallback`.
+
+</Only>
+<Only in="solid,svelte,vue,angular">
+
+## Handler at setup
+
+The helper reads the handler once, when the component sets up. Use the current state inside the handler. Closures read live state, so a handler can read a signal, a store, or a ref. A new function later does not replace the first one.
+
+</Only>
+<Only in="lit">
+
+## Handler at registration
+
+The controller keeps the handler that you pass to `on`. To replace it, call the returned function to unsubscribe, and then call `on` again.
+
+</Only>
+
+## Errors in a handler
+
+An error in a handler does not stop other handlers and does not break the connection. The library passes the error to `onError` with `info.source` set to `"callback"`. A promise that a handler returns and that rejects gets the same treatment. For the full picture, see [Recovery](./recovery.mdx).

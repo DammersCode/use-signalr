@@ -1,0 +1,67 @@
+---
+title: Recovery
+description: How the library retries a lost connection, when errors reach you, and when to refetch.
+---
+
+A lost connection has two retry layers. Both run without your code.
+
+## Two retry layers
+
+**SignalR auto-reconnect** keeps the same connection object. It uses the delays of the `reconnect` option (default 0, 2, 10, and 30 s). It reads the token again on each attempt. The connection ID stays the same only with stateful reconnect. Otherwise the server gives a new connection ID.
+
+**Library rebuild** creates a new connection. The delay before attempt `n` is `min(2500 × n, 30000)` ms. There is no attempt limit while the hub is wanted. The rebuild stops only on a non-retriable error (400, 401, 403, or 404). It runs after auto-reconnect gives up, and always when `reconnect` is `false`.
+
+`reconnect: false` turns off only the first layer. The library still rebuilds a lost connection. To stop all retries, set `enabled` to `false`, clear `baseUrl`, or stop the session.
+
+## onError
+
+`onError(hub, error, info)` is an option of <Api of="provider" />. `info.source` is `"connection"` for connect, negotiate, build, protocol, and close errors, and for a `stop()` that rejects. It is `"callback"` for an error that your own code throws: an event handler, a reconnect callback, or `onStatusChange`.
+
+`onError` fires in these cases:
+
+- A connect attempt fails, or a connection closes and the library starts a rebuild. Only the first failed attempt of an outage fires. The count starts again after a successful connect.
+- Auto-reconnect gives up, with the error `Reconnect retries exhausted`. With the default delays, this is about 42 s after the drop.
+- SignalR closes the connection with no error and does not start auto-reconnect. The error is `The server or a proxy closed the connection.`
+- A non-retriable error stops the hub. It fires once.
+
+A drop that auto-reconnect fixes does not fire `onError`. To alert the user about a drop, watch for the status `"reconnecting"`. Check `info.source === "connection"` before you show a message that the connection failed.
+
+<Only not="angular">
+Without `onError`, the library drops errors silently.
+</Only>
+<Only in="angular">
+Without `onError`, the library sends errors to the Angular `ErrorHandler`.
+</Only>
+
+## Reconnect callbacks
+
+<Only not="core">
+<Api of="reconnected" /> registers a function that runs after a hub recovers. Use it to refetch state that changed while the client was offline:
+
+<Snippet id="reconnected" />
+
+</Only>
+
+A reconnect callback runs after each recovery of a hub that was connected before. This includes:
+
+- an automatic reconnect of SignalR,
+- a library rebuild after a lost connection,
+- a rebuild after a change of `connectionKey`, `baseUrl`, or `enabled`, when the hub was connected before.
+
+It does not run on the first connect, after the session stops and starts again, or when a lazy hub stops and starts again.
+
+The server forgets the groups of a closed connection. Join your groups again in a reconnect callback, or join in `OnConnectedAsync` on the server.
+
+<Only in="react">
+
+## Refetch with a query library
+
+When you use TanStack Query, invalidate the queries of the hub in the reconnect callback. The query then refetches the stale data:
+
+```ts
+useOnReconnected("/hubs/rooms", () => {
+  void queryClient.invalidateQueries({ queryKey: ["messages"] });
+});
+```
+
+</Only>

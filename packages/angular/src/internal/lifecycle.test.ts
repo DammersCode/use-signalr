@@ -129,10 +129,7 @@ describe("lazy hub refcounting", () => {
 
   it("two consumers on one client: destroying one keeps the hub connected (real provider)", async () => {
     const contextToken = new InjectionToken<SignalRContextValue<any>>("use-signalr-refcount-test");
-    const resolved = resolveHubConfig({ hubs: { [HUB]: { lazy: true, graceMs: 0 } } } as any, {
-      lazy: true,
-      graceMs: 0,
-    } as any);
+    const resolved = resolveHubConfig({ hubs: { [HUB]: { lazy: true, graceMs: 0 } } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextToken, [HUB], () => resolved);
     const hooks = createSignalRHooks<any>(contextToken);
 
@@ -173,10 +170,7 @@ describe("lazy hub refcounting", () => {
 describe("lazy hub (real provider, mocked signalr)", () => {
   function makeClient(lazy: boolean) {
     const contextToken = new InjectionToken<SignalRContextValue<any>>("use-signalr-lifecycle-test");
-    const resolved = resolveHubConfig(
-      { hubs: { [HUB]: { lazy, graceMs: 0 } } } as any,
-      { lazy, graceMs: 0 } as any,
-    );
+    const resolved = resolveHubConfig({ hubs: { [HUB]: { lazy, graceMs: 0 } } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextToken, [HUB], () => resolved);
     const hooks = createSignalRHooks<any>(contextToken);
     return { provideSignalR, hooks, contextToken };
@@ -233,7 +227,7 @@ describe("lazy hub (real provider, mocked signalr)", () => {
 describe("accessTokenFactory", () => {
   async function connect(accessTokenFactory: SignalROptions["accessTokenFactory"]) {
     const contextToken = new InjectionToken<SignalRContextValue<any>>("use-signalr-token-test");
-    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } } as any, {} as any);
+    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextToken, [HUB], () => resolved);
     const hooks = createSignalRHooks<any>(contextToken);
 
@@ -285,11 +279,11 @@ describe("accessTokenFactory", () => {
   });
 });
 
-// 4: injectHubEvent re-attaches exactly once across a reconnect cycle.
-describe("injectHubEvent re-attach across reconnect", () => {
-  it("registers exactly one handler after a reconnect cycle", async () => {
+// 4: injectHubEvent keeps one registry subscription across a reconnect cycle.
+describe("injectHubEvent across reconnect", () => {
+  it("delivers each event once and never touches connection.on/off per consumer", async () => {
     const contextToken = new InjectionToken<SignalRContextValue<any>>("use-signalr-reconnect-test");
-    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } } as any, {} as any);
+    const resolved = resolveHubConfig({ hubs: { [HUB]: { events: { OnFoo: {} } } } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextToken, [HUB], () => resolved);
     const hooks = createSignalRHooks<any>(contextToken);
 
@@ -314,26 +308,22 @@ describe("injectHubEvent re-attach across reconnect", () => {
     appRef.tick();
     await tick();
 
-    const onCountAfterConnect = onCalls.filter((c) => c.name === "OnFoo").length;
-    expect(onCountAfterConnect).toBe(1);
+    const dispatchers = onCalls.filter((c) => c.name === "OnFoo");
+    expect(dispatchers).toHaveLength(1);
 
-    // Simulate a reconnect cycle: reconnecting -> reconnected.
     onReconnectingHandler?.();
-    appRef.tick();
     await tick();
     onReconnectedHandler?.();
-    appRef.tick();
     await tick();
+    dispatchers[0]!.fn("x");
 
-    const onCountAfterReconnect = onCalls.filter((c) => c.name === "OnFoo").length;
-    const offCount = fakeConnection.off.mock.calls.filter((c) => c[0] === "OnFoo").length;
+    expect(handlerCalls).toBe(1);
+    expect(onCalls.filter((c) => c.name === "OnFoo")).toHaveLength(1);
+    expect(fakeConnection.off).not.toHaveBeenCalled();
 
-    // Exactly one detach/attach pair across the reconnect cycle.
-    expect(onCountAfterReconnect - onCountAfterConnect).toBe(1);
-    expect(offCount).toBe(1);
-
-    void handlerCalls;
     consumer.destroy();
+    dispatchers[0]!.fn("y");
+    expect(handlerCalls).toBe(1);
     providerInjector.destroy();
   });
 });
@@ -372,14 +362,14 @@ describe("injectHubStatus isolation across hubs", () => {
   });
 });
 
-// 6: injectHubStatus starts "disconnected" and updates through the signal
+// 6: injectHubStatus starts "idle" and updates through the signal
 // after connect(). Uses the REAL provider (not the harness) since the
 // harness's statusStore is a plain stub, not a reactive one wired to a
 // connection manager.
 describe("injectHubStatus signal", () => {
-  it("emits 'disconnected' initially and updates after connect()", async () => {
+  it("emits 'idle' initially and updates after connect()", async () => {
     const contextToken = new InjectionToken<SignalRContextValue<any>>("use-signalr-status-test");
-    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } } as any, {} as any);
+    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextToken, [HUB], () => resolved);
     const hooks = createSignalRHooks<any>(contextToken);
 
@@ -402,7 +392,7 @@ describe("injectHubStatus signal", () => {
 
     const appRef = TestBed.inject(ApplicationRef);
     appRef.tick(); // consumer's own status-reading effect runs first pass
-    expect(readings[0]).toBe("disconnected");
+    expect(readings[0]).toBe("idle");
 
     await flush(appRef); // provider's start-effect runs, connection builds
     await resolveStart(); // connected
@@ -420,7 +410,7 @@ describe("injectHubStatus signal", () => {
 describe("DI wiring", () => {
   it("provideSignalR + injectSignalR resolves inside an injection context", () => {
     const contextToken = new InjectionToken<SignalRContextValue<any>>("use-signalr-di-test");
-    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } } as any, {} as any);
+    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextToken, [HUB], () => resolved);
     const hooks = createSignalRHooks<any>(contextToken);
 

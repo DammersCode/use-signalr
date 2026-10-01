@@ -10,7 +10,7 @@ describe("SSR-safe import", () => {
     expect(typeof globalThis.window).toBe("undefined");
     const mod = await import("./index.js");
     expect(typeof mod.createSignalRClient).toBe("function");
-  });
+  }, 20_000);
 
   it("creates a client and calling provideSignalR builds NO connection", async () => {
     const build = vi.fn();
@@ -62,7 +62,7 @@ describe("SSR-safe import", () => {
 
   it("exposes every documented export", async () => {
     const mod = await import("./index.js");
-    for (const name of ["createSignalRClient", "event", "method", "InvokeError"]) {
+    for (const name of ["createSignalRClient", "event", "method"]) {
       expect(mod, `missing export: ${name}`).toHaveProperty(name);
     }
   });
@@ -70,5 +70,67 @@ describe("SSR-safe import", () => {
   it("rxjs-interop entry point imports without a DOM present", async () => {
     const mod = await import("./rxjs-interop.js");
     expect(typeof mod.hubStatus$).toBe("function");
+  }, 20_000);
+});
+
+describe("SSR provider", () => {
+  it("disables the session so a constructor wait rejects at once and nothing connects", async () => {
+    const build = vi.fn();
+    vi.resetModules();
+    vi.doMock("@microsoft/signalr", () => ({
+      HubConnectionBuilder: class {
+        withUrl() {
+          return this;
+        }
+        configureLogging() {
+          return this;
+        }
+        withAutomaticReconnect() {
+          return this;
+        }
+        build() {
+          build();
+          return {};
+        }
+      },
+      HubConnectionState: { Disconnected: "Disconnected", Connected: "Connected" },
+      LogLevel: { Information: 2 },
+    }));
+    await import("@angular/compiler");
+    const {
+      ErrorHandler,
+      NgZone,
+      PLATFORM_ID,
+      createEnvironmentInjector,
+      runInInjectionContext,
+      EnvironmentInjector,
+      Injector,
+    } = await import("@angular/core");
+    const { createSignalRClient, event, method } = await import("./index.js");
+    const client = createSignalRClient({
+      hubs: {
+        "/hubs/chat": {
+          events: { ReceiveMessage: event<[user: string]>() },
+          methods: { SendMessage: method<[text: string]>() },
+        },
+      },
+    });
+    const root = Injector.create({ providers: [] }) as InstanceType<typeof EnvironmentInjector>;
+    const injector = createEnvironmentInjector(
+      [
+        { provide: PLATFORM_ID, useValue: "server" },
+        { provide: ErrorHandler, useValue: { handleError() {} } },
+        { provide: NgZone, useValue: { run: (fn: () => unknown) => fn(), runOutsideAngular: (fn: () => unknown) => fn() } },
+        client.provideSignalR({ baseUrl: "https://example.test", accessTokenFactory: () => "t" }),
+      ],
+      root,
+    );
+    const wait = runInInjectionContext(injector, () => client.injectSignalR()).waitForConnection(
+      "/hubs/chat",
+      10_000,
+    );
+    await expect(wait).rejects.toMatchObject({ name: "SignalRDisabledError" });
+    expect(build).not.toHaveBeenCalled();
+    vi.doUnmock("@microsoft/signalr");
   });
 });

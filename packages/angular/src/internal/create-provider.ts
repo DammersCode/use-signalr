@@ -1,11 +1,15 @@
 import {
   DestroyRef,
   EnvironmentInjector,
+  ErrorHandler,
+  NgZone,
+  PLATFORM_ID,
   afterNextRender,
   effect,
   inject,
   isSignal,
   makeEnvironmentProviders,
+  provideEnvironmentInitializer,
   untracked,
 } from "@angular/core";
 import type { EnvironmentProviders, InjectionToken, Signal } from "@angular/core";
@@ -19,13 +23,16 @@ import type {
   TokenFactory,
 } from "../types.js";
 
-function resolveMaybeSignal<T>(value: MaybeSignal<T>): T {
-  if (isSignal(value)) return value();
-  if (typeof value === "function") return (value as () => T)();
-  return value;
+function isGetter<T>(value: MaybeSignal<T>): value is () => T {
+  return typeof value === "function";
 }
 
-/** A plain factory is the value itself — only a Signal wrapper may be unwrapped. */
+function resolveMaybeSignal<T>(value: MaybeSignal<T>): T {
+  if (isSignal(value)) return value();
+  return isGetter(value) ? value() : value;
+}
+
+/** A plain factory is the value itself. Only a Signal wrapper is unwrapped. */
 function resolveTokenFactory(value: TokenFactory | Signal<TokenFactory>): TokenFactory {
   return isSignal(value) ? value() : value;
 }
@@ -36,12 +43,20 @@ export function createSignalRProvider<T extends SignalRContract>(
   hubs: Array<keyof T & HubString>,
   resolve: (hub: keyof T & HubString) => ResolvedHubConfig,
 ) {
-  return function provideSignalR(options: SignalROptions): EnvironmentProviders {
+  return function provideSignalR(
+    optionsOrFactory: SignalROptions<keyof T & HubString> | (() => SignalROptions<keyof T & HubString>),
+  ): EnvironmentProviders {
     return makeEnvironmentProviders([
       {
         provide: contextToken,
         useFactory: (): SignalRContextValue<T> => {
           const injector = inject(EnvironmentInjector);
+          const errorHandler = inject(ErrorHandler);
+          const ngZone = inject(NgZone);
+          // Same check as isPlatformServer, without a dependency on @angular/common.
+          const isServer = inject(PLATFORM_ID) === "server";
+          const options =
+            typeof optionsOrFactory === "function" ? optionsOrFactory() : optionsOrFactory;
           const statusStore = createStatusStore<keyof T & HubString>();
 
           const session = createSignalRSession<T, typeof statusStore>({
@@ -49,38 +64,52 @@ export function createSignalRProvider<T extends SignalRContract>(
             resolve,
             statusStore,
             getAccessToken: () => resolveTokenFactory(options.accessTokenFactory)(),
-            onStatusChange: (hub, status) => options.onStatusChange?.(hub, status),
-            onError: (hub, err) => options.onError?.(hub, err),
+            onStatusChange: (hub, status) =>
+              ngZone.run(() => options.onStatusChange?.(hub, status)),
+            onError: (hub, err, info) =>
+              ngZone.run(() =>
+                options.onError ? options.onError(hub, err, info) : errorHandler.handleError(err),
+              ),
           });
 
-          // No connection work happens here or in the effect below during SSR:
-          // afterNextRender never runs on the server, so `start` stays inert.
-          const start = () => {
-            const enabled = resolveMaybeSignal(options.enabled ?? true);
-            const baseUrl = resolveMaybeSignal(options.baseUrl);
-            resolveMaybeSignal(options.connectionKey); // read only to trigger a rebuild on change
-            // Reads made by session.stop()/start() (status-store dedupe checks,
-            // connection state) must not become tracked deps of this effect —
-            // only baseUrl/enabled/connectionKey should trigger a rebuild.
-            untracked(() => {
-              session.stop();
-              if (!enabled || !baseUrl) return;
-              session.start(baseUrl);
-            });
+          const sync = () => {
+            const values = {
+              baseUrl: resolveMaybeSignal(options.baseUrl),
+              enabled: resolveMaybeSignal(options.enabled ?? true),
+              connectionKey: resolveMaybeSignal(options.connectionKey),
+            };
+            // session.update reads store state, so only the values above can be tracked.
+            untracked(() => ngZone.runOutsideAngular(() => session.update(values)));
           };
 
-          afterNextRender(
-            () => {
-              effect(start, { injector });
-            },
-            { injector },
-          );
+          if (isServer) {
+            session.update({ baseUrl: undefined, enabled: false, connectionKey: undefined });
+          } else {
+            afterNextRender(
+              () => {
+                effect(sync, { injector });
+              },
+              { injector },
+            );
+          }
 
           inject(DestroyRef).onDestroy(() => session.stop());
 
-          return session.context;
+          const { context } = session;
+          return {
+            ...context,
+            acquire: (hub) => ngZone.runOutsideAngular(() => context.acquire(hub)),
+            release: (hub) => ngZone.runOutsideAngular(() => context.release(hub)),
+            subscribe: (hub, event, handler) =>
+              context.subscribe(hub, event, (...args) => ngZone.run(() => handler(...args))),
+            registerReconnect: (hub, callback) =>
+              context.registerReconnect(hub, () => ngZone.run(callback)),
+          };
         },
       },
+      provideEnvironmentInitializer(() => {
+        inject(contextToken);
+      }),
     ]);
   };
 }

@@ -1,5 +1,4 @@
 import { Component, effect } from "@angular/core";
-import { InvokeError } from "@dammers/use-signalr-angular";
 import { createLogger } from "@examples/contract";
 import {
   injectHubEvent,
@@ -84,11 +83,7 @@ export class AppComponent {
     try {
       await this.fail();
     } catch (err) {
-      if (err instanceof InvokeError) {
-        log.invokeFailed(err);
-      } else {
-        log.log(`invoke failed: ${String(err)}`);
-      }
+      log.log(`invoke failed: ${String(err)}`);
     }
   }
 

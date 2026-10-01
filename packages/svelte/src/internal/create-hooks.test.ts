@@ -50,6 +50,40 @@ describe("hubInvoke keepAliveOnUnmount", () => {
   });
 });
 
+describe("hubInvoke hub hold", () => {
+  it("keepAliveOnUnmount holds the hub until the call settles", async () => {
+    const h = makeHarness({ startConnected: true });
+    let call: Promise<unknown> = Promise.resolve();
+    const view = render(Runner, {
+      props: {
+        run: () => {
+          call = h.hooks.hubInvoke(HUB, "LeaveRoomAsync", { keepAliveOnUnmount: true })("room-1");
+        },
+      },
+      context: h.context,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    view.unmount();
+    expect(h.acquireCount).toBe(2);
+    expect(h.releaseCount).toBe(1);
+
+    h.fake.resolveInvoke();
+    await call;
+    expect(h.releaseCount).toBe(2);
+  });
+});
+
+describe("placement error", () => {
+  it("names the function that ran outside the provider", () => {
+    const h = makeHarness();
+    expect(() =>
+      render(Runner, { props: { run: () => h.hooks.hubStatus(HUB) } }),
+    ).toThrow("hubStatus must be called during component init, below provideSignalR");
+  });
+});
+
 // 2. A teardown issued in onDestroy while the hub is still connecting must
 //    QUEUE and flush on connect, not drop. It must also survive the
 //    component's destruction.

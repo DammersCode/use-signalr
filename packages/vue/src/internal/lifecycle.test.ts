@@ -146,10 +146,104 @@ describe("Vue plugin lifecycle", () => {
     app.unmount();
   });
 
+  it("stops to idle when enabled turns false and rebuilds when it turns true", async () => {
+    const enabled = ref(true);
+    const client = createSignalRClient({ hubs: { [HUB]: {} } });
+    let status: Ref<HubConnectionStatus> | undefined;
+    const app = createApp(
+      defineComponent({
+        setup() {
+          status = client.useHubStatus(HUB);
+          return () => null;
+        },
+      }),
+    );
+    app.use(client, { baseUrl: "https://example.test", enabled, accessTokenFactory: () => "token" });
+    app.mount(document.createElement("div"));
+    await connect();
+    expect(status?.value).toBe("connected");
+
+    enabled.value = false;
+    await nextTick();
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+    expect(status?.value).toBe("idle");
+
+    enabled.value = true;
+    await nextTick();
+    expect(buildCalls).toBe(2);
+    expect(status?.value).toBe("connecting");
+    app.unmount();
+  });
+
+  it("does not rebuild when an enabled getter reads a rotating token", async () => {
+    const token = ref("a");
+    const client = createSignalRClient({ hubs: { [HUB]: {} } });
+    const app = createApp({ render: () => null });
+    app.use(client, {
+      baseUrl: "https://example.test",
+      enabled: () => Boolean(token.value),
+      accessTokenFactory: () => token.value,
+    });
+    app.mount(document.createElement("div"));
+    expect(buildCalls).toBe(1);
+
+    token.value = "b"; await nextTick();
+    token.value = "c"; await nextTick();
+
+    expect(buildCalls).toBe(1);
+    expect(connection.stop).not.toHaveBeenCalled();
+    app.unmount();
+  });
+
+  it("throws outside a scope and leaves the ref count unchanged", async () => {
+    const { app, client } = mount(() => {});
+    expect(() => app.runWithContext(() => client.useHubConsumer(HUB))).toThrow(
+      "useHubConsumer must be called inside setup() or an effectScope",
+    );
+    expect(() => app.runWithContext(() => client.useSignalREvent(HUB, "OnFoo", () => {}))).toThrow(
+      "useSignalREvent must be called inside setup() or an effectScope",
+    );
+    await nextTick();
+    expect(buildCalls).toBe(0);
+    app.unmount();
+  });
+
+  it("does not start when mount finds no container", () => {
+    const client = createSignalRClient({ hubs: { [HUB]: {} } });
+    const app = createApp({ render: () => null });
+    app.use(client, { baseUrl: "https://example.test", accessTokenFactory: () => "token" });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    app.mount("#does-not-exist");
+    expect(buildCalls).toBe(0);
+    vi.restoreAllMocks();
+  });
+
+  it("names the missing scope without an inject warning", () => {
+    const { app, client } = mount(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() => client.useHubStatus(HUB)).toThrow(
+      "useHubStatus must be called inside setup() or an effectScope",
+    );
+    expect(warn).not.toHaveBeenCalled();
+    app.unmount();
+  });
+
+  it("names the missing injection context inside a scope", () => {
+    const { app, client } = mount(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const scope = effectScope();
+    expect(() => scope.run(() => client.useHubStatus(HUB))).toThrow(
+      "useHubStatus must be called inside setup() or app.runWithContext()",
+    );
+    expect(warn).not.toHaveBeenCalled();
+    scope.stop();
+    app.unmount();
+  });
+
   it("cleans the session through the Vue 3.3 unmount fallback", async () => {
     const client = createSignalRClient({ hubs: { [HUB]: {} } });
     const app = createApp({ render: () => null });
-    Reflect.set(app, "onUnmount", undefined);
+    Reflect.deleteProperty(app, "onUnmount");
     app.use(client, {
       baseUrl: "https://example.test",
       accessTokenFactory: () => "token",
@@ -159,6 +253,35 @@ describe("Vue plugin lifecycle", () => {
     app.unmount();
 
     expect(connection.stop).toHaveBeenCalled();
+  });
+
+  // app.onUnmount exists from Vue 3.5; the floor job runs Vue 3.3, which uses the unmount fallback.
+  it.skipIf(typeof createApp({}).onUnmount !== "function")("stops an eager connection once through app.onUnmount and does not rebuild", async () => {
+    const client = createSignalRClient({ hubs: { [HUB]: {} } });
+    const app = createApp({ render: () => null });
+    expect(typeof app.onUnmount).toBe("function");
+    app.use(client, {
+      baseUrl: "https://example.test",
+      accessTokenFactory: () => "token",
+    });
+    app.mount(document.createElement("div"));
+    await connect();
+
+    app.unmount();
+    await nextTick();
+
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+    expect(buildCalls).toBe(1);
+  });
+
+  it("throws a clear error when a composable runs without app.use", () => {
+    const client = createSignalRClient({ hubs: { [HUB]: {} } });
+    const app = createApp({ render: () => null });
+    const scope = effectScope();
+    expect(() => scope.run(() => app.runWithContext(() => client.useHubStatus(HUB)))).toThrow(
+      "useSignalR must be used after app.use(signalR, options)",
+    );
+    scope.stop();
   });
 
   it("isolates status refs by hub", async () => {
@@ -172,32 +295,31 @@ describe("Vue plugin lifecycle", () => {
     expect(runs).toBe(2); scope.stop();
   });
 
-  it("cleans an event listener and reattaches it once after reconnect", async () => {
+  it("keeps reconnect callbacks and binds no listener per composable", async () => {
     let status: Readonly<Ref<HubConnectionStatus>> | undefined;
     const onReconnected = vi.fn();
-    const { app } = mount((client) => {
+    const handler = vi.fn();
+    const scope = effectScope();
+    const { app, client } = mount(() => {});
+    scope.run(() => app.runWithContext(() => {
       status = client.useHubStatus(HUB);
-      client.useSignalREvent(HUB, "OnFoo", () => {});
+      client.useSignalREvent(HUB, "OnFoo", handler);
       client.useOnReconnected(HUB, onReconnected);
-    });
+    }));
     await nextTick(); await connect(); await nextTick();
     expect(status?.value).toBe("connected");
-    expect(connection.on).toHaveBeenCalledTimes(1);
     reconnecting?.();
     expect(status?.value).toBe("reconnecting");
-    await nextTick();
     reconnected?.();
     await nextTick();
     expect(status?.value).toBe("connected");
     expect(onReconnected).toHaveBeenCalledTimes(1);
-    expect(connection.off).toHaveBeenCalledTimes(1);
-    expect(connection.on).toHaveBeenCalledTimes(2);
+    expect(connection.on).not.toHaveBeenCalled();
+    scope.stop();
     app.unmount();
-    expect(connection.off).toHaveBeenCalledTimes(2);
   });
 
-  // Behavioral performance baseline: repeated mounts must not leak handlers.
-  it("balances handlers and connections across 50 mount cycles", async () => {
+  it("balances lazy connections across 50 mount cycles", async () => {
     const CYCLES = 50;
     for (let i = 0; i < CYCLES; i += 1) {
       const { app } = mount((client) => {
@@ -209,9 +331,6 @@ describe("Vue plugin lifecycle", () => {
       await nextTick();
     }
 
-    expect(connection.on).toHaveBeenCalledTimes(CYCLES);
-    expect(connection.off).toHaveBeenCalledTimes(CYCLES);
-    // One lazy build per cycle: no churn from repeated mounting.
     expect(buildCalls).toBe(CYCLES);
   });
 });

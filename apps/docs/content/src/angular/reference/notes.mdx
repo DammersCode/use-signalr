@@ -1,0 +1,68 @@
+---
+title: Angular notes
+description: Zone, signals, RxJS, server rendering, and cleanup in the Angular package.
+---
+
+## Versions
+
+The package needs `@angular/core` ^20, ^21, or ^22 and `@microsoft/signalr` ^8, ^9, or ^10. It needs Node 20.19 or later. `rxjs` ^7.6 is an optional peer. Only the `rxjs-interop` entry point uses it.
+
+## Signals first
+
+The status of a hub is a `Signal`. Read it in a template, in a `computed()`, or in an `effect()`. The package keeps one signal for each hub. A status change of hub B does not run code that reads only hub A.
+
+Event handlers and reconnect callbacks are plain functions. Write to your own signals in them. A signal write tells Angular to render again, so the handler needs no other call.
+
+The contract checks every hub, event, and method name that you write. Components that use the same hub share one connection.
+
+## Zone and zoneless
+
+The package does not import `zone.js`. It works with `provideZonelessChangeDetection()` and with zone.js. Use the change detection mode that your app uses.
+
+With zone.js, the package starts and stops connections outside `NgZone`. Open SignalR timers then do not keep `ApplicationRef.whenStable()` pending. Event handlers and reconnect callbacks run inside `NgZone`, so change detection sees their effects. The `onStatusChange` and `onError` callbacks also run inside `NgZone`. An invoke that waits for a slow or down server keeps `whenStable()` pending until its timeout. Without zone.js, these rules do nothing.
+
+## Injection context
+
+Every `inject*` function must run in an injection context. A constructor or a field initializer is the normal place. Outside such a place, use `runInInjectionContext`.
+
+Each function registers its own cleanup with `DestroyRef.onDestroy`. When a component or an injector is destroyed:
+
+- Event handlers detach.
+- Reconnect callbacks detach.
+- Pending invokes abort, unless the call sets `keepAliveOnUnmount`.
+- Lazy hubs release their reference.
+
+You write no cleanup code for these.
+
+## Options are read once
+
+`provideSignalR` reads the options object one time. A `MaybeSignal` value reacts to change because the provider reads it in an `effect()`. `onStatusChange` and `onError` do not change after creation.
+
+`injectHubInvoke` and `injectHubTeardown` keep the `options` object that you pass and read it on each call. Closures that you pass in, such as `isRetriable`, read current state when they run.
+
+## RxJS
+
+Signals are the main API. The entry point `@dammers/use-signalr-angular/rxjs-interop` gives an `Observable` view of a status signal. The main entry point does not import `rxjs`. This sample wraps a status signal:
+
+```ts
+import { hubStatus$ } from "@dammers/use-signalr-angular/rxjs-interop";
+import { injectHubStatus } from "./client";
+
+const status$ = hubStatus$(injectHubStatus("/hubs/rooms"));
+```
+
+Call `hubStatus$` in an injection context. To call it elsewhere, pass `{ injector }`.
+
+## Server rendering
+
+All connection work happens in the browser. The provider defers the first start to `afterNextRender`, and Angular never runs it on the server.
+
+You can import the package and call `provideSignalR` during a server render. The provider registers, and the library builds no connection. Every hub reports `idle`, so the server HTML and the first browser render match.
+
+On the server, the provider disables the session. A wait or an invoke that runs during a server render rejects at once with `SignalRDisabledError`, and every status stays `idle`. Run calls in `afterNextRender`, or in an `effect()` that waits for the status `connected`.
+
+When no `onError` is set, the provider sends errors to `ErrorHandler`. That handler receives the error only, not the hub or `info.source`. While a hub is down, the same error can repeat at each retry. Set `onError` to filter it.
+
+## Errors
+
+If you give no `onError`, the provider sends each error to the Angular `ErrorHandler`. Give an `onError` to take over the handling. Then the `ErrorHandler` gets no connection errors.

@@ -23,7 +23,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
 
   const hubs = hubKeys(config);
   const resolved = new Map<Hub, ResolvedHubConfig>(
-    hubs.map((h) => [h, resolveHubConfig(config, config.hubs[h])]),
+    hubs.map((h) => [h, resolveHubConfig(config, h)]),
   );
   const resolve = (hub: Hub) => resolved.get(hub)!;
 
@@ -34,60 +34,69 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
 
   return {
     /**
-     * Builds, starts, retries, and auto-reconnects every configured hub. Call
-     * once in your root component's script, before any other function — for
-     * example `+layout.svelte` in SvelteKit. Pass `baseUrl` and
-     * `accessTokenFactory`, and gate them with `enabled`. All connection work
-     * happens client-side only, so this is safe to call during SSR.
+     * Builds the session and sets the context. Call it once in your root
+     * component's script, before any other function, for example in
+     * `+layout.svelte` in SvelteKit. Pass `baseUrl` and `accessTokenFactory`,
+     * and gate them with `enabled`. Every hub that is not lazy starts in
+     * `onMount`. On the server, the session is disabled and nothing connects,
+     * so a call in `onDestroy` fails at once.
      */
     provideSignalR,
     /**
-     * Escape hatch to the raw SignalR context (`getConnection`, `getStatus`,
-     * `isHubConnected`, and more). Prefer the typed stores/functions below.
-     * Use this only for the underlying `HubConnection` or a point read.
+     * Escape hatch to the SignalR context (`getConnection`, `getStatus`,
+     * and `waitForConnection`). Call it during component init, below
+     * `provideSignalR`. Prefer the typed functions below. Use this only for
+     * the underlying `HubConnection` or a point read.
      */
     getSignalR: hooks.getSignalR,
     /**
-     * Keeps a (possibly lazy) hub connected for the component's lifetime,
-     * without subscribing to events or status. Acquires at component init,
-     * releases on destroy.
+     * Keeps a hub connected until the component is destroyed, without
+     * subscribing to events or status. Call it during component init. It
+     * acquires the hub at once and releases it on destroy.
      */
     keepHubAlive: hooks.keepHubAlive,
     /**
-     * Subscribes to a typed server event for the component's lifetime.
-     * Handler args are inferred from your contract. Re-attaches across
-     * reconnects.
+     * Subscribes to a typed server event until the component is destroyed.
+     * Call it during component init. Handler arguments come from your
+     * contract. The subscription survives reconnects and rebuilds.
      */
     onHubEvent: hooks.onHubEvent,
     /**
      * Typed invoker that waits for the connection and resolves with the
-     * method's return value. Fails fast by default. Opt in to retry for
-     * idempotent methods only.
+     * method's return value. Call it during component init, then call the
+     * invoker later. It fails fast by default. Opt in to retry for idempotent
+     * methods only. A pending call rejects with an `AbortError` when the
+     * component is destroyed, unless `keepAliveOnUnmount` is true. With
+     * `keepAliveOnUnmount`, the call also holds a lazy hub open until it settles.
      */
     hubInvoke: hooks.hubInvoke,
     /**
-     * Typed fire-and-forget sender. Does not wait for the connection: it
-     * drops the call (resolves `false`) if not connected, otherwise it
-     * dispatches the call (`true`). Safe in teardowns.
+     * Typed fire-and-forget sender. Call it during component init. It does
+     * not wait for the connection. It resolves `true` when it sends the call,
+     * and `false` when the hub is not connected or the send fails. It never
+     * throws, so a cleanup can call it. For a call that must land in a
+     * cleanup, use `hubTeardown`.
      */
     hubSend: hooks.hubSend,
     /**
-     * Typed RELIABLE teardown sender for a method invoked in a teardown.
-     * Survives the calling component's disposal, queues while the hub is
-     * still connecting instead of dropping, and holds a lazy hub open until
-     * the flush completes. Best-effort: resolves `true` if dispatched,
-     * `false` if the hub never connected in time. Never throws.
+     * Typed teardown sender for a method that you call in `onDestroy`. Call
+     * it during component init. It survives the destroy of the component,
+     * queues while the hub is still connecting instead of dropping, and holds
+     * a lazy hub open until the flush completes. It resolves `true` if it
+     * sends the call. It resolves `false` when the hub does not connect in
+     * time, when the session is disabled, or when the send fails. It never throws.
      */
     hubTeardown: hooks.hubTeardown,
     /**
-     * Live connection status of a hub, as a Svelte store. Subscribe with `$`
-     * to re-render only when THIS hub's status changes. Also keeps a lazy hub
-     * connected while mounted.
+     * Live connection status of a hub, as a Svelte store. Call it during
+     * component init. Subscribe with `$` to re-render only when this hub's
+     * status changes. It also keeps a lazy hub connected until the component
+     * is destroyed.
      */
     hubStatus: hooks.hubStatus,
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
-     * state that went stale while offline.
+     * state that went stale while offline. Call it during component init.
      */
     onReconnected: hooks.onReconnected,
   };

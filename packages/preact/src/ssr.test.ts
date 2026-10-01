@@ -30,4 +30,21 @@ describe("SSR", () => {
     }))).toContain("SSR");
     expect(build).not.toHaveBeenCalled();
   });
+
+  it("renders hooks as idle and starts no connection", async () => {
+    const { createSignalRClient, event, method } = await import("./index.js");
+    const client = createSignalRClient({ hubs: { "/hub": { events: { Tick: event<[]>() }, methods: { Count: method<[], number>() } } } });
+    function Probe() {
+      client.useSignalREffect("/hub", "Tick", () => {});
+      client.useSignalRInvoke("/hub", "Count");
+      return h("span", null, client.useHubStatus("/hub"));
+    }
+    expect(renderToString(h(client.SignalRProvider, { baseUrl: "https://example.test", accessTokenFactory: () => "token", children: h(Probe, {}) }))).toBe("<span>idle</span>");
+    expect(build).not.toHaveBeenCalled();
+  });
+
+  it("exposes every documented export", async () => {
+    const mod = await import("./index.js");
+    for (const name of ["createSignalRClient", "event", "method"]) expect(mod, `missing export: ${name}`).toHaveProperty(name);
+  });
 });

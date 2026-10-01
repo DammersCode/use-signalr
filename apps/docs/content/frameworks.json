@@ -1,0 +1,130 @@
+{
+  "order": ["react", "vue", "angular", "svelte", "preact", "solid", "lit"],
+  "frameworks": {
+    "react": {
+      "title": "React",
+      "package": "@dammers/use-signalr-react",
+      "icon": "react",
+      "lang": "tsx",
+      "api": {
+        "provider": "SignalRProvider",
+        "context": "useSignalR",
+        "keepAlive": "useHubConsumer",
+        "event": "useSignalREffect",
+        "invoke": "useSignalRInvoke",
+        "send": "useSignalRSend",
+        "teardown": "useSignalRTeardown",
+        "status": "useHubStatus",
+        "reconnected": "useOnReconnected"
+      }
+    },
+    "vue": {
+      "title": "Vue",
+      "package": "@dammers/use-signalr-vue",
+      "icon": "vue",
+      "lang": "vue",
+      "api": {
+        "provider": "app.use(signalR, options)",
+        "context": "useSignalR",
+        "keepAlive": "useHubConsumer",
+        "event": "useSignalREvent",
+        "invoke": "useSignalRInvoke",
+        "send": "useSignalRSend",
+        "teardown": "useSignalRTeardown",
+        "status": "useHubStatus",
+        "reconnected": "useOnReconnected"
+      }
+    },
+    "angular": {
+      "title": "Angular",
+      "package": "@dammers/use-signalr-angular",
+      "icon": "angular",
+      "lang": "ts",
+      "api": {
+        "provider": "provideSignalR",
+        "context": "injectSignalR",
+        "keepAlive": "injectKeepHubAlive",
+        "event": "injectHubEvent",
+        "invoke": "injectHubInvoke",
+        "send": "injectHubSend",
+        "teardown": "injectHubTeardown",
+        "status": "injectHubStatus",
+        "reconnected": "injectOnReconnected"
+      }
+    },
+    "svelte": {
+      "title": "Svelte",
+      "package": "@dammers/use-signalr-svelte",
+      "icon": "svelte",
+      "lang": "svelte",
+      "api": {
+        "provider": "provideSignalR",
+        "context": "getSignalR",
+        "keepAlive": "keepHubAlive",
+        "event": "onHubEvent",
+        "invoke": "hubInvoke",
+        "send": "hubSend",
+        "teardown": "hubTeardown",
+        "status": "hubStatus",
+        "reconnected": "onReconnected"
+      }
+    },
+    "preact": {
+      "title": "Preact",
+      "package": "@dammers/use-signalr-preact",
+      "icon": "preact",
+      "lang": "tsx",
+      "api": {
+        "provider": "SignalRProvider",
+        "context": "useSignalR",
+        "keepAlive": "useHubConsumer",
+        "event": "useSignalREffect",
+        "invoke": "useSignalRInvoke",
+        "send": "useSignalRSend",
+        "teardown": "useSignalRTeardown",
+        "status": "useHubStatus",
+        "reconnected": "useOnReconnected"
+      }
+    },
+    "solid": {
+      "title": "Solid",
+      "package": "@dammers/use-signalr-solid",
+      "icon": "solid",
+      "lang": "tsx",
+      "api": {
+        "provider": "SignalRProvider",
+        "context": "useSignalR",
+        "keepAlive": "useHubConsumer",
+        "event": "useSignalREffect",
+        "invoke": "useSignalRInvoke",
+        "send": "useSignalRSend",
+        "teardown": "useSignalRTeardown",
+        "status": "useHubStatus",
+        "reconnected": "useOnReconnected"
+      }
+    },
+    "lit": {
+      "title": "Lit",
+      "package": "@dammers/use-signalr-lit",
+      "icon": "lit",
+      "lang": "ts",
+      "api": {
+        "provider": "createSession",
+        "context": "session.context",
+        "keepAlive": "session.hub(host, hub)",
+        "event": "controller.on",
+        "invoke": "controller.invoke",
+        "send": "controller.send",
+        "teardown": "controller.teardown",
+        "status": "controller.status",
+        "reconnected": "controller.onReconnected"
+      }
+    }
+  },
+  "core": {
+    "title": "Core",
+    "package": "@dammers/use-signalr-core",
+    "icon": "Cpu",
+    "description": "For adapter authors"
+  }
+}

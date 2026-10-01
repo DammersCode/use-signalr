@@ -1,0 +1,44 @@
+---
+title: Provider
+description: Mount SignalRProvider once with a base URL and a token factory, and learn when it starts and stops the connections.
+---
+
+<Api of="provider" /> owns the SignalR session of one client. It builds, starts, retries, and reconnects every hub that the client declares.
+
+Mount it once, near the root of the app. Every hook of the same client must run below it. This sample mounts the provider:
+
+<Snippet id="provider" />
+
+## Props
+
+`baseUrl` and `accessTokenFactory` are required. All other props are optional.
+
+<AutoTypeTable path="../../packages/react/src/types.ts" name="SignalRProviderProps" />
+
+Without `onError`, the provider drops errors silently.
+
+A token change needs no rebuild. The library calls `accessTokenFactory` again when it needs a token. Do not use the token as `connectionKey`, or each refresh rebuilds all hubs. Use a user ID or a login counter.
+
+## When the connection starts and stops
+
+The provider starts the session in an effect. An effect does not run on the server, so server rendering opens no connection. Every hub reports `idle` until the first effect runs in the browser.
+
+After that effect, an eager hub connects. A lazy hub connects when its first consumer mounts.
+
+The provider applies `baseUrl`, `enabled`, and `connectionKey` again when one of them changes. A change of any of the three stops all connections. When `enabled` is not `false` and `baseUrl` is set, the provider then starts them again. A hub that was connected reruns its reconnect callbacks after the rebuild.
+
+When the provider unmounts, the session stops all hubs.
+
+## Latest props
+
+The provider reads the latest `accessTokenFactory`, `onStatusChange`, and `onError` on each call. A new function on each render does not rebuild a connection. It also does not need `useCallback`.
+
+Only `baseUrl`, `enabled`, and `connectionKey` act as triggers. The provider compares them by value.
+
+## StrictMode and Next.js
+
+The provider survives StrictMode without a second connection. In Next.js, the module that calls `createSignalRClient` and the file that mounts the provider need `"use client"`. The [React notes](/docs/react/reference/notes) have the details.
+
+## Errors from wrong placement
+
+A hook that runs outside the provider of its client throws. [Troubleshooting](/docs/react/reference/troubleshooting) has the message and the cause. Each client has its own context. Use the hooks and the provider from the same `createSignalRClient` call.

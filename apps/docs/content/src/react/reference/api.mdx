@@ -1,0 +1,88 @@
+---
+title: API reference
+description: Every export of @dammers/use-signalr-react with its signature, return value, and lifetime.
+---
+
+Everything on this page comes from `@dammers/use-signalr-react`. The package has no default export.
+
+`createSignalRClient` takes the contract and returns the provider and the members below. Its signature is:
+
+```ts
+function createSignalRClient<const H extends Record<HubString, HubDef>>(
+  config: SignalRClientConfig<H>,
+): {
+  SignalRProvider: (props: SignalRProviderProps<Hub>) => JSX.Element;
+  useSignalR: () => SignalRPublicContext<T>;
+  useHubConsumer: (hub: Hub) => void;
+  useSignalREffect: (hub, event, handler) => void;
+  useSignalRInvoke: (hub, method, options?) => (...args) => Promise<Return>;
+  useSignalRSend: (hub, method) => (...args) => Promise<boolean>;
+  useSignalRTeardown: (hub, method, options?) => (...args) => Promise<boolean>;
+  useHubStatus: (hub) => HubConnectionStatus;
+  useOnReconnected: (hub, callback) => void;
+};
+```
+
+The call reads the keys of `config.hubs` as the hubs. It reads the `event()` and `method()` declarations of each hub as the contract. Each member of the result is typed against that contract. `T` is the contract and `Hub` is `keyof T & HubString`.
+
+Call it once per contract, at module level. The call does no I/O. The members of one call work together: use the hooks below the provider from the same call.
+
+## Members
+
+The members of the result and the two contract helpers are in this table:
+
+| Name | Signature | Returns | Lifetime | Keeps a lazy hub alive |
+| --- | --- | --- | --- | --- |
+| `SignalRProvider` | `(props: SignalRProviderProps)` | The children, inside the context. | The mount of the provider. It stops the session on unmount. | No. It starts eager hubs only. |
+| `useSignalR` | `()` | `SignalRPublicContext` with `getConnection`, `getStatus`, and `waitForConnection`. | The render of the component. It holds no resource. | No |
+| `useHubConsumer` | `(hub)` | `void` | The mount of the component. It acquires the hub in an effect and releases it on unmount. | Yes |
+| `useSignalREffect` | `(hub, event, handler)` | `void` | The mount of the component. It removes the handler on unmount. | Yes |
+| `useSignalRInvoke` | `(hub, method, options?: InvokeOptions)` | A stable function. It resolves with the return value of the method. | The mount of the component. On unmount it aborts calls that wait, unless `keepAliveOnUnmount` is `true`. | Yes |
+| `useSignalRSend` | `(hub, method)` | A stable function. It resolves `true` when it sent the call, `false` when the hub was not connected or the send failed. It never throws. | The mount of the component. The function stays safe to call after unmount. | Yes |
+| `useSignalRTeardown` | `(hub, method, options?: TeardownOptions)` | A stable function. It waits for the hub, then sends. It resolves `true` when it sent the call, `false` when the hub did not connect in time, the session was disabled, or the send failed. It never throws. | The function outlives the component. It holds a lazy hub open until the send ends. | Yes, while the component is mounted |
+| `useHubStatus` | `(hub)` | `HubConnectionStatus`. The component renders again only when the status of this hub changes. | The mount of the component. | Yes |
+| `useOnReconnected` | `(hub, callback)` | `void`. The callback runs after each reconnect, not after the first connect. | The mount of the component. It removes the callback on unmount. | Yes |
+| `event` | `<A extends unknown[] = []>()` | `EventDef<A>`. `A` is the tuple of handler arguments. | None. It carries types only and returns an empty object at run time. | No |
+| `method` | `<A extends unknown[] = [], R = void>()` | `MethodDef<A, R>`. `A` is the tuple of arguments and `R` is the resolved return type. | None. It carries types only and returns an empty object at run time. | No |
+
+The functions that `useSignalRInvoke`, `useSignalRSend`, and `useSignalRTeardown` return keep their identity while the hub and the method stay the same. You can put them in a dependency array.
+
+`useSignalRInvoke` and `useSignalRTeardown` read the latest `options` on each call. `useSignalREffect` and `useOnReconnected` always run the latest function that you passed.
+
+[Config](/docs/react/reference/config) lists `InvokeOptions` and `TeardownOptions`. The call rules are in [Calls](/docs/react/concepts/calls). The status values are in [Connection status](/docs/react/concepts/connection-status).
+
+## Types
+
+All types are exports of the package. Most come from `@dammers/use-signalr-core`.
+
+| Type | Meaning |
+| --- | --- |
+| `SignalRProviderProps` | The props of `SignalRProvider`. It adds `children: ReactNode` to the shared provider props. |
+| `SignalRClientConfig` | The argument of `createSignalRClient`. |
+| `PerHubConfig` | The options that one hub can set. |
+| `HubDef` | One entry of `hubs`: `PerHubConfig` plus `events` and `methods`. |
+| `EventDef` | The result of `event()`. |
+| `MethodDef` | The result of `method()`. |
+| `HubString` | A hub path. It is a string that starts with `/`. |
+| `HubContract` | The `events` and `methods` of one hub, as function types. |
+| `SignalRContract` | A map from hub path to `HubContract`. |
+| `InferContract` | Derives the `SignalRContract` from the `hubs` object. |
+| `EventName` | The event names of one hub. |
+| `MethodName` | The method names of one hub. |
+| `EventArgs` | The argument tuple of one event. |
+| `MethodArgs` | The argument tuple of one method. |
+| `MethodReturn` | The resolved return type of one method. |
+| `HubConnectionStatus` | `"idle" \| "connecting" \| "connected" \| "reconnecting" \| "disconnected"`. |
+| `SignalRErrorInfo` | The `info` argument of `onError`. `source` is `"connection"` or `"callback"`. |
+| `SignalRPublicContext` | The result of `useSignalR`. |
+| `InvokeOptions` | The options of `useSignalRInvoke`. |
+| `TeardownOptions` | The options of `useSignalRTeardown`. |
+| `ReconnectConfig` | `boolean`, an array of delays in ms, or a custom retry policy. |
+| `HttpOptions` | The SignalR HTTP options, without `accessTokenFactory`. |
+| `HubProtocolConfig` | A hub protocol, or a function that returns one. |
+| `ConfigureBuilder` | A function that changes the connection builder. |
+| `BuilderContext` | The second argument of `ConfigureBuilder`: `hub` and `baseUrl`. |
+
+## Errors
+
+The errors that a hook or a call can throw are in [Troubleshooting](/docs/react/reference/troubleshooting).

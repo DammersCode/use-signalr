@@ -1,0 +1,42 @@
+---
+title: Provider
+description: Mount SignalRProvider once with a base URL and a token factory, and learn when it starts and stops the connections.
+---
+
+<Api of="provider" /> owns the SignalR session of one client. It builds, starts, retries, and reconnects every hub that the client declares.
+
+Mount it once, near the root of the app. Every hook of the same client must run below it. This sample mounts the provider:
+
+<Snippet id="provider" />
+
+## Props
+
+`baseUrl` and `accessTokenFactory` are required. All other props are optional.
+
+<AutoTypeTable path="../../packages/solid/src/types.ts" name="SignalRProviderProps" />
+
+Without `onError`, the provider drops errors silently.
+
+A token change needs no rebuild. The library calls `accessTokenFactory` again when it needs a token. Do not use the token as `connectionKey`, or each refresh rebuilds all hubs. Use a user ID or a login counter.
+
+## When the connection starts and stops
+
+The provider starts the session in `createEffect`. Solid does not run effects on the server, so server rendering opens no connection. Every hub reports `idle` until the first effect runs in the browser.
+
+After that effect, an eager hub connects. A lazy hub connects when its first consumer is set up.
+
+When the provider is disposed, the session stops all hubs.
+
+## Reactive props
+
+The provider reads its props through the `props` object. A prop that you pass as a signal call, for example `enabled={isSignedIn()}`, is a getter. The provider tracks it.
+
+An effect tracks `baseUrl`, `enabled`, and `connectionKey`. When one of them changes, the session stops all connections. When `enabled` is not `false` and `baseUrl` is set, the provider then starts them again. A hub that was connected reruns its reconnect callbacks after the rebuild.
+
+The provider reads `accessTokenFactory`, `onStatusChange`, and `onError` from `props` on each call. The latest function always runs. These three props are not triggers.
+
+This is different from the hooks. A hook reads its arguments once, at setup. See the [notes](/docs/solid/reference/notes).
+
+## Errors from wrong placement
+
+A hook that runs outside the provider of its client throws. [Troubleshooting](/docs/solid/reference/troubleshooting) has the message and the cause. Call the hooks in the component body. A call in an event handler has no owner and throws. Each client has its own context. Use the hooks and the provider from the same `createSignalRClient` call.

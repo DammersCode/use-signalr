@@ -12,19 +12,13 @@ const HUB = "/hubs/chat" as const;
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 // --- Fake @microsoft/signalr, mirroring packages/core/src/connection-manager.test.ts ---
-type OnCall = { name: string; fn: (...args: unknown[]) => void };
-let onCalls: OnCall[] = [];
 let startResolvers: Array<() => void> = [];
 let onCloseHandler: ((err?: unknown) => void) | undefined;
-let onReconnectingHandler: (() => void) | undefined;
-let onReconnectedHandler: (() => void) | undefined;
 let fakeConnection: ReturnType<typeof makeFakeConnection>;
 
 function makeFakeConnection() {
   const conn = {
-    on: vi.fn((name: string, fn: (...args: unknown[]) => void) => {
-      onCalls.push({ name, fn });
-    }),
+    on: vi.fn(),
     off: vi.fn(),
     start: vi.fn(
       () =>
@@ -40,12 +34,8 @@ function makeFakeConnection() {
     onclose: vi.fn((fn: (err?: unknown) => void) => {
       onCloseHandler = fn;
     }),
-    onreconnecting: vi.fn((fn: () => void) => {
-      onReconnectingHandler = fn;
-    }),
-    onreconnected: vi.fn((fn: () => void) => {
-      onReconnectedHandler = fn;
-    }),
+    onreconnecting: vi.fn(),
+    onreconnected: vi.fn(),
     state: "Disconnected",
   };
   return conn;
@@ -86,11 +76,8 @@ async function resolveStart() {
 }
 
 beforeEach(() => {
-  onCalls = [];
   startResolvers = [];
   onCloseHandler = undefined;
-  onReconnectingHandler = undefined;
-  onReconnectedHandler = undefined;
   fakeConnection = makeFakeConnection();
 });
 
@@ -150,10 +137,7 @@ describe("lazy hub refcounting (harness)", () => {
 describe("lazy hub (real provider, mocked signalr)", () => {
   function makeClient(lazy: boolean) {
     const Context = createContext<SignalRContextValue<any> | null>(null);
-    const resolved = resolveHubConfig(
-      { hubs: { [HUB]: { lazy, graceMs: 0 } } } as any,
-      { lazy, graceMs: 0 } as any,
-    );
+    const resolved = resolveHubConfig({ hubs: { [HUB]: { lazy, graceMs: 0 } } }, HUB);
     const SignalRProvider = createSignalRProvider<any>(
       Context,
       [HUB],
@@ -209,63 +193,6 @@ describe("lazy hub (real provider, mocked signalr)", () => {
   });
 });
 
-// 4: useSignalREffect re-attaches exactly once across a reconnect cycle.
-describe("useSignalREffect re-attach across reconnect", () => {
-  it("registers exactly one handler after a reconnect cycle", async () => {
-    const Context = createContext<SignalRContextValue<any> | null>(null);
-    const resolved = resolveHubConfig(
-      { hubs: { [HUB]: {} } } as any,
-      {} as any,
-    );
-    const SignalRProvider = createSignalRProvider<any>(
-      Context,
-      [HUB],
-      () => resolved,
-    );
-    const hooks = createSignalRHooks<any>(Context);
-
-    let handlerCalls = 0;
-    function Listener() {
-      hooks.useSignalREffect(HUB, "OnFoo", () => {
-        handlerCalls += 1;
-      });
-      return null;
-    }
-
-    const view = render(() => (
-      <SignalRProvider
-        baseUrl="https://example.test"
-        accessTokenFactory={() => "token"}
-      >
-        <Listener />
-      </SignalRProvider>
-    ));
-    await tick();
-    await resolveStart(); // connected
-
-    const onCountAfterConnect = onCalls.filter((c) => c.name === "OnFoo").length;
-    expect(onCountAfterConnect).toBe(1);
-
-    // Simulate a reconnect cycle: reconnecting -> reconnected.
-    onReconnectingHandler?.();
-    await tick();
-    onReconnectedHandler?.();
-    await tick();
-
-    const onCountAfterReconnect = onCalls.filter((c) => c.name === "OnFoo").length;
-    const offCount = fakeConnection.off.mock.calls.filter(
-      (c) => c[0] === "OnFoo",
-    ).length;
-
-    // Exactly one detach/attach pair across the reconnect cycle.
-    expect(onCountAfterReconnect - onCountAfterConnect).toBe(1);
-    expect(offCount).toBe(1);
-
-    void handlerCalls;
-    view.unmount();
-  });
-});
-
 // 5: per-hub isolation — a status change on hub B must not re-run an effect
 // that only reads hub A's accessor.
 describe("useHubStatus isolation across hubs", () => {
@@ -298,17 +225,14 @@ describe("useHubStatus isolation across hubs", () => {
   });
 });
 
-// 6: useHubStatus starts "disconnected" and updates through the accessor.
+// 6: useHubStatus starts "connecting" and updates through the accessor.
 // Uses the REAL provider (not the harness) since the harness's statusStore
 // is a plain stub, not a reactive signal, so it cannot demonstrate the
 // accessor updating a tracking scope.
 describe("useHubStatus accessor", () => {
-  it("returns 'disconnected' initially and updates through the accessor after connect()", async () => {
+  it("returns 'connecting' initially and updates through the accessor after connect()", async () => {
     const Context = createContext<SignalRContextValue<any> | null>(null);
-    const resolved = resolveHubConfig(
-      { hubs: { [HUB]: {} } } as any,
-      {} as any,
-    );
+    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } }, HUB);
     const SignalRProvider = createSignalRProvider<any>(
       Context,
       [HUB],
@@ -334,7 +258,7 @@ describe("useHubStatus accessor", () => {
       </SignalRProvider>
     ));
 
-    expect(readings[0]).toBe("disconnected");
+    expect(readings[0]).toBe("connecting");
 
     await resolveStart(); // connected
 

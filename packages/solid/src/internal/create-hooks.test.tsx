@@ -54,6 +54,37 @@ describe("useSignalRInvoke keepAliveOnUnmount", () => {
   });
 });
 
+describe("useSignalRInvoke hub hold", () => {
+  it("keepAliveOnUnmount holds the hub until the call settles", async () => {
+    const h = makeHarness({ startConnected: true });
+    let call: Promise<unknown> = Promise.resolve();
+    function Leaver() {
+      const leave = h.hooks.useSignalRInvoke(HUB, "LeaveRoomAsync", {
+        keepAliveOnUnmount: true,
+      });
+      onMount(() => {
+        call = leave("room-1");
+      });
+      return null;
+    }
+    const view = render(() => (
+      <h.Provider>
+        <Leaver />
+      </h.Provider>
+    ));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    view.unmount();
+    expect(h.acquireCount).toBe(2);
+    expect(h.releaseCount).toBe(1);
+
+    h.fake.resolveInvoke();
+    await call;
+    expect(h.releaseCount).toBe(2);
+  });
+});
+
 // 2. A teardown issued while the hub is still connecting must QUEUE and flush
 //    on connect, not drop. It must also survive the component's unmount.
 describe("useSignalRTeardown queue-while-connecting", () => {

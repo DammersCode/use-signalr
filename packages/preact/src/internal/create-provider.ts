@@ -1,7 +1,7 @@
 import { h } from "preact";
-import { useEffect, useMemo, useRef } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import { createSignalRSession } from "@dammers/use-signalr-core";
-import type { Context } from "preact";
+import type { Context, JSX } from "preact";
 import type { HubString, ResolvedHubConfig, SignalRContract, SignalRSession } from "@dammers/use-signalr-core";
 import { useLatest } from "../internal-hooks.js";
 import { createStatusStore } from "../status-store.js";
@@ -12,8 +12,10 @@ export function createSignalRProvider<T extends SignalRContract>(
   Context: Context<SignalRContextValue<T> | null>, hubs: Array<keyof T & HubString>, resolve: (hub: keyof T & HubString) => ResolvedHubConfig,
 ) {
   type Hub = keyof T & HubString;
-  return function SignalRProvider({ children, baseUrl, accessTokenFactory, enabled = true, connectionKey, onStatusChange, onError }: SignalRProviderProps) {
-    const statusStore = useRef(createStatusStore<Hub>()).current;
+  return function SignalRProvider({ children, baseUrl, accessTokenFactory, enabled = true, connectionKey, onStatusChange, onError }: SignalRProviderProps<Hub>): JSX.Element {
+    const storeRef = useRef<StatusStore<Hub> | null>(null);
+    storeRef.current ??= createStatusStore<Hub>();
+    const statusStore = storeRef.current;
     const token = useLatest(accessTokenFactory);
     const status = useLatest(onStatusChange);
     const error = useLatest(onError);
@@ -22,15 +24,14 @@ export function createSignalRProvider<T extends SignalRContract>(
       hubs, resolve, statusStore,
       getAccessToken: () => token.current(),
       onStatusChange: (hub, value) => status.current?.(hub, value),
-      onError: (hub, value) => error.current?.(hub, value),
+      onError: (hub, value, info) => error.current?.(hub, value, info),
     });
     const session = sessionRef.current;
     useEffect(() => {
-      if (enabled && baseUrl) session.start(baseUrl);
-      else session.stop();
-      return () => session.stop();
+      session.update({ baseUrl, enabled, connectionKey });
     }, [session, baseUrl, enabled, connectionKey]);
-    const value = useMemo(() => session.context, [session]);
-    return h(Context.Provider, { value }, children);
+    useEffect(() => () => queueMicrotask(() => session.stop()), [session]);
+
+    return h(Context.Provider, { value: session.context }, children);
   };
 }

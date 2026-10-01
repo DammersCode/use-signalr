@@ -18,16 +18,14 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
   const getOrCreate = (hub: H) => {
     let entry = signals.get(hub);
     if (!entry) {
-      entry = createSignal<HubConnectionStatus>("disconnected");
+      entry = createSignal<HubConnectionStatus>("idle");
       signals.set(hub, entry);
     }
     return entry;
   };
 
   return {
-    // Calling the accessor auto-tracks when invoked inside a reactive scope.
     get: (hub) => getOrCreate(hub)[0](),
-    // The setter's default === equality already dedupes; no manual check needed.
     set: (hub, status) => getOrCreate(hub)[1](status),
   };
 }

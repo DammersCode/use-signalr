@@ -1,0 +1,58 @@
+---
+title: Lazy hubs
+description: Connect a hub only while a consumer needs it, and keep it open for a grace period.
+---
+
+By default, the library connects every hub in the contract when the app starts. A lazy hub connects only when a consumer needs it. Set `lazy: true` for one hub, or for all hubs.
+
+## Grace period
+
+`graceMs` is the time that a lazy hub stays connected after its last consumer leaves. A short grace period prevents a disconnect and a new connect when a component remounts quickly. The default is 0. `graceMs` is a per-hub option.
+
+When the grace period ends, the hub stops and its status is `"idle"`. When a consumer comes back, the hub connects again.
+
+## What counts as a consumer
+
+The library counts the consumers of each hub. The hub is wanted while the count is more than 0. A consumer is not a component. It is one call of a helper that is bound to a hub.
+
+<Only in="react,preact,solid,vue,angular,svelte">
+Each of these counts as a consumer for the hub that you pass:
+
+- <Api of="keepAlive" />, which keeps the hub connected and does nothing else.
+- <Api of="event" />, <Api of="invoke" />, <Api of="send" />, and <Api of="teardown" />.
+- <Api of="status" /> and <Api of="reconnected" />.
+
+</Only>
+<Only in="lit">
+A controller from <Api of="keepAlive" /> is one consumer. It counts while its host is connected to the DOM. <Api of="event" />, <Api of="invoke" />, <Api of="send" />, <Api of="teardown" />, <Api of="status" />, and <Api of="reconnected" /> are methods of this controller. They use this one consumer.
+
+</Only>
+<Only in="react,preact">
+The consumer ends when the component unmounts.
+
+</Only>
+<Only in="solid">
+The consumer ends when the owner of the helper is disposed.
+
+</Only>
+<Only in="vue">
+The consumer ends when the effect scope of the helper stops, for example when the component unmounts.
+
+</Only>
+<Only in="angular">
+The consumer ends when the injection context is destroyed.
+
+</Only>
+<Only in="svelte">
+The consumer ends when the component is destroyed.
+
+</Only>
+<Only not="core">
+A status banner for a lazy hub also connects that hub. To read the status without a connection, use <Api of="context" />. Its `getStatus` function does not count as a consumer.
+
+Here, a component keeps the lazy presence hub alive and shows its online count:
+
+<Snippet id="lazy" />
+
+</Only>
+A teardown call holds a lazy hub open until it is sent, even after its own consumer leaves.

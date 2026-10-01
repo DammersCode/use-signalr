@@ -29,12 +29,18 @@ packages/
   vue/      @dammers/use-signalr-vue      Vue plugin + composables
   preact/   @dammers/use-signalr-preact   Native Preact provider + hooks
   lit/      @dammers/use-signalr-lit      Lit Reactive Controllers
+apps/
+  docs/     the documentation site (Next.js and Fumadocs), see apps/docs/README.md
+examples/   one runnable app per framework, plus the example server
 scripts/
   sync-versions.mjs   writes the root version into every package + adapter->core dep
   check-docs.mjs      docs-staleness guard (see "Ground rules")
+  sync-readmes.mjs    copies the hero snippets into the README examples
 ```
 
-Each package has its own `src/`, `package.json`, `tsconfig.json`/`tsconfig.build.json`, and `vitest.config.ts`. Only `packages/core/src` may be imported by the adapters — they never reach into each other. See [ARCHITECTURE.md](./ARCHITECTURE.md) for how responsibility splits between core and the adapters, and the checklist for adding a new one.
+Each package has its own `src/`, `package.json`, `tsconfig.json`/`tsconfig.build.json`, and `vitest.config.ts`. Only `packages/core/src` may be imported by the adapters — they never reach into each other. The docs page [Build an adapter](https://use-signalr.vercel.app/docs/core/build-an-adapter) explains how responsibility splits between core and the adapters.
+
+To add an adapter to this repo, also register it: add its build step to the root `build` script, add its publish step to `.github/workflows/release.yml`, add it to `requiredReadmes` in `scripts/check-docs.mjs`, and add it to `apps/docs/content/frameworks.json` with snippets under `apps/docs/snippets/<name>/`.
 
 ## Build order
 
@@ -47,34 +53,44 @@ Run from the repo root:
 | Command | What it does |
 | --- | --- |
 | `npm run build` | Builds core, then all adapter packages. |
-| `npm run typecheck` | Builds core (adapters need its `dist` to resolve types), then type-checks every package with a `typecheck` script. |
+| `npm run typecheck` | Builds all packages (adapters and the docs snippets need their `dist` to resolve types), then type-checks every workspace with a `typecheck` script. |
 | `npm test` | Builds core, then runs `vitest run` in every package with a `test` script. |
 | `npm run check` | Runs `scripts/check-docs.mjs` — fails if versions drift or docs go stale. |
+| `npm run check:dist` | Checks the built packages: every export target exists, and no test file ships. |
+| `npm run dev -w apps/docs` | Starts the documentation site with live content generation. |
 
 Inside one package (`npm run build -w packages/lit`, for example) works too. Core must already be built before an adapter check.
 
 ## Testing your change in a real app
 
-The fastest loop is a local link, from whichever package you're changing:
+Use [yalc](https://github.com/wclr/yalc). It copies the built files into the app, so the app gets one copy of React and `@microsoft/signalr`:
 
-```bash
-npm run build -w packages/lit
-npm link -w packages/lit
+1. `npm run build`, then `yalc publish --no-scripts` in each package you changed, core first.
+2. In the app, add core together with the adapter: `yalc add @dammers/use-signalr-core @dammers/use-signalr-react`. With pnpm, also set `"pnpm": { "overrides": { "@dammers/use-signalr-core": "file:.yalc/@dammers/use-signalr-core" } }`, or the adapter resolves core from the registry.
+3. After the next publish, run `yalc update` in the app.
 
-cd ../my-app
-npm link @dammers/use-signalr-lit
-```
+## Adapter integration scenarios
 
-Rebuild the package here after each change and the app picks it up. Unlink with `npm unlink @dammers/use-signalr-lit` in the app when done.
+Every adapter keeps these scenarios in its `integration.test.*`. The tests use the real provider and the real core session, and mock only `@microsoft/signalr`.
 
-If your change touches core, rebuild core first — the adapter you linked resolves core through its own `node_modules`, which points at the workspace-linked `packages/core/dist`.
+| ID | Scenario | Expected result |
+| --- | --- | --- |
+| S1 | Invoke at the earliest consumer point: mount effect, init, or constructor | The call resolves after the connect. |
+| S2 | The server pushes an event in the same task as the connect | The handler gets it. |
+| S3 | The server pushes an event right after an auto-reconnect | The handler gets it. |
+| S4 | A reconnect callback throws | The status ends as `"connected"`. Events still arrive. |
+| S5 | An unrelated reactive value changes, and `baseUrl`, `enabled`, and `connectionKey` stay equal | No rebuild. |
+| S6 | `connectionKey` changes | One rebuild. The event handler gets events from the new connection. The reconnect callback runs once after the rebuild. |
+| S7 | Unmount while an invoke waits for the connection | It rejects with `AbortError`. The server gets no invoke. |
+| S8 | First connect | The status goes through `"connecting"` to `"connected"`. |
+| S9 | Lazy hub | It connects with the first consumer. It stops after the last consumer plus `graceMs`. |
 
 ## Example apps
 
 `examples/` holds small reference apps that run against a real SignalR
 backend, one per framework. Use them to debug a package by hand, with plain
 buttons and console output instead of a test runner. See
-[DEVELOP.md](./DEVELOP.md) for setup, ports, and the console protocol.
+[DEVELOP.md](./DEVELOP.md) for setup, ports, and the console protocol. The docs link to these apps; they are not hosted.
 
 ## Ground rules
 
@@ -88,51 +104,37 @@ buttons and console output instead of a test runner. See
 ## Pull requests
 
 1. Fork & branch (`feat/…`, `fix/…`).
-2. `npm run typecheck && npm test && npm run build` must pass clean.
-3. Update the relevant package README (and the root README, if the change is framework-neutral) if you changed a public API.
+2. `npm run check && npm run typecheck && npm test && npm run build && npm run check:dist` must pass clean.
+3. If you changed a public API, update the docs pages in `apps/docs/content/src` and their snippets.
 4. One focused change per PR — small diffs get merged fast. A cross-adapter parity change is one PR, not two.
 
-## Landing page
+## Docs site
 
-The package-picker page in [`site/`](./site) is plain HTML and CSS. `node scripts/build-site.mjs` reads every `packages/*/package.json` and writes the page to `dist-site/`. Card names, descriptions, and the version badge follow the packages. Open `dist-site/index.html` in a browser to preview it.
-
-Framework brand marks come from [`simple-icons`](https://simpleicons.org), a development dependency inlined at build time — nothing ships to package consumers. The card accent supplies the colour, since Angular's and Solid's official hexes are too dark to read on this background.
-
-The social preview image is committed at `site/og.png` (1200×630). Regenerate it with `npm run build:og` after changing the hero copy or the version; that script needs `playwright` available and is not part of the normal build, so the committed PNG is what deploys.
-
-[`pages.yml`](./.github/workflows/pages.yml) publishes the page to GitHub Pages on each push to `main` that touches the site, the build script, or a package manifest. You can also start it from the **Actions** tab. The page is served at `https://dammerscode.github.io/use-signalr/`.
+The documentation site lives in [`apps/docs`](./apps/docs). Its README explains how pages, framework tags, and type-checked snippets work. `npm run typecheck` also generates the pages and type-checks every snippet. The site deploys to Vercel with `apps/docs` as the root directory.
 
 ## Releasing
 
 All packages are versioned in lockstep — one version number, always released together.
 
 ```bash
-npm version patch   # 0.1.0 -> 0.1.1  (minor | major for features | breaking)
+npm version patch   # 1.0.0 -> 1.0.1  (minor | major for features | breaking)
 ```
 
-This runs, in order:
+`npm version` runs, in order:
 
 1. `preversion`: `npm run check && npm run typecheck && npm test` — a failure here stops the release before anything is tagged.
-2. The root `version` bumps `package.json`, then `version` script runs `scripts/sync-versions.mjs`, which writes the new version into every `packages/*/package.json` and into each adapter's dependency on `@dammers/use-signalr-core`, then stages those files.
-3. A single `v*` tag is created and pushed (`postversion`).
+2. The root `version` bumps `package.json`, then `version` script runs `scripts/sync-versions.mjs`, which writes the new version into every `packages/*/package.json` and into each `@dammers/use-signalr-*` dependency. It also writes the pins in `examples/*/package.json`. Then it updates `package-lock.json` and stages these files.
+3. A single `v*` tag is created and pushed (`postversion` pushes the branch and all tags).
 
 The pushed tag triggers the GitHub Actions release workflow, which builds, tests, verifies the tag matches every package's version, and publishes all packages to npm with provenance. Publishing authenticates through npm trusted publishing (OIDC) — no token to store or rotate.
 
-Never edit `version` by hand in any `package.json`. The release workflow fails if the tag and any package's version disagree.
+Do not edit `version` by hand in any single `package.json`. The release workflow fails if the tag and any package's version disagree. A full release gets the npm dist-tag `latest`.
 
 ### First publish and Trusted Publisher setup
 
 `npm publish` via OIDC only works once a package already exists on npm with a Trusted Publisher configured for it. Each package needs its own Trusted Publisher entry on npmjs.com, pointing at this repo's `release.yml` workflow. Until that's set up per package:
 
-- The first publish of each package, including `@dammers/use-signalr-lit`, must be done manually from a maintainer's authenticated machine.
-- After each package's first manual publish, configure its Trusted Publisher entry on npmjs.com to point at `release.yml`. Every release after that flows through CI automatically.
+- A new package needs its first publish by hand, from a maintainer's authenticated machine.
+- After that first publish, configure its Trusted Publisher entry on npmjs.com to point at `release.yml`. Every release after that flows through CI automatically.
 
-### Deprecating the old package
-
-After merging the monorepo split, run once as a maintainer action (not part of any script):
-
-```bash
-npm deprecate @dammers/use-signalr "Moved to @dammers/use-signalr-react"
-```
-
-This does not affect existing installs; it only marks the old package on npm so new installs see a warning pointing at the successor.
+All 8 packages exist on npm. Before a release, check that each one has its Trusted Publisher entry.

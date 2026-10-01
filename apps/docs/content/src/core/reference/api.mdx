@@ -1,0 +1,254 @@
+---
+title: API reference
+description: Every export of @dammers/use-signalr-core with its signature.
+---
+
+Everything on this page comes from `@dammers/use-signalr-core`. The package exports functions and types. It has no default export.
+
+## Session
+
+### createSignalRSession
+
+`createSignalRSession` has this signature:
+
+```ts
+function createSignalRSession<
+  T extends SignalRContract,
+  TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,
+>(deps: SignalRSessionDeps<T, TStore>): SignalRSession<T, TStore>;
+```
+
+Creates a session. The session owns the live connections, the lazy reference counts, the reconnect listeners, the event registry, and the context value. Construction does no I/O. See [Build an adapter](/docs/core/build-an-adapter) for the contract.
+
+### SignalRSessionDeps
+
+<AutoTypeTable path="../../packages/core/src/session.ts" name="SignalRSessionDeps" />
+
+### SignalRSessionValues
+
+<AutoTypeTable path="../../packages/core/src/session.ts" name="SignalRSessionValues" />
+
+The values that a provider applies.
+
+### SignalRSession
+
+<AutoTypeTable path="../../packages/core/src/session.ts" name="SignalRSession" />
+
+## Context
+
+### SignalRPublicContext
+
+<AutoTypeTable path="../../packages/core/src/context.ts" name="SignalRPublicContext" />
+
+`waitForConnection` rejects in these cases:
+
+- The timeout of `timeoutMs` ends. The error has the name `SignalRTimeoutError`. `Infinity` waits without a limit.
+- The `signal` aborts. The error is `signal.reason`, which is an `AbortError` for a plain `abort()`.
+- The last `update` disabled the session. The error has the name `SignalRDisabledError`.
+- The hub stopped after a non-retriable error. The error has the name `SignalRDisconnectedError`.
+
+During server rendering no connection starts. The wait ends with the timeout, or rejects at once if the adapter disables the session on the server.
+
+### SignalRContextValueBase
+
+<AutoTypeTable path="../../packages/core/src/context.ts" name="SignalRContextValueBase" />
+
+The full context for the hooks of an adapter. It is not public API for app code.
+
+### SignalRProviderPropsBase
+
+<AutoTypeTable path="../../packages/core/src/context.ts" name="SignalRProviderPropsBase" />
+
+The props that every provider takes. Extend this type with the framework parts, such as a children prop.
+
+### StatusStore
+
+<AutoTypeTable path="../../packages/core/src/status-store.ts" name="StatusStore" />
+
+The per-hub status store that an adapter implements.
+
+## Calls
+
+### createInvoker
+
+`createInvoker` has this signature:
+
+```ts
+function createInvoker<
+  T extends SignalRContract,
+  H extends keyof T & HubString,
+  M extends MethodName<T, H>,
+>(options: InvokerOptions<T, H, M>): (...args: MethodArgs<T, H, M>) => Promise<MethodReturn<T, H, M>>;
+```
+
+Builds the invoke function for one hub method. The function waits for the connection, calls `connection.invoke`, and resolves with the return value. The default timeout is 10 000 ms for each attempt. The default for retries is 0.
+
+The [default retry rule](./config.mdx#invoke-options) decides which failures retry. The `isRetriable` option overrides it. An abort always wins, and the error reaches the caller.
+
+### InvokerOptions
+
+<AutoTypeTable path="../../packages/core/src/calls.ts" name="InvokerOptions" />
+
+### CallTarget
+
+<AutoTypeTable path="../../packages/core/src/calls.ts" name="CallTarget" />
+
+The members of the context that the invoker needs.
+
+### createSender
+
+`createSender` has this signature:
+
+```ts
+function createSender<
+  T extends SignalRContract,
+  H extends keyof T & HubString,
+  M extends MethodName<T, H>,
+>(options: {
+  getConnection: (hub: H) => HubConnection | null;
+  hub: H;
+  method: M;
+}): (...args: MethodArgs<T, H, M>) => Promise<boolean>;
+```
+
+Builds a fire-and-forget function. It reads the connection at call time and does not wait. It resolves `true` when it sends the call. It resolves `false` when the hub is not connected or when `send` rejects. It never rejects.
+
+### createTeardownSender
+
+`createTeardownSender` has this signature:
+
+```ts
+function createTeardownSender<
+  T extends SignalRContract,
+  H extends keyof T & HubString,
+  M extends MethodName<T, H>,
+>(options: {
+  target: {
+    acquire: (hub: H) => void;
+    release: (hub: H) => void;
+    waitForConnection: (hub: H, timeoutMs: number) => Promise<HubConnection>;
+  };
+  hub: H;
+  method: M;
+  getOptions: () => TeardownOptions | undefined;
+}): (...args: MethodArgs<T, H, M>) => Promise<boolean>;
+```
+
+Builds a function for a call in a cleanup. It acquires the hub, so it works after its consumer is gone. It releases the hub when the call ends. It waits for the connection up to the timeout (default 10 000 ms). It resolves `true` when it sends the call. It resolves `false` when the hub did not connect in time, the session is disabled, the hub failed, or `send` rejects. It never rejects.
+
+### createAbortScope
+
+`createAbortScope` has this signature:
+
+```ts
+function createAbortScope(): AbortScope;
+```
+
+Creates one shared signal for all in-flight calls of a consumer.
+
+### AbortScope
+
+<AutoTypeTable path="../../packages/core/src/calls.ts" name="AbortScope" />
+
+## Config
+
+### hubKeys
+
+`hubKeys` has this signature:
+
+```ts
+function hubKeys<H extends Record<HubString, HubDef>>(
+  config: SignalRClientConfig<H>,
+): Array<keyof H & HubString>;
+```
+
+Returns the hub paths of a config, typed as the declared hubs.
+
+### resolveHubConfig
+
+`resolveHubConfig` has this signature:
+
+```ts
+function resolveHubConfig<H extends Record<HubString, HubDef>>(
+  config: SignalRClientConfig<H>,
+  hub: keyof H & HubString,
+): ResolvedHubConfig;
+```
+
+Merges the per-hub config over the global config and applies the defaults. It throws an `Error` for a config that cannot work. These configs fail:
+
+- The keys `transport`, `skipNegotiation`, and `maxConnectRetries` at the top level or on a hub.
+- `skipNegotiation` without the WebSockets transport.
+- A binary protocol object with the Server-Sent Events transport.
+
+Call it once for each hub when you create the client.
+
+## Contract
+
+### event
+
+`event` has this signature:
+
+```ts
+function event<A extends unknown[] = []>(): EventDef<A>;
+```
+
+Declares a server-pushed event, for example `event<[user: string, message: string]>()`.
+
+### method
+
+`method` has this signature:
+
+```ts
+function method<A extends unknown[] = [], R = void>(): MethodDef<A, R>;
+```
+
+Declares an invocable server method, for example `method<[roomId: string], boolean>()`.
+
+## Types
+
+### Contract types
+
+| Type | Meaning |
+| --- | --- |
+| `HubString` | A hub path that starts with `/`, for example `/hubs/chat`. |
+| `HubContract` | The contract of one hub: optional `events` and `methods`. |
+| `SignalRContract` | The contract of an app: a map from hub path to `HubContract`. |
+| `EventDef<A>` | The phantom-typed declaration that `event()` returns. |
+| `MethodDef<A, R>` | The phantom-typed declaration that `method()` returns. |
+| `HubDef` | The runtime definition of one hub: `PerHubConfig` plus `events` and `methods`. |
+| `InferContract<H>` | Derives the `SignalRContract` from a `hubs` config object. |
+| `EventName<T, H>` | The event names of hub `H`. |
+| `MethodName<T, H>` | The method names of hub `H`. |
+| `EventArgs<T, H, E>` | The argument tuple of event `E`. |
+| `MethodArgs<T, H, M>` | The argument tuple of method `M`. |
+| `MethodReturn<T, H, M>` | The resolved return type of method `M`. |
+
+### Status and error types
+
+| Type | Meaning |
+| --- | --- |
+| `HubConnectionStatus` | `"idle"`, `"connecting"`, `"connected"`, `"reconnecting"`, or `"disconnected"`. |
+| `SignalRErrorInfo` | `{ source: "connection" \| "callback" }`. It says where an `onError` error came from. |
+
+### Config types
+
+See the [config reference](/docs/core/reference/config) for the options.
+
+| Type | Meaning |
+| --- | --- |
+| `SignalRClientConfig<H>` | The config that a client takes: `hubs` plus the global options. |
+| `PerHubConfig` | The per-hub options: `lazy`, `graceMs`, `reconnect`, `logLevel`, `httpOptions`, `hubProtocol`, and `configureBuilder`. |
+| `ResolvedHubConfig` | The per-hub config with all defaults applied. |
+| `ReconnectConfig` | `true`, `false`, an array of delays in ms, or an `IRetryPolicy`. |
+| `HubProtocolConfig` | An `IHubProtocol`, or a function that returns one. |
+| `HttpOptions` | The SignalR `IHttpConnectionOptions` without `accessTokenFactory`. |
+| `ConfigureBuilder` | A function that receives the builder and a `BuilderContext`, and returns the builder. |
+| `BuilderContext` | `{ hub: string; baseUrl: string }`. |
+
+### Call option types
+
+| Type | Meaning |
+| --- | --- |
+| `InvokeOptions` | The options of an invoke call: `retries`, `timeout`, `backoff`, `isRetriable`, and `keepAliveOnUnmount`. |
+| `TeardownOptions` | The options of a teardown call: `timeout`. |

@@ -9,17 +9,7 @@ export interface HubStatusObservableOptions {
   injector?: Injector;
 }
 
-/**
- * Optional RxJS bridge for a hub status `Signal` returned by
- * `injectHubStatus`. Thin wrapper over `toObservable` — pulled into a
- * separate entry point so `rxjs` stays an optional peer, not a hard
- * dependency of the main package.
- *
- * @param statusSignal The `Signal<HubConnectionStatus>` from `injectHubStatus`.
- * @param options Optional `{ injector }`, required when called outside an
- *   injection context.
- * @returns An `Observable<HubConnectionStatus>` that emits on every status change.
- */
+/** Turns the `Signal` from `injectHubStatus` into an `Observable`. Pass `{ injector }` outside an injection context. */
 export function hubStatus$(
   statusSignal: Signal<HubConnectionStatus>,
   options?: HubStatusObservableOptions,

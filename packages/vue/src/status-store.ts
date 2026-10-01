@@ -5,8 +5,11 @@ import type {
   StatusStore as StatusStoreBase,
 } from "@dammers/use-signalr-core";
 
+/** Read-only ref with the status of one hub. */
+export interface HubStatusRef extends Readonly<Ref<HubConnectionStatus>> {}
+
 export interface StatusStore<H extends string> extends StatusStoreBase<H> {
-  ref: (hub: H) => Readonly<Ref<HubConnectionStatus>>;
+  ref: (hub: H) => HubStatusRef;
 }
 
 /** One shallow ref per hub prevents unrelated status writes from invalidating it. */
@@ -15,7 +18,7 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
   const getOrCreate = (hub: H) => {
     let value = refs.get(hub);
     if (!value) {
-      value = shallowRef<HubConnectionStatus>("disconnected");
+      value = shallowRef<HubConnectionStatus>("idle");
       refs.set(hub, value);
     }
     return value;

@@ -1,6 +1,5 @@
 import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
-import { InvokeError } from "@dammers/use-signalr-lit";
 import { createLogger } from "@examples/contract";
 import { session } from "./client.js";
 import "./counter-view.js";
@@ -9,7 +8,7 @@ const log = createLogger("lit");
 
 @customElement("app-root")
 export class AppRoot extends LitElement {
-  private readonly chat = session.hub(this, "/hubs/chat", { reactiveStatus: true });
+  private readonly chat = session.hub(this, "/hubs/chat");
 
   private readonly echo = this.chat.invoke("Echo");
   private readonly add = this.chat.invoke("Add");
@@ -21,7 +20,6 @@ export class AppRoot extends LitElement {
   private readonly killConnection = this.chat.send("KillConnection");
 
   private showCounter = false;
-  private unsubscribeStatus?: () => void;
 
   constructor() {
     super();
@@ -39,18 +37,6 @@ export class AppRoot extends LitElement {
     });
   }
 
-  override connectedCallback() {
-    super.connectedCallback();
-    this.unsubscribeStatus = session.context.statusStore.subscribe("/hubs/chat", () => {
-      log.status("/hubs/chat", this.chat.status);
-    });
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    this.unsubscribeStatus?.();
-  }
-
   override createRenderRoot() {
     return this;
   }
@@ -59,11 +45,7 @@ export class AppRoot extends LitElement {
     try {
       await this.fail();
     } catch (err) {
-      if (err instanceof InvokeError) {
-        log.invokeFailed(err);
-      } else {
-        log.log(`invoke failed: ${String(err)}`);
-      }
+      log.log(`invoke failed: ${String(err)}`);
     }
   }
 

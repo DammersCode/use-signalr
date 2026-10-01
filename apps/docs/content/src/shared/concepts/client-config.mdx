@@ -1,0 +1,96 @@
+---
+title: Client config
+description: Declare hubs, events, and methods, and set options for all hubs or for one hub.
+---
+
+## The contract
+
+The `hubs` object is the contract. Each key is a hub path. Each value declares the `events` that the server pushes and the `methods` that you call on the server:
+
+<Snippet id="contract" />
+
+`event<Args>()` takes the argument tuple of the handler. `method<Args, Return>()` takes the argument tuple and the type that the call resolves with. The default return type is `void`.
+
+- A hub key must start with `"/"`.
+- A key that the hub definition does not know is a type error. This catches a typo such as `graceMS`.
+- The method name must match the server method, including its casing. SignalR does not change the casing of method names.
+
+Types flow from the contract. You write no separate contract type.
+
+
+## Create the client
+
+`createSignalRClient` takes the contract and the options. Call it once, in a module that the rest of your app imports:
+
+<Only not="vue,lit,core">
+It returns <Api of="provider" /> and the typed helpers for your hubs.
+</Only>
+<Only in="vue">
+It returns the plugin, which also carries the composables.
+</Only>
+<Only in="lit">
+It returns `createSession`. The session creates the hub controllers.
+</Only>
+
+<Snippet id="client" />
+
+
+## Global and per-hub options
+
+You can set an option for all hubs, or for one hub. The value of a hub wins over the global value. These options are optional:
+
+| Option | Where | Default | Meaning |
+| --- | --- | --- | --- |
+| `lazy` | global, per hub | `false` | Connect a hub only when a consumer uses it. |
+| `graceMs` | per hub | `0` | Time in ms that a lazy hub stays connected after its last consumer leaves. |
+| `reconnect` | global, per hub | `true` | `true` uses the SignalR delays 0, 2, 10, and 30 s. `false` turns off SignalR auto-reconnect. An array sets the delays in ms. An object with `nextRetryDelayInMilliseconds` sets a custom policy. |
+| `logLevel` | global, per hub | `LogLevel.Information` | The SignalR log level. |
+| `httpOptions` | global, per hub | `{}` | Options for the HTTP connection, for example `transport` and `headers`. Keys of a hub win. `headers` merge by name. |
+| `hubProtocol` | global, per hub | JSON | A hub protocol object, or a function that returns one. The library calls the function once for each connection build. |
+| `configureBuilder` | global, per hub | none | A function that gets the `HubConnectionBuilder` and returns it. It runs on every build. The global function runs first. |
+
+The library owns `accessTokenFactory`. Set it where you start the session, not in `httpOptions`.
+
+This sample makes the presence hub lazy and sets its own reconnect delays:
+
+```ts
+const hubs = {
+  "/hubs/rooms": {},
+  "/hubs/presence": {
+    lazy: true,
+    graceMs: 2000,
+    reconnect: [0, 2000, 10000],
+  },
+};
+```
+
+`reconnect: false` does not stop all retries. See [Recovery](./recovery.mdx).
+
+## Base URL
+
+The `baseUrl` is the root of your server. The library adds the hub path to it.
+
+- The library removes a trailing slash. `https://example.com/` and `https://example.com` give the same result.
+- An empty string disables the session, so no hub connects. To use the same origin as the page, write `"/"`.
+- A change of `baseUrl` rebuilds all connections.
+
+<Only not="core">
+
+## Keys that do not exist
+
+`createSignalRClient` throws an error for these keys, at the top level or in a hub:
+
+- `transport` and `skipNegotiation`. Put them in `httpOptions`.
+- `maxConnectRetries`. The library retries a failed hub until the hub stops, so this option does not exist.
+
+`skipNegotiation: true` needs `transport: HttpTransportType.WebSockets`. A binary protocol object with the Server-Sent Events transport also throws.
+
+</Only>
+
+<Only in="core">
+
+## Resolve the config
+
+Core exports `hubKeys` and `resolveHubConfig`. The function `resolveHubConfig(config, hub)` merges the global and per-hub values and applies the defaults of the table above. It throws for the keys `transport`, `skipNegotiation`, and `maxConnectRetries` at the top level or in a hub.
+
+</Only>

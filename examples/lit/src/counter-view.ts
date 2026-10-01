@@ -8,10 +8,9 @@ const log = createLogger("lit");
 /** Added/removed by "Toggle counter" to exercise lazy connect + grace-period disconnect. */
 @customElement("counter-view")
 export class CounterView extends LitElement {
-  private readonly counter = session.hub(this, "/hubs/counter", { reactiveStatus: true });
+  private readonly counter = session.hub(this, "/hubs/counter");
   private readonly leave = session.hub(this, "/hubs/chat").teardown("Leave");
   private count: number | null = null;
-  private unsubscribeStatus?: () => void;
 
   constructor() {
     super();
@@ -22,16 +21,8 @@ export class CounterView extends LitElement {
     });
   }
 
-  override connectedCallback() {
-    super.connectedCallback();
-    this.unsubscribeStatus = session.context.statusStore.subscribe("/hubs/counter", () => {
-      log.status("/hubs/counter", this.counter.status);
-    });
-  }
-
   override disconnectedCallback() {
     super.disconnectedCallback();
-    this.unsubscribeStatus?.();
     void this.leave();
   }
 

@@ -1,0 +1,106 @@
+---
+title: API reference
+description: Every export of @dammers/use-signalr-lit, with the members of the session and the hub controller.
+---
+
+`@dammers/use-signalr-lit` exports `createSignalRClient`, the `event` and `method` markers, the types `HubController` and `LitSignalRSession`, and types of the contract. The client has one member, `createSession`. This is the signature:
+
+```ts
+createSignalRClient<const H extends Record<HubString, HubDef>>(config: SignalRClientConfig<H>)
+```
+
+See [Configuration](./config.mdx) for the options of `config`, `invoke`, and `teardown`.
+
+## Members
+
+In the signatures below, `event` and `method` are names from the contract of the hub. `session` is the object that `createSession` returns. `controller` is the object that `session.hub` returns.
+
+| Name | Signature | Returns | Lifetime | Keeps a lazy hub alive |
+| --- | --- | --- | --- | --- |
+| `createSession` | `(options: SignalRSessionOptions)` | `LitSignalRSession<T>` | The module that holds it. | n/a |
+| `session.hub` | `(host, hub, options?: { reactiveStatus?: boolean })` | `HubController<T, H>` | The host. The controller connects with the host. | yes, while the host is connected |
+| `session.update` | `(values: SignalRSessionUpdate)` | `void` | none | n/a |
+| `session.stop` | `()` | `void` | none | n/a |
+| `session.context` | property | `SignalRPublicContext<T>` | The session. | no |
+| `controller.hub` | property | The hub path. | The controller. | n/a |
+| `controller.status` | getter | `HubConnectionStatus` | The controller. | n/a |
+| `controller.on` | `(event, handler)` | An unsubscribe function. | The host connection. | no |
+| `controller.onReconnected` | `(callback)` | An unsubscribe function. | The host connection. | no |
+| `controller.invoke` | `(method, options?)` | `(...args) => Promise<Return>` | The host connection. A pending call aborts on disconnect. | no |
+| `controller.send` | `(method)` | `(...args) => Promise<boolean>` | none | no |
+| `controller.teardown` | `(method, options?)` | `(...args) => Promise<boolean>` | A call survives the disconnect of the host. | each call, until the send ends |
+| `controller.dispose` | `()` | `void` | none | n/a |
+| `controller.hostConnected` | `()` | `void` | none | yes |
+| `controller.hostDisconnected` | `()` | `void` | none | n/a |
+| `event` | `event<Args>()` | `EventDef` | none | n/a |
+| `method` | `method<Args, Return>()` | `MethodDef` | none | n/a |
+
+`HubController<T, H>` implements the Lit `ReactiveController`. The controller as a whole keeps a lazy hub alive. It acquires the hub in `hostConnected()` and releases it in `hostDisconnected()`. `on`, `onReconnected`, `invoke`, and `send` do not acquire the hub. Each `teardown` call acquires it until its send ends. See [Session](../concepts/provider.mdx) for the options of `createSession`.
+
+### session.update
+
+Changes `baseUrl`, `enabled`, `connectionKey`, or `accessTokenFactory`. Only `baseUrl`, `enabled`, and `connectionKey` rebuild the connections.
+
+### session.stop
+
+Stops every hub. The session stays stopped until the next `update()`.
+
+### session.context
+
+Has `getConnection(hub)`, `getStatus(hub)`, and `waitForConnection(hub, timeoutMs, signal?)`.
+
+### controller.status
+
+Reads the status of the hub. When `reactiveStatus` is `true` (the default), each change requests a host update. The controller requests updates only for its own hub. See [Connection status](../concepts/connection-status.mdx) for the meaning of each value.
+
+### controller.on
+
+Subscribes to a typed server event while the host is connected. The handler arguments come from the contract. Handlers stay active across reconnects and rebuilds. Event handlers do not request a render. Call `this.requestUpdate()` in a handler, or write to a reactive property.
+
+### controller.onReconnected
+
+Runs `callback` after each reconnect, not after the first connect. Use it to load data again that went stale while the connection was down.
+
+### controller.invoke
+
+Returns a typed function. The function waits for the connection and resolves with the return value of the server method. When the host disconnects and does not connect again in the same task, a pending call rejects with an `AbortError`, unless `options.keepAliveOnUnmount` is `true`.
+
+### controller.send
+
+Returns a typed function that does not wait for the connection. The function resolves `true` when it sends the call. It resolves `false` when the hub is not connected or when the send fails. It never rejects.
+
+### controller.teardown
+
+Returns a typed function for a call in a cleanup. The function waits for the hub, then sends. It resolves `true` when it sends the call. It resolves `false` when one of these happens:
+
+- The hub does not connect in time.
+- The session is disabled.
+- The hub failed.
+- The send fails.
+
+It never rejects. The call survives the disconnect of the host. It holds a lazy hub open until it is done.
+
+### controller.dispose
+
+Disconnects the controller and removes it from the host. It releases the hub and the handlers.
+
+## Types
+
+| Name | Meaning |
+| --- | --- |
+| `HubController<T, H>` | The controller class that `session.hub` creates. |
+| `LitSignalRSession<T>` | The type of the session that `createSession` returns. |
+| `SignalRSessionOptions` | Options of `createSession`: `{ baseUrl, accessTokenFactory, enabled?, connectionKey?, onStatusChange?, onError? }`. |
+| `SignalRSessionUpdate` | The values of `update()`: `baseUrl`, `enabled`, `connectionKey`, and `accessTokenFactory`, all optional. |
+| `HubConnectionStatus` | `"idle" \| "connecting" \| "connected" \| "reconnecting" \| "disconnected"`. |
+| `SignalRErrorInfo` | The third argument of `onError`. Its `source` is `"connection"` or `"callback"`. |
+| `SignalRPublicContext` | The type of `session.context`. |
+| `SignalRClientConfig`, `PerHubConfig`, `HubContract`, `HubDef`, `HubString`, `SignalRContract`, `InferContract` | Types of the client configuration and the contract. |
+| `EventDef`, `MethodDef` | The return types of `event()` and `method()`. |
+| `EventName`, `MethodName`, `EventArgs`, `MethodArgs`, `MethodReturn` | Helper types that read names and signatures from a contract. |
+| `InvokeOptions`, `TeardownOptions` | Options of `invoke` and `teardown`. |
+| `ReconnectConfig`, `HubProtocolConfig`, `ConfigureBuilder`, `BuilderContext`, `HttpOptions` | Types for the hub options in the client configuration. |
+
+## Errors
+
+Lit has no injection context and no placement error. Create a controller in a field initializer or in the constructor of a `ReactiveControllerHost`. See [Troubleshooting](../reference/troubleshooting.mdx) for the messages of failed calls.

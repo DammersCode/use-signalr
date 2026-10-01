@@ -1,0 +1,30 @@
+---
+title: Introduction
+description: What use-signalr does for your app, and what it does not support.
+---
+
+<Pkg /> connects a <Fw /> app to ASP.NET Core SignalR hubs. You describe your hubs once in a typed contract. The library then gives you typed helpers to listen to events, call server methods, and read the connection status.
+
+## Why use it
+
+Raw `@microsoft/signalr` gives you a `HubConnection`. You must build it, start it, retry it, and stop it. This library does that work for you:
+
+- **Typed contract.** You declare each hub event and method once. Event arguments, method arguments, and return values come from that contract. An unknown hub, event, or method is a type error.
+- **One connection for each hub.** All components that use a hub share one connection. A lazy hub connects when the first consumer uses it.
+- **Lifecycle bound to <Fw />.** The connection starts and stops with your app. A change of `baseUrl`, `enabled`, or `connectionKey` rebuilds the connections.
+- **Recovery.** A failed hub retries with a growing delay until it connects or gets an error that retries cannot fix.
+- **Teardown that lands.** A call in a cleanup, such as "leave room", waits for the connection and holds the hub open until it is sent.
+- **SSR-safe.** Nothing connects on the server. The status is `idle` there. See [Server rendering](./guides/ssr.mdx) for hydration.
+
+## What is not supported
+
+- Streaming (`connection.stream`).
+- Client results, where the server waits for a return value from the client.
+
+For these cases, use the connection from the context. The context gives you the raw `HubConnection`.
+
+## Next steps
+
+- [Quick start](./quick-start.mdx) shows a working setup in five steps.
+- [Client config](./concepts/client-config.mdx) explains the contract and the options.
+- [Connection status](./concepts/connection-status.mdx) and [Recovery](./concepts/recovery.mdx) explain what happens when the network fails.

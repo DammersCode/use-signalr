@@ -1,0 +1,116 @@
+---
+title: ASP.NET Core server
+description: Set up the SignalR hubs that <Fw /> connects to, with auth, CORS, transports, and scale-out.
+---
+
+<Fw /> connects to a standard ASP.NET Core SignalR server. This page lists what the server must do for the client to work.
+
+The client is built on `@microsoft/signalr`, so the server must use ASP.NET Core SignalR. The older ASP.NET SignalR for .NET Framework (`Microsoft.AspNet.SignalR`) uses a different protocol, and Microsoft documents the two as not compatible.
+
+## Hubs and URLs
+
+Register SignalR once, then map each hub to a path:
+
+```csharp
+builder.Services.AddSignalR();
+
+app.MapHub<RoomHub>("/hubs/rooms");
+app.MapHub<PresenceHub>("/hubs/presence");
+```
+
+The client builds the URL of a hub from `baseUrl` and the hub key. The library removes a trailing slash from `baseUrl`. With `baseUrl` set to `https://api.example.com` and the key `/hubs/rooms`, the client connects to `https://api.example.com/hubs/rooms`.
+
+A path prefix belongs in `baseUrl`, for example `https://example.com/api`. The hub key must equal the path in `MapHub`.
+
+## A hub for the contract
+
+This hub matches the contract of the guides. Method names and argument order must equal the names in your `method()` declarations. Event names must equal the strings in `SendAsync`:
+
+<Snippet file="examples/server/Hubs/RoomHub.cs" />
+
+ASP.NET Core converts property names to camelCase in JSON. So `RoomId` arrives as `roomId`. With MessagePack, the names stay as they are. See the [MessagePack guide](./messagepack.mdx).
+
+## Authentication
+
+The client reads `accessTokenFactory` on every negotiate request and on every reconnect attempt. SignalR sends the token in an `Authorization` header on negotiate and long polling. Browsers cannot set headers on WebSockets and Server-Sent Events, so SignalR sends the token as the `access_token` query string value instead.
+
+The server must read this query value for hub paths:
+
+```csharp
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var token = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                    context.Token = token;
+                return Task.CompletedTask;
+            }
+        };
+    });
+```
+
+An `Authorization` header in `httpOptions.headers` does not work. SignalR removes it, because the library always sets `accessTokenFactory`. Put a bearer token only in `accessTokenFactory`.
+
+For cookie authentication, set `accessTokenFactory` to `() => ""`. SignalR sends credentials by default (`withCredentials: true`). Cross-origin cookies need CORS with credentials and `SameSite=None; Secure`.
+
+A 401 or 403 on negotiate sets the status to `"disconnected"`, and the library does not retry. The [Authentication](../concepts/auth.mdx) page shows the recovery with `connectionKey`.
+
+## CORS
+
+When the page and the server have different origins, the server needs a CORS policy. Allow credentials and list the exact origins. A wildcard origin does not work with credentials:
+
+```csharp
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy => policy
+        .WithOrigins("https://app.example.com")
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
+});
+
+app.UseCors();
+```
+
+A CORS failure looks like a network error. The hub stays `"connecting"` and retries. If a hub never connects, open the network tab of the browser and look for a blocked negotiate request.
+
+## Transports
+
+SignalR tries WebSockets, then Server-Sent Events, then long polling. To restrict this, set `httpOptions.transport` in the client config. Binary protocols such as MessagePack cannot use Server-Sent Events.
+
+`skipNegotiation: true` skips the negotiate request and connects with WebSockets directly. It follows these rules:
+
+- It needs `httpOptions.transport` set to `HttpTransportType.WebSockets`. Any other value throws an error when you create the client.
+- It does not work with a managed service that redirects through negotiate.
+- The browser hides HTTP status codes, so a 401 retries without end instead of stopping with `"disconnected"`.
+
+## Scale-out
+
+Each connection lives on one server. With more than one server, choose one of these:
+
+- Sticky sessions, so that all requests of a client reach the same server.
+- WebSockets only with `skipNegotiation`, which needs no sticky session because there is no negotiate request.
+- A managed SignalR service, such as Azure SignalR Service.
+
+A message that one server sends reaches only the clients on that server. To broadcast across servers, add a backplane, for example Redis, or use the managed service.
+
+With a managed service, `baseUrl` points to your app server. In serverless mode, your function must answer at `<baseUrl><hub key>/negotiate`. Keep negotiation on.
+
+## Reverse proxies
+
+A reverse proxy between the browser and the server must support long-lived connections:
+
+- Forward the `Upgrade` and `Connection` headers, and use HTTP/1.1 to the server.
+- Set the idle timeout above the keep-alive interval. The server pings every 15 seconds. The client closes the connection after 30 seconds without a message.
+- Turn off response buffering, so that Server-Sent Events arrive at once.
+- Put a path prefix in `baseUrl`.
+
+If a proxy closes a connection, SignalR auto-reconnect starts. With `reconnect: false`, the library rebuilds the connection. Then `onError` receives the close error. A close with no error gives `The server or a proxy closed the connection.`
+
+## MessagePack on the server
+
+The [MessagePack guide](./messagepack.mdx) shows how to add the protocol on the server and how to set it on the client.

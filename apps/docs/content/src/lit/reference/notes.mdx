@@ -1,0 +1,53 @@
+---
+title: Lit notes
+description: Reactive controllers, status updates, decorators, sharing a session, and server rendering in the Lit package.
+---
+
+## Versions
+
+The package needs Lit ^3, `@microsoft/signalr` ^8, ^9, or ^10, and Node 20.19 or later. It does not need `@lit/context`.
+
+## Reactive controllers
+
+`session.hub(this, "/hubs/rooms")` creates a `HubController`. The controller implements the Lit `ReactiveController` interface and adds itself to the host.
+
+- `hostConnected()` acquires the hub, subscribes to the status, and attaches the event handlers and reconnect callbacks.
+- `hostDisconnected()` releases the hub, detaches the handlers, and aborts pending invokes.
+
+If a host moves in the DOM, it disconnects and connects again. The controller attaches its handlers again. A handler that you add with `on()` stays registered.
+
+To remove a controller before its host is destroyed, call `controller.dispose()`.
+
+## Status and rendering
+
+By default, a status change requests a host update (`reactiveStatus` is `true`). The controller requests updates only for its own hub. A host with two controllers for two hubs does not render for a status change of a hub that it does not read.
+
+To turn this off, pass `{ reactiveStatus: false }` to `session.hub`. Then the host renders only for its own reasons.
+
+Events are imperative. An event handler does not request a render. When event data changes what you render, write to a reactive property or call `this.requestUpdate()`.
+
+## Calls read options when they run
+
+`invoke` and `teardown` keep the `options` object that you pass and read it on each call.
+
+## Decorators
+
+The package does not need decorators. The samples use `@customElement`, `@state`, and `@property` from `lit/decorators.js`. They use TypeScript experimental decorators, so their `tsconfig.json` sets `experimentalDecorators` to `true` and `useDefineForClassFields` to `false`. Without decorators, use `static properties` and `customElements.define`.
+
+## Sharing across elements
+
+Export the session from a normal module. Each custom element that needs SignalR imports the same session. This works across separate DOM trees, with no application root.
+
+Create a second session when an app needs another base URL or another authentication boundary.
+
+The session reads the token through `accessTokenFactory` on each negotiate. A new token needs no new session.
+
+## Server rendering
+
+Package import, client creation, session creation, and controller construction do not start a connection. `hostConnected()` does nothing on the server, even when Lit calls it. On the server, `status` is `idle`.
+
+In the browser, the first client render shows `"connecting"`, because the controller starts the session in `hostConnected()`, before the first update. A server-rendered status of `"idle"` therefore does not match the first client render of a host that reads `status`. To avoid the mismatch, set a flag in `firstUpdated`, and render text that depends on `status` only when the flag is set.
+
+An invoke that runs during a server render waits for its timeout, because no connection starts.
+
+When you move a host in the DOM, Lit calls `disconnectedCallback()` and then `connectedCallback()` in the same task. The connection stays, and pending calls keep running. Code in your own `disconnectedCallback()` runs on a move too. Check `isConnected` in a microtask before you send a leave message.

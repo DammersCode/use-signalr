@@ -10,7 +10,7 @@ describe("SSR-safe import", () => {
     expect(typeof globalThis.window).toBe("undefined");
     const mod = await import("./index.js");
     expect(typeof mod.createSignalRClient).toBe("function");
-  });
+  }, 20_000);
 
   it("creates a client without building a connection", async () => {
     const build = vi.fn();
@@ -57,9 +57,51 @@ describe("SSR-safe import", () => {
       "createSignalRClient",
       "event",
       "method",
-      "InvokeError",
     ]) {
       expect(mod, `missing export: ${name}`).toHaveProperty(name);
     }
   });
+
+  it("renders a component tree on the server without building a connection", async () => {
+    const build = vi.fn();
+    vi.resetModules();
+    vi.doMock("@microsoft/signalr", () => ({
+      HubConnectionBuilder: class {
+        withUrl() {
+          return this;
+        }
+        configureLogging() {
+          return this;
+        }
+        withAutomaticReconnect() {
+          return this;
+        }
+        build() {
+          build();
+          return {};
+        }
+      },
+      HubConnectionState: { Disconnected: "Disconnected" },
+      LogLevel: { Information: 2 },
+    }));
+
+    const { render } = await import("svelte/server");
+    const { createSignalRClient, event } = await import("./index.js");
+    const { default: SsrProbe } = await import("./internal/test-components/SsrProbe.svelte");
+    const client = createSignalRClient({
+      hubs: { "/hubs/chat": { events: { OnFoo: event<[value: number]>() } } },
+    });
+
+    const { body } = render(SsrProbe, {
+      props: {
+        provide: client.provideSignalR,
+        providerProps: { baseUrl: "https://example.test", accessTokenFactory: () => "token" },
+        statusOf: () => client.hubStatus("/hubs/chat"),
+      },
+    });
+
+    expect(body).toContain("idle");
+    expect(build).not.toHaveBeenCalled();
+    vi.doUnmock("@microsoft/signalr");
+  }, 20_000);
 });

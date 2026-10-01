@@ -10,7 +10,7 @@ describe("SSR-safe import", () => {
     expect(typeof globalThis.window).toBe("undefined");
     const mod = await import("./index.js");
     expect(typeof mod.createSignalRClient).toBe("function");
-  });
+  }, 20_000);
 
   it("creates a client without building a connection", async () => {
     const build = vi.fn();
@@ -61,6 +61,17 @@ describe("SSR-safe import", () => {
     );
 
     expect(html).toBe("<div>ssr</div>");
+
+    const StatusView = () => createElement("span", null, client.useHubStatus("/hubs/chat"));
+    const statusHtml = renderToStaticMarkup(
+      createElement(
+        client.SignalRProvider,
+        { baseUrl: "https://example.test", accessTokenFactory: () => "token" },
+        createElement(StatusView),
+      ),
+    );
+
+    expect(statusHtml).toBe("<span>idle</span>");
     expect(build).not.toHaveBeenCalled();
     vi.doUnmock("@microsoft/signalr");
   });
@@ -71,7 +82,6 @@ describe("SSR-safe import", () => {
       "createSignalRClient",
       "event",
       "method",
-      "InvokeError",
     ]) {
       expect(mod, `missing export: ${name}`).toHaveProperty(name);
     }

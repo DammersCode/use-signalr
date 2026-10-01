@@ -13,9 +13,9 @@ export function createPlugin<T extends SignalRContract>(
   key: InjectionKey<SignalRContextValue<T>>,
   hubs: Array<keyof T & HubString>,
   resolve: (hub: keyof T & HubString) => ResolvedHubConfig,
-): Plugin<[SignalROptions<T>]> {
+): Plugin<[SignalROptions<keyof T & HubString>]> {
   return {
-    install(app: App, options: SignalROptions<T>) {
+    install(app: App, options: SignalROptions<keyof T & HubString>) {
       const statusStore = createStatusStore<keyof T & HubString>();
       const session = createSignalRSession<T, typeof statusStore>({
         hubs,
@@ -23,7 +23,7 @@ export function createPlugin<T extends SignalRContract>(
         statusStore,
         getAccessToken: () => options.accessTokenFactory(),
         onStatusChange: (hub, status) => options.onStatusChange?.(hub, status),
-        onError: (hub, error) => options.onError?.(hub, error),
+        onError: (hub, error, info) => options.onError?.(hub, error, info),
       });
       app.provide(key, session.context);
 
@@ -34,27 +34,43 @@ export function createPlugin<T extends SignalRContract>(
         scope?.stop();
         session.stop();
       };
-      const scope = typeof window === "undefined" ? undefined : effectScope();
-      scope?.run(() => {
-        watch(
-          () => [toValue(options.baseUrl), toValue(options.enabled ?? true), toValue(options.connectionKey)] as const,
-          ([baseUrl, enabled]) => {
-            session.stop();
-            if (enabled && baseUrl) session.start(baseUrl);
-          },
-          { immediate: true },
-        );
-      });
+      const scope = typeof window === "undefined" ? undefined : effectScope(true);
+      const startWatching = () =>
+        scope?.run(() => {
+          watch(
+            () => ({
+              baseUrl: toValue(options.baseUrl),
+              enabled: toValue(options.enabled ?? true),
+              connectionKey: toValue(options.connectionKey),
+            }),
+            (values) => session.update(values),
+            { immediate: true },
+          );
+        });
 
-      const appWithHook = app as App & { onUnmount?: (callback: () => void) => void };
-      if (appWithHook.onUnmount) appWithHook.onUnmount(dispose);
+      // Starting after mount keeps the first client render equal to the server HTML.
+      const mount = app.mount.bind(app);
+      app.mount = (...args: Parameters<App["mount"]>) => {
+        const instance = mount(...args);
+        if (instance) startWatching();
+        return instance;
+      };
+
+      const unmount = app.unmount.bind(app);
+      // On Vue 3.5 types the else branch narrows `app` to never, so it writes through a plain `App`.
+      const fallbackTarget: App = app;
+      if (hasOnUnmount(app)) app.onUnmount(dispose);
       else {
-        const unmount = app.unmount.bind(app);
-        app.unmount = () => {
+        fallbackTarget.unmount = () => {
           dispose();
           unmount();
         };
       }
     },
   };
+}
+
+// Vue before 3.5 has no app.onUnmount, and its App type does not declare it.
+function hasOnUnmount(app: App): app is App & { onUnmount: (cleanup: () => void) => void } {
+  return "onUnmount" in app;
 }

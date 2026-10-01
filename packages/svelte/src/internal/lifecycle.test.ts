@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/svelte";
 import { writable } from "svelte/store";
-import { resolveHubConfig } from "@dammers/use-signalr-core";
+import { event, resolveHubConfig } from "@dammers/use-signalr-core";
+import { createSignalRClient } from "../create-signalr-client.js";
 import { createSignalRProvider } from "./create-provider.js";
 import { createSignalRHooks } from "./create-hooks.js";
 import { createStatusStore } from "../status-store.js";
@@ -143,10 +144,7 @@ describe("lazy hub refcounting (harness)", () => {
 describe("lazy hub (real provider, mocked signalr)", () => {
   function makeClient(lazy: boolean) {
     const contextKey = Symbol("use-signalr-lifecycle-test");
-    const resolved = resolveHubConfig(
-      { hubs: { [HUB]: { lazy, graceMs: 0 } } } as any,
-      { lazy, graceMs: 0 } as any,
-    );
+    const resolved = resolveHubConfig({ hubs: { [HUB]: { lazy, graceMs: 0 } } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextKey, [HUB], () => resolved);
     const hooks = createSignalRHooks<any>(contextKey);
     return { provideSignalR, hooks };
@@ -197,7 +195,7 @@ describe("lazy hub (real provider, mocked signalr)", () => {
 describe("connectionKey rebuild", () => {
   it("rebuilds the connection when only connectionKey changes", async () => {
     const contextKey = Symbol("use-signalr-connection-key-test");
-    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } } as any, {} as any);
+    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextKey, [HUB], () => resolved);
 
     const connectionKey = writable<string>("a");
@@ -219,13 +217,73 @@ describe("connectionKey rebuild", () => {
   });
 });
 
-// 4: onHubEvent re-attaches exactly once across a reconnect cycle.
-describe("onHubEvent re-attach across reconnect", () => {
-  it("registers exactly one handler after a reconnect cycle", async () => {
-    const contextKey = Symbol("use-signalr-reconnect-test");
-    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } } as any, {} as any);
-    const provideSignalR = createSignalRProvider<any>(contextKey, [HUB], () => resolved);
-    const hooks = createSignalRHooks<any>(contextKey);
+describe("batched store changes", () => {
+  it("rebuilds once when two stores change in one task", async () => {
+    const { provideSignalR } = createSignalRClient({ hubs: { [HUB]: {} } });
+    const baseUrl = writable("https://a.test");
+    const connectionKey = writable("a");
+    const providerProps: SignalRProviderProps = {
+      baseUrl,
+      accessTokenFactory: () => "token",
+      connectionKey,
+    };
+
+    const view = render(Provider, { props: { provide: provideSignalR, providerProps } });
+    await tick();
+    expect(buildCount).toBe(1);
+
+    baseUrl.set("https://b.test");
+    connectionKey.set("b");
+    await tick();
+    expect(buildCount).toBe(2);
+
+    view.unmount();
+  });
+});
+
+// 3c: a store that emits an equal value again must not rebuild.
+describe("equal store emissions", () => {
+  it("does not rebuild when a custom store emits the same baseUrl twice", async () => {
+    const { provideSignalR } = createSignalRClient({ hubs: { [HUB]: {} } });
+
+    let emit: (value: string) => void = () => {};
+    const baseUrl = {
+      subscribe(run: (value: string) => void) {
+        emit = run;
+        run("https://example.test");
+        return () => {};
+      },
+    };
+    const providerProps: SignalRProviderProps = {
+      baseUrl,
+      accessTokenFactory: () => "token",
+    };
+
+    const view = render(Provider, { props: { provide: provideSignalR, providerProps } });
+    await tick();
+    expect(buildCount).toBe(1);
+
+    emit("https://example.test");
+    await tick();
+    expect(buildCount).toBe(1);
+
+    view.unmount();
+  });
+});
+
+describe("hubStatus store surface", () => {
+  it("returns only subscribe, not the writable store", () => {
+    const store = createStatusStore<"/hubs/a">();
+    expect(Object.keys(store.readable("/hubs/a"))).toEqual(["subscribe"]);
+  });
+});
+
+// 4: onHubEvent binds once per connection and keeps delivering across a reconnect.
+describe("onHubEvent across reconnect", () => {
+  it("binds the core listener once and delivers after a reconnect cycle", async () => {
+    const { provideSignalR, ...hooks } = createSignalRClient({
+      hubs: { [HUB]: { events: { OnFoo: event<[]>() } } },
+    });
 
     let handlerCalls = 0;
     const providerProps: SignalRProviderProps = {
@@ -246,23 +304,17 @@ describe("onHubEvent re-attach across reconnect", () => {
     await tick();
     await resolveStart(); // connected
 
-    const onCountAfterConnect = onCalls.filter((c) => c.name === "OnFoo").length;
-    expect(onCountAfterConnect).toBe(1);
-
-    // Simulate a reconnect cycle: reconnecting -> reconnected.
     onReconnectingHandler?.();
     await tick();
     onReconnectedHandler?.();
     await tick();
 
-    const onCountAfterReconnect = onCalls.filter((c) => c.name === "OnFoo").length;
-    const offCount = fakeConnection.off.mock.calls.filter((c) => c[0] === "OnFoo").length;
+    const listeners = onCalls.filter((c) => c.name === "OnFoo");
+    expect(listeners).toHaveLength(1);
+    expect(fakeConnection.off).not.toHaveBeenCalled();
+    listeners[0].fn();
+    expect(handlerCalls).toBe(1);
 
-    // Exactly one detach/attach pair across the reconnect cycle.
-    expect(onCountAfterReconnect - onCountAfterConnect).toBe(1);
-    expect(offCount).toBe(1);
-
-    void handlerCalls;
     view.unmount();
   });
 });
@@ -289,13 +341,13 @@ describe("hubStatus isolation across hubs", () => {
   });
 });
 
-// 6: hubStatus starts "disconnected" and updates through the store after
+// 6: hubStatus starts "idle" and updates through the store after
 // connect(). Uses the REAL provider (not the harness) since the harness's
 // statusStore is a plain stub, not a reactive store.
 describe("hubStatus store", () => {
-  it("emits 'disconnected' initially and updates after connect()", async () => {
+  it("emits 'idle' initially and updates after connect()", async () => {
     const contextKey = Symbol("use-signalr-status-test");
-    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } } as any, {} as any);
+    const resolved = resolveHubConfig({ hubs: { [HUB]: {} } }, HUB);
     const provideSignalR = createSignalRProvider<any>(contextKey, [HUB], () => resolved);
     const hooks = createSignalRHooks<any>(contextKey);
 
@@ -316,7 +368,7 @@ describe("hubStatus store", () => {
       },
     });
 
-    expect(readings[0]).toBe("disconnected");
+    expect(readings[0]).toBe("idle");
 
     await resolveStart(); // connected
 

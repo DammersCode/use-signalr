@@ -1,0 +1,50 @@
+---
+title: Authentication
+description: Send a token or a cookie, handle 401 and 403, and recover after a new login.
+---
+
+## Access token
+
+Give <Api of="provider" /> an `accessTokenFactory`. It returns the token as a string, or as a promise of a string:
+
+<Snippet id="provider" />
+
+The library calls the factory:
+
+- on every negotiate request,
+- on every attempt of SignalR auto-reconnect,
+- on a 401 response during long polling.
+
+A token refresh needs no rebuild. The next call to the factory returns the new token. Never use the token as `connectionKey`, because each refresh then rebuilds all hubs.
+
+## Where the token goes
+
+SignalR sends the token in the `Authorization` header of the negotiate request and of long polling. A browser cannot set headers on a WebSocket or Server-Sent Events request. For these transports, SignalR sends the token in the `access_token` query string.
+
+The server must read the query token for hub paths. Without this, WebSocket connections fail with 401. The [server guide](../guides/server.mdx) shows the `JwtBearerEvents.OnMessageReceived` code.
+
+Do not put an `Authorization` header in `httpOptions.headers`. SignalR removes it, because the library always sets `accessTokenFactory`. Put the bearer token only in `accessTokenFactory`.
+
+## Cookie authentication
+
+For cookie authentication, return an empty string: `accessTokenFactory: () => ""`. The library then sends no token. SignalR sends cookies with `withCredentials: true` by default.
+
+For a cross-origin server, the server needs CORS with credentials and exact origins. The cookie needs `SameSite=None; Secure`.
+
+## 401 and 403
+
+A 401 or 403 response to the negotiate request is not retriable. The hub gets the status `"disconnected"` and the library stops its retries. `onError` fires once.
+
+To recover, pass a new `connectionKey`, for example after a new login. Use the user ID and a counter, never the token:
+
+<Snippet id="connection-key" />
+
+The same value does nothing. You can also set `enabled` to `false` and then to `true`. For a lazy hub, it is enough that all consumers leave and one consumer comes back.
+
+## Logout
+
+Set `enabled` to `false` when the user logs out, or while the token loads. All hubs get the status `"idle"`. An invoke that waits for the connection rejects at once with an error named `SignalRDisabledError`. See [Calls](./calls.mdx).
+
+## skipNegotiation hides 401
+
+With `skipNegotiation: true`, the browser hides the HTTP status code of a failed WebSocket handshake. The library cannot see a 401, so the hub stays in `"connecting"` and retries without end. A throwing `accessTokenFactory` also counts as retriable. If a 401 can happen, do not use `skipNegotiation`.

@@ -1,6 +1,6 @@
 {
   "name": "@dammers/use-signalr-core",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Framework-free typed multi-hub SignalR core: connection lifecycle, contracts, retry.",
   "author": "Dammers",
   "license": "MIT",
@@ -9,7 +9,7 @@
     "url": "git+https://github.com/DammersCode/use-signalr.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/DammersCode/use-signalr/tree/main/packages/core#readme",
+  "homepage": "https://use-signalr.vercel.app/docs/core",
   "bugs": "https://github.com/DammersCode/use-signalr/issues",
   "keywords": [
     "signalr",
@@ -18,7 +18,7 @@
     "websocket"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "type": "module",
   "sideEffects": false,
@@ -27,8 +27,10 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -43,9 +45,9 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@microsoft/signalr": ">=8"
+    "@microsoft/signalr": "^8.0.0 || ^9.0.0 || ^10.0.0"
   },
   "devDependencies": {
-    "@microsoft/signalr": ">=8"
+    "@microsoft/signalr": "^8.0.0 || ^9.0.0 || ^10.0.0"
   }
 }

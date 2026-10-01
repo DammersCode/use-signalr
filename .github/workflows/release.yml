@@ -47,20 +47,30 @@ jobs:
             fi
           done
 
+      # A version with a hyphen is a pre-release: it must never take `latest`.
+      - name: Choose dist-tag
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          case "$VERSION" in
+            *-*) echo "DIST_TAG=next" >> "$GITHUB_ENV" ;;
+            *) echo "DIST_TAG=latest" >> "$GITHUB_ENV" ;;
+          esac
+
       # No token: npm authenticates via OIDC trusted publishing, configured
       # per package on npmjs.com.
       # `npm view` makes each step idempotent: a version that is already on
       # the registry is skipped, so a re-run after a partial publish or a
       # duplicate tag event publishes only what is missing.
-      - run: npm view @dammers/use-signalr-core@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/core --provenance
-      - run: npm view @dammers/use-signalr-react@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/react --provenance
-      - run: npm view @dammers/use-signalr-solid@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/solid --provenance
-      - run: npm view @dammers/use-signalr-svelte@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/svelte --provenance
-      - run: npm view @dammers/use-signalr-angular@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/angular --provenance
-      - run: npm view @dammers/use-signalr-vue@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/vue --provenance
-      - run: npm view @dammers/use-signalr-preact@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/preact --provenance
-      - run: npm view @dammers/use-signalr-lit@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/lit --provenance
+      - run: npm view @dammers/use-signalr-core@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/core --provenance --tag "$DIST_TAG"
+      - run: npm view @dammers/use-signalr-react@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/react --provenance --tag "$DIST_TAG"
+      - run: npm view @dammers/use-signalr-solid@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/solid --provenance --tag "$DIST_TAG"
+      - run: npm view @dammers/use-signalr-svelte@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/svelte --provenance --tag "$DIST_TAG"
+      - run: npm view @dammers/use-signalr-angular@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/angular --provenance --tag "$DIST_TAG"
+      - run: npm view @dammers/use-signalr-vue@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/vue --provenance --tag "$DIST_TAG"
+      - run: npm view @dammers/use-signalr-preact@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/preact --provenance --tag "$DIST_TAG"
+      - run: npm view @dammers/use-signalr-lit@${GITHUB_REF_NAME#v} version 2>/dev/null || npm publish -w packages/lit --provenance --tag "$DIST_TAG"
 
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

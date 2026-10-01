@@ -1,0 +1,281 @@
+---
+title: Build an adapter
+description: The contract between core and a framework adapter, with a minimal adapter sketch and a checklist for a new adapter.
+---
+
+An adapter connects `@dammers/use-signalr-core` to one framework. Core owns all connection behavior. The adapter owns the reactive translation, the context propagation, and the lifecycle binding. This page describes the contract that every official adapter follows.
+
+## Core and adapter responsibilities
+
+| Core owns | Adapter owns |
+| --- | --- |
+| One connection for each hub, shared by all consumers | Reactive translation: signals, stores, or re-renders |
+| Multi-hub coordination and per-hub status | The status store for the framework |
+| Auto-reconnect, and a rebuild with backoff when a connection cannot recover | Context propagation through the framework |
+| Lazy hubs, reference counts, and grace periods | Lifecycle binding: when to apply values and when to stop |
+| Token reads at call time, so rotation needs no rebuild | The public API, named in the vocabulary of the framework |
+| The event registry and the reconnect listeners | |
+| The `invoke`, `send`, and teardown call helpers | |
+| Typed config resolution, global and per hub | |
+| Cleanup and disposal | |
+
+Core has no framework dependency. An adapter imports only from `@dammers/use-signalr-core`, never from another adapter.
+
+## The lifecycle contract
+
+Every adapter follows the same sequence:
+
+1. Create a status store with the reactivity of the framework.
+2. Create a session with `createSignalRSession`.
+3. Expose `session.context` through the context mechanism of the framework. Build it once. Its identity is stable.
+4. In a client-only lifecycle hook, call `session.update({ baseUrl, enabled, connectionKey })` when one of these values changes.
+5. On teardown, call `session.stop()`.
+
+### Create the session
+
+`createSignalRSession` takes the hub names, a resolver for the config of each hub, the status store, and the callbacks:
+
+```ts
+createSignalRSession<T, TStore>({
+  hubs,
+  resolve,
+  statusStore,
+  getAccessToken,
+  onStatusChange,
+  onError,
+});
+```
+
+Construction does no I/O. The session opens no connection until you call `update`.
+
+- `hubs` is the list of hub paths. Use `hubKeys(config)` to get it.
+- `resolve` returns the resolved config of one hub. Resolve every hub once when the client is created, with `resolveHubConfig(config, hub)`. A config error then throws at client creation and not later.
+- `getAccessToken` is read on every negotiate and on every auto-reconnect attempt. Pass a function that reads the latest value, so a token refresh needs no rebuild.
+- `onStatusChange` and `onError` are optional. The session keeps the functions that you pass at construction. If your framework passes new handlers on each render, pass wrappers that read the latest handler.
+
+The session reports errors from user callbacks. If your status store, `onStatusChange`, an event handler, or a reconnect callback throws or rejects, `onError` receives the error with `info.source` set to `"callback"`. Connection errors have the source `"connection"`.
+
+This sketch creates a session and runs the two lifecycle calls:
+
+<Snippet id="session" />
+
+### Apply values with update
+
+`session.update(values)` is the only call that an adapter needs for value changes. Do not call `stop()` when a value changes, because `stop()` also clears the connect history. `update` takes these values:
+
+```ts
+interface SignalRSessionValues {
+  baseUrl?: string;
+  enabled?: boolean;
+  connectionKey?: string | number;
+}
+```
+
+The session behaves as follows:
+
+- If `baseUrl`, `enabled`, and `connectionKey` equal the last applied values, `update` does nothing. The comparison uses `Object.is`.
+- `enabled` is `true` unless you pass `false`.
+- If the values changed, the session disposes the live connections and sets every hub to `"idle"`.
+- If `enabled` is true and `baseUrl` is not empty, the session then builds the connections for the new values.
+- If `enabled` is false, or `baseUrl` is `undefined` or `""`, the session stays idle. Pending waits reject with `SignalRDisabledError`.
+- A rebuild keeps the list of hubs that connected before. When such a hub connects again, its reconnect callbacks run.
+
+Call `update` from a lifecycle hook that does not run during server rendering. See [SSR requirements](#ssr-requirements).
+
+### Stop on teardown
+
+`session.stop()` disposes the live connections, sets every hub to `"idle"`, and forgets which hubs connected before. Calling it again does nothing.
+
+After `stop()`, the next `update` call with the same values builds the connections again. A framework that unmounts and mounts a provider again therefore needs no extra code to reconnect.
+
+Some frameworks run the teardown and the setup again at once. React does this in strict mode. The React adapter defers `stop()` by one microtask, and the setup cancels it. Without the delay, the session builds a second connection. The Preact adapter also defers `stop()` by one microtask, so a consumer cleanup can still send before the session stops.
+
+### Expose the context
+
+`session.context` is the object that the hooks, injectables, or controllers of your adapter use. Put it into the context mechanism of the framework. It has these members:
+
+| Member | Use |
+| --- | --- |
+| `getConnection(hub)` | The live `HubConnection`, or `null`. |
+| `getStatus(hub)` | A point read of the status. In a reactive scope of a signal-based framework (Solid, Vue, Angular), the read tracks. |
+| `waitForConnection(hub, timeoutMs, signal?)` | A promise for the connected `HubConnection`. |
+| `publicContext` | A frozen object with only the three members above. |
+| `statusStore` | The store that you passed to the session. Read it to subscribe to status. |
+| `acquire(hub)` and `release(hub)` | Reference counts for lazy hubs. |
+| `registerReconnect(hub, callback)` | Registers a reconnect callback. Returns an unsubscribe function. |
+| `subscribe(hub, event, handler)` | Registers an event handler. Returns an unsubscribe function. |
+
+Give app code only `session.publicContext`. The other members are for the hooks of your adapter. The official adapters return `publicContext` from their raw context accessor.
+
+## The status store
+
+The adapter implements `StatusStore<H>`. The session calls `set` for every status change, and `get` for point reads:
+
+```ts
+interface StatusStore<H extends string> {
+  get: (hub: H) => HubConnectionStatus;
+  set: (hub: H, status: HubConnectionStatus) => void;
+}
+```
+
+Two rules apply:
+
+- `get` returns `"idle"` for a hub that has no value yet. The session does not write an initial status.
+- Keep one reactive primitive for each hub. A consumer of hub A must not be notified when the status of hub B changes.
+
+The official adapters add the subscription primitive of their framework to the store. The React and Preact stores add `subscribe`. The Lit store has the same `subscribe` method. The Solid, Svelte, and Angular stores keep one signal or one writable for each hub. The Vue store keeps one `shallowRef` for each hub.
+
+This sketch shows a store with a `subscribe` method:
+
+<Snippet id="status-store" />
+
+### Status values
+
+The session writes one of five values for each hub:
+
+| Status | Meaning |
+| --- | --- |
+| `idle` | No connection is wanted. The hub is lazy with no consumer, the session is disabled or has no `baseUrl`, or the session is stopped or rebuilding. |
+| `connecting` | The first attempt runs, or the session waits for its next rebuild. The status stays `connecting` through all retries. |
+| `connected` | The connection is up. |
+| `reconnecting` | SignalR auto-reconnect runs. |
+| `disconnected` | The hub stopped for good. The cause is a 400, 401, 403, or 404 response to the negotiate request, or a config error. The session does not retry. |
+
+A hub moves from `idle` to `connecting` to `connected`. A lost connection moves it to `reconnecting`. If auto-reconnect gives up, the session rebuilds the connection and the status goes back to `connecting`. A new value in `update` returns every hub to `idle` before it connects again.
+
+## The consumer contract
+
+Every hook, injectable, or controller that touches a hub follows the same rules.
+
+### Acquire and release
+
+Call `acquire(hub)` when the consumer starts, and `release(hub)` when it ends. This keeps lazy hubs reference counted correctly, no matter how many consumers use the same hub. For a hub that is not lazy, the calls change nothing. You can call them for every hub.
+
+The status, event, and reconnect consumers of the official adapters acquire the hub. `subscribe` and `registerReconnect` do not acquire the hub on their own.
+
+### Events
+
+Call `context.subscribe(hub, event, handler)` to receive a server event. The call returns an unsubscribe function. Call it on teardown.
+
+The registry stores handlers for each hub and event name. It lives in the session and survives reconnects and rebuilds. The consumer never subscribes again after a rebuild.
+
+Core binds one SignalR handler for each event that the hub declares in its `events` config. The handler forwards the push to the registry. Core binds it before the connection starts, so early pushes arrive. A consumer of event X is not notified when event Y fires. An event that the config does not declare never reaches the registry.
+
+The registry calls the handlers one by one. If a handler throws, the other handlers still run, and `onError` receives the error.
+
+### Reconnect callbacks
+
+`context.registerReconnect(hub, callback)` runs the callback after each reconnect. It does not run on the first connect. These cases count as a reconnect:
+
+- SignalR reconnects the same connection.
+- Core rebuilds a connection that SignalR did not recover.
+- `update` rebuilds a hub that connected before.
+
+A lazy hub that has no consumer forgets that it connected. This holds when it stops after its last consumer leaves, and when a rebuild comes during its grace period. When a consumer comes back, the hub connects as a first connect, and no callback runs.
+
+### Calls
+
+Do not write your own invoke, send, or teardown logic. Use the helpers of core:
+
+- `createInvoker` builds a typed function. It waits for the connection, retries retriable failures if the caller opts in, and resolves with the return value of the method.
+- `createSender` builds a typed fire-and-forget function. It does not wait. It resolves `true` when it sends the call. It resolves `false` when the hub is not connected or the send fails.
+- `createTeardownSender` builds a typed function for a call in a cleanup. It acquires the hub itself, waits for the connection up to its timeout, sends, and releases the hub. It resolves `false` when the hub did not connect in time or the send failed.
+
+The helpers read their options at call time. Pass `getOptions` functions that read the latest options of your framework.
+
+Use `createAbortScope` for each consumer that invokes. Pass `scope.signal` as `getSignal`. When the consumer ends, call `scope.abort()`. The calls that wait then reject with an `AbortError`. The scope creates a fresh signal after each abort, so the consumer can invoke again.
+
+If `keepAliveOnUnmount` is `true`, skip the `abort()` call on teardown. To hold the hub for the call, pass `acquire` and `release` in `target` too. `createInvoker` then acquires the hub at the start of the call and releases it when the call settles. A lazy hub stays connected until then.
+
+`waitForConnection` rejects with errors that have one of these `name` values: `SignalRTimeoutError`, `SignalRDisabledError`, and `SignalRDisconnectedError`. Core does not export constants for them, so compare `error.name`.
+
+## Lazy hub semantics
+
+A hub with `lazy: true` connects when a consumer first acquires it. It disconnects after its last consumer releases it, after a grace period.
+
+- A hub is wanted when it is not lazy, or when its reference count is more than zero.
+- `acquire` raises the count. The change from 0 to 1 builds and starts the hub.
+- `release` lowers the count, never below zero. The change to 0 schedules a stop.
+- The stop runs in a microtask if `graceMs` is 0 or less. Otherwise it runs after `graceMs` milliseconds.
+- When the stop runs, it reads the count again. If a consumer acquired the hub during the grace period, the hub stays connected.
+- A stopped lazy hub has the status `"idle"`.
+
+The reference counts, the stop timers, the reconnect listeners, and the event registry belong to the session. A rebuild does not reset them. A consumer that acquired a hub before a `baseUrl` change keeps the hub wanted in the new generation without acquiring it again. A consumer can also acquire a hub before the first `update`. The session remembers the count.
+
+## SSR requirements
+
+No connection work happens at module scope or during a synchronous render. Construction of a session does no I/O. The adapter applies the values from a lifecycle hook that does not start a connection on the server:
+
+| Adapter | Where it applies the values |
+| --- | --- |
+| React and Preact | In `useEffect`. |
+| Solid | In `createEffect`, which does not run during server rendering. |
+| Svelte | In `onMount`. |
+| Angular | In an `effect` that `afterNextRender` creates. `afterNextRender` never runs on the server. |
+| Vue | In a watcher that starts after `app.mount()`. The plugin creates no effect scope when `window` is undefined. |
+| Lit | In `hostConnected` of the hub controller. |
+
+A server render therefore never opens a socket. Every hub reports `"idle"` until the client applies the values.
+
+The first client render also shows `"idle"` in every adapter except Lit, so it matches the server HTML. The Lit controller calls `session.update` in `hostConnected`, before the first update. The first client render in Lit therefore shows `"connecting"`.
+
+A `waitForConnection` call during a server render ends with its timeout, unless the adapter disables the session on the server. The Svelte and Angular adapters call `session.update({ enabled: false })` on the server, so their waits reject at once with `SignalRDisabledError` and no timer stays pending.
+
+## Type safety
+
+All types flow from the `hubs` object that the app passes to the client. A hub declares its events with `event<Args>()` and its methods with `method<Args, Return>()`. `InferContract` turns that object into a contract. `EventName`, `EventArgs`, `MethodName`, `MethodArgs`, and `MethodReturn` then give the hooks their parameter and return types.
+
+Do not add `any` or unchecked casts to an adapter. Reuse the generic types of core:
+
+- `SignalRContract`, `HubString`, and `HubConnectionStatus` describe a contract and the status values.
+- `SignalRSession<T, TStore>` and `SignalRSessionDeps<T, TStore>` are the session types. `TStore` is the type of your own status store. It reaches `session.context` with its subscription members intact.
+- `SignalRContextValueBase<T, TStore>` and `SignalRProviderPropsBase<THub>` are the base shapes. Extend them with the framework parts, such as a children prop.
+- `StatusStore<H>` is the contract of your store.
+
+One cast is accepted. The handler that you pass to `subscribe` receives `unknown[]`. Cast the arguments to `EventArgs<T, H, E>` at that boundary.
+
+## A minimal adapter
+
+This sketch builds a client for an imaginary framework. It resolves the config, creates a provider with a session, and wraps events and calls. The file `status-store.ts` holds the store from above:
+
+<Snippet id="adapter-sketch" />
+
+An app uses the sketch like this:
+
+<Snippet id="use-sketch" />
+
+A real adapter replaces the plain functions with the primitives of the framework. For example, `createProvider` becomes a component, and `onEvent` becomes a hook. The hook subscribes in an effect and unsubscribes in its cleanup.
+
+## Naming across adapters
+
+The concepts are fixed: provide, raw context, status, events, invoke, send, teardown, reconnect, and keep-alive. Each adapter names them in the vocabulary of its framework. A Svelte developer expects stores, a React developer expects hooks, and an Angular developer expects injectables.
+
+| Concept | React, Solid, Preact | Svelte | Angular | Vue | Lit |
+| --- | --- | --- | --- | --- | --- |
+| Provide | `SignalRProvider` | `provideSignalR` | `provideSignalR` | `app.use(signalR, options)` | `createSession` |
+| Raw context | `useSignalR` | `getSignalR` | `injectSignalR` | `useSignalR` | `session.context` |
+| Keep a hub alive | `useHubConsumer` | `keepHubAlive` | `injectKeepHubAlive` | `useHubConsumer` | `session.hub(host, hub)` |
+| Server event | `useSignalREffect` | `onHubEvent` | `injectHubEvent` | `useSignalREvent` | `controller.on` |
+| Invoke | `useSignalRInvoke` | `hubInvoke` | `injectHubInvoke` | `useSignalRInvoke` | `controller.invoke` |
+| Send | `useSignalRSend` | `hubSend` | `injectHubSend` | `useSignalRSend` | `controller.send` |
+| Teardown | `useSignalRTeardown` | `hubTeardown` | `injectHubTeardown` | `useSignalRTeardown` | `controller.teardown` |
+| Status | `useHubStatus` | `hubStatus` | `injectHubStatus` | `useHubStatus` | `controller.status` |
+| Reconnected | `useOnReconnected` | `onReconnected` | `injectOnReconnected` | `useOnReconnected` | `controller.onReconnected` |
+
+The contract, config, status, and call types have the same names in every adapter. The functions `createSignalRClient`, `event`, and `method` also have the same names. The provider options type is specific to the framework.
+
+## Checklist for a new adapter
+
+1. Implement `StatusStore<H>` with the reactivity of the framework. Use one primitive for each hub.
+2. Resolve every hub once with `hubKeys` and `resolveHubConfig` when the client is created.
+3. Create one session for each provider instance with `createSignalRSession`.
+4. Put `session.context` into the context mechanism of the framework. Build it once.
+5. In a client-only lifecycle hook, call `session.update({ baseUrl, enabled, connectionKey })` when a value changes.
+6. Call `session.stop()` on teardown.
+7. Map the public surface onto the primitives of the framework, and delegate to core: the raw context, the keep-alive, the status, the event, the reconnect callback, and the invoke, send, and teardown calls.
+8. Call `acquire` and `release` for each consumer. When an invoking consumer ends, call `abort()` on its abort scope, unless its `keepAliveOnUnmount` option is `true`.
+9. Name the public surface in the vocabulary of the framework. See the table above.
+10. Add a type test that proves the inference from a sample contract to every hook.
+11. Add lifecycle tests: a rebuild on a changed value, a stop on teardown, and a server render that opens no connection.
+12. Add reference-count tests: a lazy connect and disconnect, the grace period, and survival across a rebuild.
+13. Document install and usage for the framework.

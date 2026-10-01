@@ -1,0 +1,11 @@
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [],
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "rootDirs": [".", "../shared"]
+  },
+  "include": ["./*.ts", "./*.tsx"]
+}

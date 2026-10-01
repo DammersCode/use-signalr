@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { DestroyRef, inject } from "@angular/core";
+import {
+  DestroyRef,
+  inject,
+  runInInjectionContext,
+} from "@angular/core";
+import type { Injector } from "@angular/core";
 import { makeHarness } from "./test-harness.js";
 
 const HUB = "/hubs/chat" as const;
@@ -91,5 +96,34 @@ describe("injectHubTeardown queue-while-connecting", () => {
     h.connect();
     await Promise.resolve();
     expect(h.fake.sendCalls).toEqual([]);
+  });
+});
+
+describe("destroy registration order", () => {
+  function destroyedScope(h: ReturnType<typeof makeHarness>) {
+    const destroyed = {
+      onDestroy: () => {
+        throw new Error("NG0911");
+      },
+    };
+    const scope: Injector = {
+      get: (token: unknown, notFound?: unknown) =>
+        token === DestroyRef ? destroyed : h.injector.get(token as never, notFound as never),
+    };
+    return <R>(fn: () => R) => runInInjectionContext(scope, fn);
+  }
+
+  it("acquires nothing when the scope is already destroyed", () => {
+    const h = makeHarness({ startConnected: true });
+    expect(() => destroyedScope(h)(() => h.hooks.injectKeepHubAlive(HUB))).toThrow("NG0911");
+    expect(h.acquireCount).toBe(0);
+  });
+
+  it("subscribes nothing when the scope is already destroyed", () => {
+    const h = makeHarness({ startConnected: true });
+    expect(() =>
+      destroyedScope(h)(() => h.hooks.injectHubEvent(HUB, "x" as never, () => {})),
+    ).toThrow("NG0911");
+    expect(h.acquireCount).toBe(0);
   });
 });

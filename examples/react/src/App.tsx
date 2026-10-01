@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { InvokeError } from "@dammers/use-signalr-react";
 import { BASE_URL, makeToken, createLogger } from "@examples/contract";
 import {
   SignalRProvider,
@@ -47,11 +46,7 @@ function Main() {
     try {
       await fail();
     } catch (err) {
-      if (err instanceof InvokeError) {
-        log.invokeFailed(err);
-      } else {
-        log.log(`invoke failed: ${String(err)}`);
-      }
+      log.log(`invoke failed: ${String(err)}`);
     }
   }
 

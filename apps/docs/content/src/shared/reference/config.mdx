@@ -1,0 +1,104 @@
+---
+title: Configuration reference
+description: Every option of the client config, the hub config, the calls, and the provider.
+---
+
+This page lists every option with its type and default. The concept pages explain how the options work together.
+
+## Client config
+
+You pass these options to `createSignalRClient`. They are the global defaults for all hubs.
+
+<AutoTypeTable path="../../packages/core/src/types.ts" name="SignalRClientConfig" />
+
+`BuilderContext` is `{ hub: string; baseUrl: string }`.
+
+The options `transport`, `skipNegotiation`, and `maxConnectRetries` do not exist at the top level or per hub. `transport` and `skipNegotiation` belong in `httpOptions`. `maxConnectRetries` does not exist, because the library retries until the hub stops. `createSignalRClient` throws an error when it finds one of them.
+
+## Hub config
+
+Each value in `hubs` can override the global options for one hub. The global value is the fallback.
+
+<AutoTypeTable path="../../packages/core/src/types.ts" name="PerHubConfig" />
+
+Each hub value also holds `events` and `methods`. Declare each event with `event<[...args]>()`, and each method with `method<[...args], Return>()`.
+
+`skipNegotiation: true` in `httpOptions` needs `transport` set to `HttpTransportType.WebSockets`. Any other value throws an error when you create the client: `Hub "<hub>": skipNegotiation needs httpOptions.transport = HttpTransportType.WebSockets.`
+
+A binary protocol object with `transport` set to `HttpTransportType.ServerSentEvents` throws an error when you create the client.
+
+## Invoke options
+
+You pass these options to the invoke helper of a method.
+
+<AutoTypeTable path="../../packages/core/src/types.ts" name="InvokeOptions" />
+
+<Only in="core">
+The adapter applies `keepAliveOnUnmount`. `createInvoker` does not read it.
+</Only>
+
+<Only not="core">
+The [Calls](../concepts/calls.mdx) page explains the default retry rule.
+</Only>
+<Only in="core">
+The default rule for a retry:
+
+- `SignalRDisabledError` and `SignalRDisconnectedError` never retry.
+- If the hub is not connected, the call retries.
+- If the hub is connected, the call retries only for a SignalR `TimeoutError`, an `AbortError`, or an `HttpError` with status 0, 408, 429, or 5xx.
+
+A `HubException` that the server throws never retries by default.
+</Only>
+
+## Teardown options
+
+<AutoTypeTable path="../../packages/core/src/types.ts" name="TeardownOptions" />
+
+The teardown sender resolves `false` when the hub did not connect within the timeout, the session is disabled, the hub failed, or `send` rejected. The send helper resolves `false` when the hub is not connected, or when `send()` rejects.
+
+<Only not="core">
+
+## Provider values
+
+The values that you pass to <Api of="provider" /> are in [Provider](../concepts/provider.mdx).
+
+</Only>
+<Only not="angular,core">
+Without `onError`, the library drops errors silently.
+</Only>
+<Only in="vue">
+In Vue, `baseUrl`, `enabled`, and `connectionKey` also accept a ref or a getter.
+</Only>
+<Only in="angular">
+In Angular, `baseUrl`, `enabled`, and `connectionKey` also accept a `Signal` or a getter. `accessTokenFactory` accepts a plain function or a `Signal` of one. Without `onError`, errors go to the Angular `ErrorHandler`.
+</Only>
+<Only in="svelte">
+In Svelte, `baseUrl`, `enabled`, and `connectionKey` also accept a store.
+</Only>
+<Only in="lit">
+In Lit, `onStatusChange` and `onError` are fixed when you create the session. `session.update()` changes `baseUrl`, `enabled`, `connectionKey`, and `accessTokenFactory`. It rebuilds only when `baseUrl`, `enabled`, or `connectionKey` change.
+</Only>
+
+## Status values
+
+<Only not="core">
+A hub has one of five statuses: `"idle"`, `"connecting"`, `"connected"`, `"reconnecting"`, and `"disconnected"`. [Connection status](../concepts/connection-status.mdx) explains each value and the transitions.
+</Only>
+<Only in="core">
+| Status | Meaning |
+| --- | --- |
+| `"idle"` | No connection is wanted: before the start, `enabled` false, no `baseUrl`, a lazy hub without a consumer, or briefly during a rebuild. |
+| `"connecting"` | The first attempt runs, or the library waits for its next rebuild. The status stays `"connecting"` through all retries. |
+| `"connected"` | The connection is up. |
+| `"reconnecting"` | SignalR auto-reconnect runs. This needs `reconnect` other than `false`. |
+| `"disconnected"` | The hub is wanted but stopped for good: a 400, 401, 403, or 404 on negotiate, or a configuration error. The library does not retry. |
+</Only>
+
+## Retry timing
+
+| Layer | Delays | Limit |
+| --- | --- | --- |
+| SignalR auto-reconnect | The `reconnect` delays. The default is 0, 2, 10, and 30 seconds. | The end of the delay list. |
+| Library rebuild | `min(2500 × attempt, 30000)` ms | None while the hub is wanted. It stops on a non-retriable error. |
+
+The connect errors 400, 401, 403, and 404 are non-retriable. Every other status code and error retries, for example 0, 408, 429, and 5xx.

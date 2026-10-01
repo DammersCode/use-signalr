@@ -1,0 +1,58 @@
+---
+title: Testing
+description: Test components that use <Fw /> without a real server.
+---
+
+You can test your app at three levels. Pick the level that matches what you want to prove.
+
+## Mock your client module
+
+Replace your own client module with stubs. Each helper returns a fixed value, and the status helper returns `"connected"`. The test then needs no session and no SignalR:
+
+<Snippet id="testing" />
+
+Use this level for the layout and logic of a component.
+
+## Render with `enabled` false
+
+Start the real session (<Api of="provider" />) with `enabled` set to false. Every hub reports `"idle"`, and every invoke that waits for the connection rejects with an error named `SignalRDisabledError`. An invoke that starts before the session applies its values waits, then rejects when the values apply. Use this level to test the offline state of a screen.
+
+## Keep the library, mock `@microsoft/signalr`
+
+Keep the real session setup and mock only `@microsoft/signalr`. The real session, retry logic, and status handling then run in the test.
+
+Spread the real module, so that `HubConnectionState`, `HttpError`, and `TransferFormat` stay real:
+
+```ts
+vi.mock("@microsoft/signalr", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@microsoft/signalr")>()),
+  HubConnectionBuilder: FakeBuilder,
+}));
+```
+
+`FakeBuilder` replaces `HubConnectionBuilder`. Its methods `withUrl`, `withHubProtocol`, `configureLogging`, and `withAutomaticReconnect` return `this`. Its method `build()` returns a fake connection with `state`, `start`, `stop`, `on`, `off`, `onclose`, `onreconnecting`, `onreconnected`, `invoke`, and `send`.
+
+## Vitest setup
+
+The mock must reach the import inside the library. Tell Vitest to process the packages, or the mock does not apply:
+
+```ts title="vitest.config.ts"
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    server: {
+      deps: {
+        // Vitest then transforms the library, so the mock of @microsoft/signalr reaches its imports.
+        inline: [/@dammers\/use-signalr/],
+      },
+    },
+  },
+});
+```
+
+The packages are ES modules only. Jest needs its ESM setup to load them.
+
+## Fake timers
+
+The library rebuilds a failed connection with delays in steps of 2.5 seconds. The backoff of an invoke retry has a jitter of 50 to 100 percent. Advance the fake clock by the full delay, so that every jittered delay has passed.

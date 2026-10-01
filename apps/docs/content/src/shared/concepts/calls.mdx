@@ -1,0 +1,87 @@
+---
+title: Calls
+description: Call server methods with invoke, send, or teardown, and set timeouts and retries.
+---
+
+The library has three ways to call a server method. They differ in waiting, return value, and behavior when the consumer ends.
+
+| | invoke | send | teardown |
+| --- | --- | --- | --- |
+| Waits for the connection | yes, up to `timeout` | no | yes, up to `timeout` |
+| Hub not connected yet | waits, then calls | drops the call and resolves `false` | waits, then sends |
+| Returns | the typed result of the method | `boolean`: was the call sent | `boolean`: was the call sent |
+| When its consumer ends | aborts a pending wait or retry delay | not affected | survives, runs on its own |
+| Holds a lazy hub open | while its consumer exists | while its consumer exists | until the call is sent |
+| Use for | a request when you need the result | a signal that can get lost, for example a typing hint | a one-shot call that must land, for example "leave room" |
+
+<Only not="core">
+
+## invoke
+
+<Api of="invoke" /> returns a function. The function waits for a connected hub, calls the method, and resolves with the typed result. It rejects with the original error. This sample loads the history of a room:
+
+<Snippet id="invoke" />
+
+## send
+
+<Api of="send" /> returns a function that does not wait. It resolves `true` when it sends the call. It resolves `false` when the hub is not connected, or when `send` rejects. It never throws. This composer shows a notice when the hub drops the message:
+
+<Snippet id="send" />
+
+## teardown
+
+<Api of="teardown" /> returns a function that you can call in a cleanup. It does not depend on its consumer. It waits up to `timeout` (default 10 000 ms) for the hub, sends the call, and holds a lazy hub open until it is done. It resolves `false` when the hub does not connect in time, when the session is disabled, when the hub failed, or when `send` rejects. It never throws:
+
+<Snippet id="teardown" />
+
+A teardown cannot land when the session stops at the same time. The call then resolves `false`.
+
+</Only>
+
+## InvokeOptions
+
+An invoke takes these options. The [configuration reference](../reference/config.mdx) lists the types and defaults:
+
+- `timeout` limits the wait for a connected hub, for each attempt. It does not limit a call that is already sent, because SignalR cannot cancel a sent call.
+- `retries` sets the number of retries after a retriable failure.
+- `backoff` sets the delays between attempts.
+- `isRetriable` overrides the default rule below. An `undefined` answer keeps the default rule.
+- `keepAliveOnUnmount` keeps a pending wait and the retry delays when the consumer ends.
+
+A teardown takes only `timeout`.
+
+### Default retry rule
+
+The library never retries an error named `SignalRDisabledError` or `SignalRDisconnectedError`, because waiting longer cannot help. For other errors, it follows the connection state:
+
+- If the hub is not connected, the library retries.
+- If the hub is connected, the library retries only a SignalR `TimeoutError`, an `AbortError`, or an `HttpError` with the status 0, 408, 429, or 5xx.
+- A business error that the server hub throws is not retried.
+
+A retry can run the call twice, for example when the connection drops after the server received the call. Use `retries` only for idempotent methods.
+
+## Abort when the consumer ends
+
+When a consumer ends, its calls abort. A pending wait and a retry delay reject with an `AbortError` and this message: `The consumer unmounted, so the call was aborted.` A call that is already sent finishes. Set `keepAliveOnUnmount: true` to prevent the abort.
+
+A fire-and-forget call needs a `.catch` that ignores the abort. The samples in these docs use this helper, which logs every other error:
+
+<Snippet id="ignore-abort" />
+
+Attach it to a call that you do not await, for example `joinRoom(roomId).catch(ignoreAbort)`.
+
+## Disabled and failed hubs
+
+The errors in this section are `Error` objects with a `name`. Test the `name`, not a class:
+
+```ts
+if (error instanceof Error && error.name === "SignalRDisabledError") {
+  // enabled is false, or baseUrl is empty
+}
+```
+
+When `enabled` is `false` or `baseUrl` is empty, a call that waits for the connection rejects at once with an error named `SignalRDisabledError`. The library does not queue the call. This also applies while your app loads the token and keeps `enabled` at `false`. Make the call after `enabled` is `true`. An invoke that was already sent fails with the close error of SignalR.
+
+When a hub is `"disconnected"` after a non-retriable error, a call rejects at once with an error named `SignalRDisconnectedError`.
+
+When the hub does not connect within `timeout`, the call rejects with an error named `SignalRTimeoutError`. See [Troubleshooting](../reference/troubleshooting.mdx) for the messages.

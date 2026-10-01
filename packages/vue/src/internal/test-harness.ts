@@ -29,9 +29,8 @@ export function makeHarness(options?: { connected?: boolean; failWaitOnce?: bool
   } as unknown as HubConnection;
   let acquireCount = 0;
   let releaseCount = 0;
-  const context: SignalRContextValue<Hubs> = {
+  const base: Omit<SignalRContextValue<Hubs>, "publicContext"> = {
     getConnection: () => connected ? connection : null,
-    isHubConnected: () => connected,
     getStatus: () => connected ? "connected" : "connecting",
     statusStore: {
       get: () => connected ? "connected" : "connecting",
@@ -49,9 +48,18 @@ export function makeHarness(options?: { connected?: boolean; failWaitOnce?: bool
     acquire: () => { acquireCount += 1; },
     release: () => { releaseCount += 1; },
     registerReconnect: () => () => {},
+    subscribe: () => () => {},
+  };
+  const context: SignalRContextValue<Hubs> = {
+    ...base,
+    publicContext: Object.freeze({
+      getConnection: base.getConnection,
+      getStatus: base.getStatus,
+      waitForConnection: base.waitForConnection,
+    }),
   };
   return {
-    key, hooks, context, connection, invokeCalls, sendCalls,
+    key, hooks, context, invokeCalls, sendCalls,
     get acquireCount() { return acquireCount; },
     get releaseCount() { return releaseCount; },
     resolveInvoke: (value?: unknown) => resolveInvoke(value),

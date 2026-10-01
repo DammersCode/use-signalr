@@ -1,0 +1,60 @@
+---
+title: Provider
+description: Call provideSignalR in your root component, set its options, and learn when the session starts and stops.
+---
+
+In Svelte, `provideSignalR` is a function, not a component. Call it one time in the `<script>` of your root component, before any other function of the client. In SvelteKit, this is `+layout.svelte`. The function builds the session and puts it in the Svelte context, so every component below can use it. The sample shows the call in a root component:
+
+<Snippet id="provider" />
+
+The sample uses the client module from the [client configuration](/docs/svelte/concepts/client-config) page.
+
+## Options
+
+The argument of `provideSignalR` is the options object. The type is `SignalRProviderProps`.
+
+<AutoTypeTable path="../../packages/svelte/src/types.ts" name="SignalRProviderProps" />
+
+`MaybeReadable<T>` is `T | Readable<T>`. Pass a plain value, or a Svelte store from `svelte/store`. The package exports the type.
+
+Without `onError`, the library drops errors silently.
+
+### Reactive options
+
+A store makes an option reactive. The provider subscribes to the stores of `baseUrl`, `enabled`, and `connectionKey`. When a value changes, the session updates the connections. A store that emits an equal value again does nothing.
+
+A rune value is not a store. A value that you read from `$state` or `$props()` is a plain value, and the provider reads it one time. Wrap it with `toStore` from `svelte/store`:
+
+```svelte
+<script lang="ts">
+  import { toStore } from "svelte/store";
+  import { provideSignalR } from "./client";
+
+  let { userId }: { userId: string } = $props();
+
+  provideSignalR({
+    baseUrl: "https://api.example.com",
+    accessTokenFactory: () => "",
+    connectionKey: toStore(() => userId),
+  });
+</script>
+```
+
+`accessTokenFactory`, `onStatusChange`, and `onError` are not reactive. The provider calls them on each use, so they always see the current state of the closure. A new token needs no rebuild.
+
+## When the session starts and stops
+
+The provider starts the session in `onMount`. Svelte never runs `onMount` on the server, so nothing connects during SSR and every status is `"idle"`. On the server, the provider also disables the session, so a call in `onDestroy`, which Svelte runs after the render, fails at once. You can call `provideSignalR` in a SvelteKit layout without a browser check.
+
+| Moment | What happens |
+| --- | --- |
+| `provideSignalR(options)` runs | The provider builds the session and sets the context. No connection starts. |
+| The component mounts | The provider subscribes to the identity options and starts the session. Eager hubs connect. Lazy hubs wait for their first consumer. |
+| An option changes | The session updates. The statuses go to `"idle"` and then to `"connecting"` again. |
+| The component is destroyed | The provider unsubscribes and closes all connections. |
+
+The provider lives as long as the component that calls it. For one session in the whole app, call it in the root layout.
+
+## Placement error
+
+Every function of the client reads the context from the component that is above it. If the context is missing, the function throws. Call `provideSignalR` in a parent component, and call the other functions while a component initializes, not in an event handler or after an `await`. For the message, see [Troubleshooting](/docs/svelte/reference/troubleshooting#placement-errors).

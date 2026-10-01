@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { InvokeError } from "@dammers/use-signalr-svelte";
-  import { BASE_URL, makeToken, createLogger } from "@examples/contract";
+    import { BASE_URL, makeToken, createLogger } from "@examples/contract";
   import {
     provideSignalR,
     onHubEvent,
@@ -48,11 +47,7 @@
     try {
       await fail();
     } catch (err) {
-      if (err instanceof InvokeError) {
-        log.invokeFailed(err);
-      } else {
-        log.log(`invoke failed: ${String(err)}`);
-      }
+      log.log(`invoke failed: ${String(err)}`);
     }
   }
 </script>

@@ -1,0 +1,58 @@
+---
+title: Session
+description: Create one shared session with createSession, then change it with update() and stop it with stop().
+---
+
+Lit has no provider component. <Api of="provider" /> creates a session instead. The session owns the connections for every hub of the client. You export it from a module, and each custom element imports it. This sample creates the session:
+
+<Snippet id="provider" />
+
+`createSession` does not start a connection. The first controller that connects to its host starts the session. A server render never starts it.
+
+## Options
+
+`baseUrl` and `accessTokenFactory` are required. All other options are optional.
+
+<AutoTypeTable path="../../packages/lit/src/types.ts" name="SignalRSessionOptions" />
+
+Without `onError`, the library drops errors silently.
+
+## Change the session with update()
+
+To change a value later, call `session.update()`. It merges the values into the options of the session.
+
+| Value | Effect of a change |
+| --- | --- |
+| `baseUrl` | Rebuilds all connections. |
+| `enabled` | Rebuilds all connections. `false` stops them. |
+| `connectionKey` | Rebuilds all connections. |
+| `accessTokenFactory` | Does not rebuild. The library calls the new factory at the next negotiate. |
+
+`onStatusChange` and `onError` are fixed when you call `createSession`. `update()` does not change them.
+
+A value that equals the last applied value does nothing. Before the first host connects, `update()` only stores the values. These calls change the base URL and recover from `disconnected`:
+
+```ts
+session.update({ baseUrl: nextUrl });
+session.update({ connectionKey: `${userId}:${loginCount}` });
+```
+
+## Stop the session
+
+`session.stop()` stops every hub and releases the connections. Call it on logout or when the app shuts down.
+
+After `stop()`, the session stays stopped. A host that connects to a stopped session does not start it. The next `update()` starts it again.
+
+## Controllers
+
+`session.hub(host, hub, options?)` creates a `HubController` for one hub on a Lit host. The controller connects the hub while the host is connected.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `reactiveStatus` | `boolean` | `true` | When `true`, a status change of the hub requests a host update. When `false`, the host does not render again on a status change. |
+
+`controller.status` reads the status at any time. With `reactiveStatus` set to `false`, you read a current value only when the host renders for another reason.
+
+## Context
+
+`session.context` gives the escape hatch with `getConnection`, `getStatus`, and `waitForConnection`. Use it only when the controller cannot express a call.

@@ -29,7 +29,7 @@ describe("SSR", () => {
 
   it("exposes every documented package export", async () => {
     const mod = await import("./index.js");
-    for (const name of ["createSignalRClient", "event", "method", "InvokeError"]) {
+    for (const name of ["createSignalRClient", "event", "method"]) {
       expect(mod, `missing export: ${name}`).toHaveProperty(name);
     }
   });

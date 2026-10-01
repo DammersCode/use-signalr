@@ -15,6 +15,7 @@ interface FakeConnection {
   onreconnected: ReturnType<typeof vi.fn>;
   invoke: ReturnType<typeof vi.fn>;
   send: ReturnType<typeof vi.fn>;
+  accessTokenFactory?: () => Promise<string>;
 }
 
 let connections: FakeConnection[] = [];
@@ -53,14 +54,17 @@ function fakeConnection(url: string): FakeConnection {
 vi.mock("@microsoft/signalr", () => {
   class HubConnectionBuilder {
     private url = "";
-    withUrl(url: string) {
+    private options: { accessTokenFactory?: () => Promise<string> } = {};
+    withUrl(url: string, options?: { accessTokenFactory?: () => Promise<string> }) {
       this.url = url;
+      this.options = options ?? {};
       return this;
     }
     configureLogging() { return this; }
     withAutomaticReconnect() { return this; }
     build() {
       const connection = fakeConnection(this.url);
+      connection.accessTokenFactory = this.options.accessTokenFactory;
       connections.push(connection);
       return connection;
     }
@@ -165,7 +169,7 @@ describe("Lit hub controller", () => {
     const beforeA = rendersA;
     const beforeB = rendersB;
 
-    session.context.statusStore.set("/b", "reconnecting");
+    connections.find((c) => c.url.endsWith("/b"))!.onreconnecting.mock.calls[0]![0]();
     await b.updateComplete;
     expect(rendersA).toBe(beforeA);
     expect(rendersB).toBeGreaterThan(beforeB);
@@ -174,7 +178,7 @@ describe("Lit hub controller", () => {
     session.stop();
   });
 
-  it("keeps events imperative and reattaches once after reconnect", async () => {
+  it("keeps events imperative and delivers them through reconnects and host moves", async () => {
     const session = runtime(15);
     const handler = vi.fn();
     const reconnected = vi.fn();
@@ -190,8 +194,9 @@ describe("Lit hub controller", () => {
     await host.updateComplete;
     await tick();
     const connection = connections[0]!;
-    const eventCalls = () => connection.on.mock.calls.filter(([name]) => name === "Tick");
-    const listener = eventCalls().at(-1)![1] as (value: number) => void;
+    const tickCalls = () => connection.on.mock.calls.filter(([name]) => name === "Tick");
+    expect(tickCalls()).toHaveLength(1); // core binds one listener per declared event
+    const listener = tickCalls()[0]![1] as (value: number) => void;
     const beforeEvent = renders;
 
     listener(5);
@@ -202,24 +207,29 @@ describe("Lit hub controller", () => {
     const reconnecting = connection.onreconnecting.mock.calls[0]![0] as () => void;
     const reconnect = connection.onreconnected.mock.calls[0]![0] as () => void;
     reconnecting();
-    expect(connection.off).toHaveBeenCalledWith("Tick", listener);
     reconnect();
     expect(reconnected).toHaveBeenCalledTimes(1);
-    expect(eventCalls()).toHaveLength(3); // core noop, initial listener, reattached listener
+    expect(tickCalls()).toHaveLength(1);
+    expect(connection.off).not.toHaveBeenCalled();
+    listener(6);
+    expect(handler).toHaveBeenCalledTimes(2);
 
-    const reattachedListener = eventCalls().at(-1)![1] as (value: number) => void;
     host.remove();
-    expect(connection.off).toHaveBeenCalledWith("Tick", reattachedListener);
+    listener(7);
+    expect(handler).toHaveBeenCalledTimes(2);
     document.body.append(host);
     await host.updateComplete;
+    listener(8);
     reconnect();
+    expect(handler).toHaveBeenCalledTimes(3);
     expect(reconnected).toHaveBeenCalledTimes(2);
-    const finalListener = eventCalls().at(-1)![1] as (value: number) => void;
-    session.stop();
-    expect(connection.off).toHaveBeenCalledWith("Tick", finalListener);
+
     host.stopEvent();
+    listener(9);
+    expect(handler).toHaveBeenCalledTimes(3);
     host.stopReconnect();
     host.remove();
+    session.stop();
   });
 
   it("delegates invoke and send, including a disconnected send", async () => {
@@ -305,5 +315,234 @@ describe("Lit hub controller", () => {
 
     expect(await run(false)).toBe(1);
     expect(await run(true)).toBe(2);
+  });
+
+  it("invokes again after the host is removed and attached again", async () => {
+    const session = runtime(50);
+    let controller!: ReturnType<typeof session.hub>;
+    class Host extends LitElement {
+      constructor() {
+        super();
+        controller = session.hub(this, "/hub");
+      }
+    }
+    const host = document.createElement(define(Host)) as Host;
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+    const connection = connections[0]!;
+    const invoke = controller.invoke("Count");
+
+    host.remove();
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+
+    await expect(invoke()).resolves.toBe(7);
+    expect(connection.invoke).toHaveBeenCalledWith("Count");
+    session.stop();
+  });
+});
+
+describe("Lit session control and controller lifecycle", () => {
+  function hostOf(session: ReturnType<typeof runtime>) {
+    class Host extends LitElement {
+      controller = session.hub(this, "/hub");
+      render() { return html`${this.controller.status}`; }
+    }
+    return document.createElement(define(Host)) as Host;
+  }
+
+  it("does not start a stopped session when a host connects", async () => {
+    const session = runtime();
+    session.stop();
+    const host = hostOf(session);
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+    expect(connections).toHaveLength(0);
+  });
+
+  it("starts a stopped session again after update()", async () => {
+    const session = runtime();
+    session.stop();
+    const host = hostOf(session);
+    document.body.append(host);
+    await host.updateComplete;
+    session.update({ baseUrl: "https://next.test" });
+    await tick();
+    expect(connections).toHaveLength(1);
+    expect(connections[0]!.url).toBe("https://next.test/hub");
+    session.stop();
+  });
+
+  it("rebuilds once when update() changes baseUrl and not when values are equal", async () => {
+    const session = runtime();
+    const host = hostOf(session);
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+    expect(connections).toHaveLength(1);
+
+    session.update({ baseUrl: "https://example.test" });
+    session.update({ enabled: true });
+    await tick();
+    expect(connections).toHaveLength(1);
+
+    session.update({ baseUrl: "https://next.test" });
+    await tick();
+    expect(connections).toHaveLength(2);
+    expect(connections[1]!.url).toBe("https://next.test/hub");
+    expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
+    session.stop();
+  });
+
+  it("rebuilds when update() changes connectionKey and stops when enabled is false", async () => {
+    const session = runtime();
+    const host = hostOf(session);
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+
+    session.update({ connectionKey: "a" });
+    await tick();
+    expect(connections).toHaveLength(2);
+
+    session.update({ enabled: false });
+    await tick();
+    expect(connections).toHaveLength(2);
+    expect(connections[1]!.stop).toHaveBeenCalledTimes(1);
+    session.stop();
+  });
+
+  it("merges values from update() before any host connects", async () => {
+    const session = runtime();
+    session.update({ baseUrl: "https://early.test" });
+    const host = hostOf(session);
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+    expect(connections).toHaveLength(1);
+    expect(connections[0]!.url).toBe("https://early.test/hub");
+    session.stop();
+  });
+
+  it("reads the newest accessTokenFactory set through update()", async () => {
+    const session = runtime();
+    session.update({ accessTokenFactory: () => "rotated" });
+    const host = hostOf(session);
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+    await expect(connections[0]!.accessTokenFactory!()).resolves.toBe("rotated");
+    session.stop();
+  });
+
+  it("acquires the hub once when hostConnected runs twice", async () => {
+    const session = runtime();
+    const host = hostOf(session);
+    document.body.append(host);
+    await host.updateComplete;
+    host.controller.hostConnected();
+    host.remove();
+    await tick();
+    expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
+    session.stop();
+  });
+
+  it("releases the hub and detaches from the host on dispose()", async () => {
+    const session = runtime();
+    const host = hostOf(session);
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+
+    host.controller.dispose();
+    await tick();
+    expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
+    host.remove();
+    await tick();
+    expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
+    session.stop();
+  });
+
+  it("renders the host on status changes by default and opts out with reactiveStatus false", async () => {
+    const session = runtime();
+    let defaultRenders = 0;
+    let quietRenders = 0;
+    class Default extends LitElement {
+      controller = session.hub(this, "/hub");
+      render() { defaultRenders += 1; return html``; }
+    }
+    class Quiet extends LitElement {
+      controller = session.hub(this, "/hub", { reactiveStatus: false });
+      render() { quietRenders += 1; return html``; }
+    }
+    const a = document.createElement(define(Default)) as Default;
+    const b = document.createElement(define(Quiet)) as Quiet;
+    document.body.append(a, b);
+    await Promise.all([a.updateComplete, b.updateComplete]);
+    await tick();
+    const beforeA = defaultRenders;
+    const beforeB = quietRenders;
+
+    connections[0]!.onreconnecting.mock.calls[0]![0]();
+    await tick();
+    expect(defaultRenders).toBeGreaterThan(beforeA);
+    expect(quietRenders).toBe(beforeB);
+    session.stop();
+  });
+
+  it("does not release another controller's ref when a removed host is disposed or disposed twice", async () => {
+    const session = runtime();
+    const a = hostOf(session);
+    const b = hostOf(session);
+    document.body.append(a, b);
+    await Promise.all([a.updateComplete, b.updateComplete]);
+    await tick();
+
+    a.remove();
+    a.controller.dispose();
+    a.controller.dispose();
+    await tick();
+    expect(connections[0]!.stop).not.toHaveBeenCalled();
+    session.stop();
+  });
+
+  it("runs a shared handler once per controller and keeps it after one unsubscribes", async () => {
+    const session = runtime();
+    const shared = vi.fn();
+    class Host extends LitElement {
+      controller = session.hub(this, "/hub");
+      stop = this.controller.on("Tick", shared);
+    }
+    const name = define(Host);
+    const a = document.createElement(name) as Host;
+    const b = document.createElement(name) as Host;
+    document.body.append(a, b);
+    await Promise.all([a.updateComplete, b.updateComplete]);
+    await tick();
+    const listener = connections[0]!.on.mock.calls.find(([name]) => name === "Tick")![1] as (
+      value: number,
+    ) => void;
+
+    listener(1);
+    expect(shared).toHaveBeenCalledTimes(2);
+    a.stop();
+    listener(2);
+    expect(shared).toHaveBeenCalledTimes(3);
+    session.stop();
+  });
+
+  it("does not start an eager hub when update() runs before any host connects", async () => {
+    const client = createSignalRClient({ hubs: { "/eager": {} } });
+    const session = client.createSession({
+      baseUrl: undefined,
+      accessTokenFactory: () => "token",
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await tick();
+    expect(connections).toHaveLength(0);
+    session.stop();
   });
 });

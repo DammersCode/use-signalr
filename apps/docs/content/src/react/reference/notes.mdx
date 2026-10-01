@@ -1,0 +1,60 @@
+---
+title: React notes
+description: StrictMode, Next.js, latest handlers, and React Query behavior of the React adapter.
+---
+
+This page lists the parts of the React adapter that differ from the other frameworks.
+
+## Requirements
+
+The package needs React 19. It reads the client context with `use`.
+
+## StrictMode
+
+StrictMode mounts, unmounts, and mounts every component again in development. The adapter handles this in two places.
+
+- The provider opens no second connection. On unmount it waits one microtask before it stops the session. The second mount cancels the stop.
+- `useSignalRInvoke` aborts its pending calls on the simulated unmount. A call that you started in an effect can reject with an `AbortError`. Ignore it, as the samples do.
+
+A leave call in a cleanup can run before the connection is up. Send it with <Api of="teardown" />. It waits for the hub, so the call lands while the provider stays mounted. If the whole provider unmounts before the hub connects, the stop ends the wait and the call does not land.
+
+## Next.js
+
+The import of the package is safe on the server. No connection starts at module level or during a server render. Every hub reports `idle` until the provider effect runs in the browser, so hydration matches.
+
+The app router treats a file as a server component unless it has `"use client"`. Add the directive to two files:
+
+- The module that calls `createSignalRClient`. It returns hooks and a component, and both need the client.
+- The file that mounts the provider. This file can be a small `Providers` component that your root layout renders.
+
+Components that use the hooks must be client components too. A hook that you call from a server component fails.
+
+The [SSR guide](/docs/react/guides/ssr) has the rest of the server rules.
+
+## Latest handlers
+
+<Api of="event" /> and <Api of="reconnected" /> run the latest function that you pass. The hook keeps the function in a ref and updates it after each commit. A new closure on each render does not subscribe again. A handler always sees current props and state, and it needs no `useCallback`.
+
+The ref updates after the commit, not during the render. An event that arrives between a render and its commit can run the previous handler.
+
+The provider treats `accessTokenFactory`, `onStatusChange`, and `onError` the same way.
+
+`useSignalRInvoke` and `useSignalRTeardown` read the latest `options` on each call.
+
+## Stable call functions
+
+The functions from `useSignalRInvoke`, `useSignalRSend`, and `useSignalRTeardown` keep their identity while the hub and the method stay the same. You can use them in a dependency array without extra renders.
+
+## React Query
+
+A query that holds data from a hub is stale after a drop. A hub does not replay the events that it sent while the connection was down.
+
+Use <Api of="reconnected" /> to fix this. Call `queryClient.invalidateQueries` in the callback, or call `refetch` of the query. The callback runs after each reconnect and after each rebuild of a connection that was up. It does not run after the first connect.
+
+To keep a cache current, call `queryClient.setQueryData` in an <Api of="event" /> handler.
+
+The library does not depend on React Query. Both work with the same hooks.
+
+## Status in render
+
+<Api of="status" /> uses `useSyncExternalStore`. The component renders again only when the status of its own hub changes. A change of a different hub does not render it. On the server, the hook returns `idle`.

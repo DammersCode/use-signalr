@@ -1,4 +1,13 @@
-import { inject, onScopeDispose, watch } from "vue";
+import {
+  computed,
+  getCurrentInstance,
+  getCurrentScope,
+  hasInjectionContext,
+  inject,
+  onMounted,
+  onScopeDispose,
+  shallowRef,
+} from "vue";
 import {
   createAbortScope,
   createInvoker,
@@ -13,8 +22,10 @@ import type {
   InvokeOptions,
   MethodName,
   SignalRContract,
+  SignalRPublicContext,
   TeardownOptions,
 } from "@dammers/use-signalr-core";
+import type { HubStatusRef } from "../status-store.js";
 import type { SignalRContextValue } from "../types.js";
 
 export function createComposables<T extends SignalRContract>(
@@ -22,47 +33,56 @@ export function createComposables<T extends SignalRContract>(
 ) {
   type Hub = keyof T & HubString;
 
-  function useSignalR() {
+  function useInternalContext(name: string) {
+    if (!hasInjectionContext())
+      throw new Error(`${name} must be called inside setup() or app.runWithContext()`);
     const context = inject(key, null);
     if (!context) throw new Error("useSignalR must be used after app.use(signalR, options)");
     return context;
   }
-  function useHubConsumer<H extends Hub>(hub: H) {
-    const context = useSignalR();
+  function useScopedContext(name: string) {
+    if (!getCurrentScope())
+      throw new Error(`${name} must be called inside setup() or an effectScope`);
+    return useInternalContext(name);
+  }
+  function useSignalR(): SignalRPublicContext<T> {
+    return useInternalContext("useSignalR").publicContext;
+  }
+  function consume(context: SignalRContextValue<T>, hub: Hub) {
     context.acquire(hub);
     onScopeDispose(() => context.release(hub));
   }
-  function useHubStatus<H extends Hub>(hub: H) {
-    const context = useSignalR();
-    useHubConsumer(hub);
-    return context.statusStore.ref(hub);
+  function useHubConsumer<H extends Hub>(hub: H) {
+    consume(useScopedContext("useHubConsumer"), hub);
+  }
+  function useHubStatus<H extends Hub>(hub: H): HubStatusRef {
+    const context = useScopedContext("useHubStatus");
+    consume(context, hub);
+    const status = context.statusStore.ref(hub);
+    if (!getCurrentInstance()?.vnode.el) return status;
+    // Async components hydrate after the session started; idle until mount matches the server HTML.
+    const mounted = shallowRef(false);
+    onMounted(() => {
+      mounted.value = true;
+    });
+    return computed(() => (mounted.value ? status.value : "idle"));
   }
   function useSignalREvent<H extends Hub, E extends EventName<T, H>>(
     hub: H,
     event: E,
     handler: (...args: EventArgs<T, H, E>) => void,
   ) {
-    const context = useSignalR();
-    useHubConsumer(hub);
-    const stop = watch(
-      () => context.statusStore.ref(hub).value,
-      (status, _, cleanup) => {
-        if (status !== "connected") return;
-        const connection = context.getConnection(hub);
-        if (!connection) return;
-        const listener = (...args: unknown[]) =>
-          handler(...(args as EventArgs<T, H, E>));
-        connection.on(event, listener);
-        cleanup(() => connection.off(event, listener));
-      },
-      { immediate: true, flush: "sync" },
+    const context = useScopedContext("useSignalREvent");
+    consume(context, hub);
+    const unsubscribe = context.subscribe(hub, event, (...args) =>
+      handler(...(args as EventArgs<T, H, E>)),
     );
-    onScopeDispose(stop);
+    onScopeDispose(unsubscribe);
   }
   function useOnReconnected<H extends Hub>(hub: H, callback: () => void) {
-    const context = useSignalR();
-    useHubConsumer(hub);
-    const unregister = context.registerReconnect(hub, callback);
+    const context = useScopedContext("useOnReconnected");
+    consume(context, hub);
+    const unregister = context.registerReconnect(hub, () => callback());
     onScopeDispose(unregister);
   }
   function useSignalRInvoke<H extends Hub, M extends MethodName<T, H>>(
@@ -70,37 +90,36 @@ export function createComposables<T extends SignalRContract>(
     method: M,
     options?: InvokeOptions,
   ) {
-    const context = useSignalR();
-    useHubConsumer(hub);
+    const context = useScopedContext("useSignalRInvoke");
+    consume(context, hub);
     const scope = createAbortScope();
     onScopeDispose(() => {
-      if (!options?.keepAliveOnUnmount) scope.abortAll();
+      if (!options?.keepAliveOnUnmount) scope.abort();
     });
-    return createInvoker<T, H, M>(
-      context,
+    return createInvoker<T, H, M>({
+      target: context,
       hub,
       method,
-      () => options,
-      scope.track,
-      scope.untrack,
-    );
+      getOptions: () => options,
+      getSignal: scope.signal,
+    });
   }
   function useSignalRSend<H extends Hub, M extends MethodName<T, H>>(
     hub: H,
     method: M,
   ) {
-    const context = useSignalR();
-    useHubConsumer(hub);
-    return createSender<T, H, M>(context.getConnection, hub, method);
+    const context = useScopedContext("useSignalRSend");
+    consume(context, hub);
+    return createSender<T, H, M>({ getConnection: context.getConnection, hub, method });
   }
   function useSignalRTeardown<H extends Hub, M extends MethodName<T, H>>(
     hub: H,
     method: M,
     options?: TeardownOptions,
   ) {
-    const context = useSignalR();
-    useHubConsumer(hub);
-    return createTeardownSender<T, H, M>(context, hub, method, () => options);
+    const context = useScopedContext("useSignalRTeardown");
+    consume(context, hub);
+    return createTeardownSender<T, H, M>({ target: context, hub, method, getOptions: () => options });
   }
   return {
     useSignalR,

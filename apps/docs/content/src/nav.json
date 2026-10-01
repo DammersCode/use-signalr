@@ -1,0 +1,66 @@
+{
+  "framework": [
+    {
+      "pages": [
+        "index",
+        "quick-start"
+      ]
+    },
+    {
+      "folder": "concepts",
+      "title": "Concepts",
+      "icon": "BookOpen",
+      "pages": [
+        "client-config",
+        "provider",
+        "auth",
+        "lazy-hubs",
+        "connection-status",
+        "events",
+        "calls",
+        "recovery"
+      ]
+    },
+    {
+      "folder": "guides",
+      "title": "Guides",
+      "icon": "Compass",
+      "pages": [
+        "ssr",
+        "groups",
+        "messagepack",
+        "server",
+        "testing"
+      ]
+    },
+    {
+      "folder": "reference",
+      "title": "Reference",
+      "icon": "Library",
+      "pages": [
+        "api",
+        "config",
+        "notes",
+        "troubleshooting"
+      ]
+    }
+  ],
+  "core": [
+    {
+      "pages": [
+        "index",
+        "build-an-adapter"
+      ]
+    },
+    {
+      "folder": "reference",
+      "title": "Reference",
+      "icon": "Library",
+      "pages": [
+        "api",
+        "config",
+        "troubleshooting"
+      ]
+    }
+  ]
+}

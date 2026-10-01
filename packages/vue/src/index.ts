@@ -1,10 +1,9 @@
 export { createSignalRClient } from "./create-signalr-client.js";
-export { InvokeError, event, method } from "@dammers/use-signalr-core";
-export type { StatusStore } from "./status-store.js";
+export { event, method } from "@dammers/use-signalr-core";
+export type { HubStatusRef } from "./status-store.js";
 export type {
   MaybeRefOrGetter,
   SignalROptions,
-  SignalRContextValue,
 } from "./types.js";
 export type {
   HubString,
@@ -12,15 +11,20 @@ export type {
   SignalRContract,
   SignalRClientConfig,
   PerHubConfig,
+  HubProtocolConfig,
+  ConfigureBuilder,
+  BuilderContext,
+  HttpOptions,
   HubDef,
   EventDef,
   MethodDef,
   InferContract,
-  ResolvedHubConfig,
   ReconnectConfig,
   InvokeOptions,
   TeardownOptions,
   HubConnectionStatus,
+  SignalRErrorInfo,
+  SignalRPublicContext,
   EventName,
   MethodName,
   EventArgs,

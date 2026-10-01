@@ -11,7 +11,7 @@ const version = rootPkg.version;
 const SCOPE_PREFIX = "@dammers/use-signalr";
 const DEP_FIELDS = ["dependencies", "devDependencies", "peerDependencies"];
 
-// Examples must pin the workspace version, or npm resolves registry copies.
+// Examples and apps must pin the workspace version, or npm resolves registry copies.
 const syncDeps = (pkg) => {
   for (const field of DEP_FIELDS) {
     for (const name of Object.keys(pkg[field] ?? {})) {
@@ -20,7 +20,7 @@ const syncDeps = (pkg) => {
   }
 };
 
-for (const dir of ["packages", "examples"]) {
+for (const dir of ["packages", "examples", "apps"]) {
   const groupDir = path.join(rootDir, dir);
   if (!existsSync(groupDir)) continue;
   for (const entry of readdirSync(groupDir, { withFileTypes: true })) {

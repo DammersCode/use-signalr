@@ -9,7 +9,6 @@ import { TestBed } from "@angular/core/testing";
 import type { Injector } from "@angular/core";
 import type { HubConnection } from "@microsoft/signalr";
 import { createSignalRHooks } from "./create-hooks.js";
-import type { SignalRContract } from "@dammers/use-signalr-core";
 import type { SignalRContextValue } from "../types.js";
 
 export type Hubs = {
@@ -105,9 +104,8 @@ export function makeHarness(opts?: {
     destroy: () => (harness.injector as ReturnType<typeof createEnvironmentInjector>).destroy(),
   };
 
-  const value: SignalRContextValue<Hubs> = {
+  const base: Omit<SignalRContextValue<Hubs>, "publicContext"> = {
     getConnection: () => (connected ? fake.connection : null),
-    isHubConnected: () => connected,
     getStatus: () => (connected ? "connected" : "connecting"),
     statusStore: {
       get: () => statusSignal(),
@@ -135,6 +133,15 @@ export function makeHarness(opts?: {
       harness.releaseCount += 1;
     },
     registerReconnect: () => () => {},
+    subscribe: () => () => {},
+  };
+  const value: SignalRContextValue<Hubs> = {
+    ...base,
+    publicContext: Object.freeze({
+      getConnection: base.getConnection,
+      getStatus: base.getStatus,
+      waitForConnection: base.waitForConnection,
+    }),
   };
 
   const parent = TestBed.inject(EnvironmentInjector);
@@ -145,5 +152,3 @@ export function makeHarness(opts?: {
 
   return harness;
 }
-
-export type { SignalRContract };

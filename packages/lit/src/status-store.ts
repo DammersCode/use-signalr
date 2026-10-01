@@ -11,9 +11,9 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
   const values = new Map<H, HubConnectionStatus>();
   const listeners = new Map<H, Set<() => void>>();
   return {
-    get: (hub) => values.get(hub) ?? "disconnected",
+    get: (hub) => values.get(hub) ?? "idle",
     set: (hub, status) => {
-      if (values.get(hub) === status) return;
+      if ((values.get(hub) ?? "idle") === status) return;
       values.set(hub, status);
       listeners.get(hub)?.forEach((listener) => listener());
     },

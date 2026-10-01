@@ -1,0 +1,60 @@
+---
+title: Solid notes
+description: Accessors, reactivity, setup-time arguments, and SolidStart behavior of the Solid adapter.
+---
+
+This page lists the parts of the Solid adapter that differ from the other frameworks.
+
+## Requirements
+
+The package needs Solid 1.7 or later.
+
+## Status is an accessor
+
+A Solid component body runs once. A hook cannot return a plain value that changes later. <Api of="status" /> returns an `Accessor<HubConnectionStatus>`. Call it to read the status, as you call any signal:
+
+<Snippet id="status" />
+
+A JSX expression or a `createEffect` that reads the accessor runs again when the status of this hub changes. A change of a different hub does not run it.
+
+## Arguments are read once
+
+Each hook reads its arguments once, at setup. The hub, the event, the method, and the `options` object are not reactive. A change of an argument does nothing.
+
+To use another hub or method, call the hook again for each variant. You can also render the component per key, for example with `<For>` or `<Switch>`.
+
+## Handlers read live state
+
+The handler of <Api of="event" /> and the callback of <Api of="reconnected" /> run as you wrote them. A Solid closure reads signals when it runs, so the handler always sees current values. You need no memo.
+
+## Props must stay reactive
+
+Do not destructure `props` in a component that calls a hook. A destructured value loses reactivity. Read `props.roomId` where you use it, as the samples do.
+
+The groups sample reads `props.roomId` inside an effect, so a room change runs the cleanup for the old room and joins the new one.
+
+## Join and leave
+
+Solid has no dependency arrays. Call the hook in the component body. Register `onCleanup` inside an effect that tracks `props.roomId`, so each room change leaves the previous room:
+
+<Snippet id="groups" />
+
+## Where to call the hooks
+
+Call each hook in the component body, below the provider. A hook uses the owner of the component for its context and its cleanup. A call in an event handler has no owner and throws. A call in an effect binds to the effect and runs again on each change.
+
+## Provider props
+
+The provider tracks `baseUrl`, `enabled`, and `connectionKey` as reactive props. See [Provider](/docs/solid/concepts/provider).
+
+## SolidStart
+
+The import is safe on the server. The provider starts connections in `createEffect`, and Solid does not run effects on the server. A server render opens no connection, and <Api of="status" /> reads `idle`.
+
+The browser starts the session after hydration. The [SSR guide](/docs/solid/guides/ssr) has the rest of the rules.
+
+### Suspense
+
+Mount `SignalRProvider` above every `<Suspense>`. In SolidStart, wrap the `<Router>` in `app.tsx` with the provider. A hook below a `<Suspense>` that mounts before the provider cannot find the context.
+
+Do not call an invoke in a `createResource` or `createAsync` fetcher. The fetcher runs on the server too, and no connection starts there. Gate the call on `useHubStatus(hub)() === "connected"` instead.

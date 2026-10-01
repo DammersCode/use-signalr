@@ -29,8 +29,8 @@ function collectEntries(exportsField) {
   } else {
     visit(".", exportsField);
   }
-  // Types targets are not importable at runtime.
-  return entries.filter((e) => !e.file.endsWith(".d.ts"));
+  // Types and JSON targets are not importable as plain ES modules.
+  return entries.filter((e) => !e.file.endsWith(".d.ts") && !e.file.endsWith(".json"));
 }
 
 function listFiles(dir, base = dir, out = []) {

@@ -1,0 +1,124 @@
+---
+title: Svelte notes
+description: Svelte-specific rules for the SignalR package. Svelte 5 only, stores and runes, SvelteKit, and the readable status.
+---
+
+## Requirements
+
+The package needs Svelte 5.15 or later, `@microsoft/signalr` 8, 9, or 10, and Node 20.19 or later. Svelte 4 is not supported.
+
+## Stores and runes
+
+The package uses the Svelte context and the store contract. It does not use runes in its public API.
+
+- `hubStatus` returns a `Readable<HubConnectionStatus>`.
+- `baseUrl`, `enabled`, and `connectionKey` accept a plain value or a `Readable`.
+
+In a `.svelte` file, read a store with the `$` prefix. The `$` prefix works only in `.svelte` files:
+
+```svelte
+<script lang="ts">
+  import { hubStatus } from "./client";
+
+  const status = hubStatus("/hubs/rooms");
+</script>
+
+<p>Status: {$status}</p>
+```
+
+To read the status as a rune-style value in a `.svelte.ts` module, use `fromStore` from `svelte/store`. It returns an object with a reactive `current` property:
+
+```ts
+import { fromStore } from "svelte/store";
+
+const status = fromStore(hubStatus("/hubs/rooms"));
+// status.current is "idle", "connecting", "connected", and so on
+```
+
+To give a rune value to the provider, use `toStore`. A plain value that you read from `$state` or `$props()` is not reactive for the provider:
+
+```svelte
+<script lang="ts">
+  import { toStore } from "svelte/store";
+  import { provideSignalR } from "./client";
+
+  let { userId }: { userId: string } = $props();
+
+  provideSignalR({
+    baseUrl: "https://api.example.com",
+    accessTokenFactory: () => "",
+    connectionKey: toStore(() => userId),
+  });
+</script>
+```
+
+Call `toStore` while the component initializes. It needs the component context.
+
+## Handlers are closures
+
+The hub name, the event name, the method name, and the options object are read one time, during component init. They are not reactive. To use a different target, call the function again for each target.
+
+The handler of `onHubEvent` and the callback of `onReconnected` are normal closures. They see the current state of your component. A handler that reads `$state` or a prop always gets the current value.
+
+## No top-level await
+
+Svelte 5 does not allow `await` at the top level of a component script, unless you enable the experimental async mode. Do not wait for a hub call there. Start the call from `onMount`, from an `$effect`, or from an event handler. An unmount aborts a waiting call with an `AbortError`, so the sample ignores it:
+
+```svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { hubInvoke } from "./client";
+  import { ignoreAbort } from "./ignore-abort";
+
+  let history = $state<string[]>([]);
+  const getHistory = hubInvoke("/hubs/rooms", "GetHistory");
+
+  onMount(async () => {
+    try {
+      history = (await getHistory("general")).map((message) => message.text);
+    } catch (error) {
+      ignoreAbort(error);
+    }
+  });
+</script>
+```
+
+Create the function (`hubInvoke`) while the component initializes. Call the function it returns later.
+
+On the server, the provider disables the session. A hub call ends at once and does not wait for a timeout: `hubInvoke` rejects and `hubTeardown` resolves `false`. `onMount` does not run on the server, so a call in `onMount` is safe.
+
+## SvelteKit
+
+`provideSignalR` starts the connections in `onMount`. Svelte never runs `onMount` during SSR, and the provider disables the session there. You can call `provideSignalR` in `+layout.svelte` without a `browser` check.
+
+On the server, every hub status is `"idle"`. The first client render shows the same status, so hydration matches. This layout passes the token from the load data:
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script lang="ts">
+  import { toStore } from "svelte/store";
+  import { provideSignalR } from "$lib/client";
+
+  let { data, children } = $props();
+
+  provideSignalR({
+    baseUrl: "https://api.example.com",
+    accessTokenFactory: () => data.token,
+    enabled: toStore(() => Boolean(data.token)),
+  });
+</script>
+
+{@render children()}
+```
+
+A layout lives as long as its routes. The session survives navigation between the pages of that layout. It closes when the layout is destroyed.
+
+Put the client module, with `createSignalRClient`, in `$lib`. The module has no side effects on import, so the server can load it.
+
+## Readable status
+
+`hubStatus` returns a store with only `subscribe`. You cannot set it. Each hub has its own store, so a status change of hub B does not update a consumer of hub A.
+
+A store that the library creates keeps the last status. A new subscriber gets the current value at once.
+
+`hubStatus` holds the hub, like every other function except `getSignalR` and `provideSignalR`. A lazy hub stays connected while a component uses its status.

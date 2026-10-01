@@ -1,0 +1,95 @@
+---
+title: API reference
+description: Every export of the Svelte package, with signatures, return values, lifetimes, and placement errors.
+---
+
+The package `@dammers/use-signalr-svelte` has three runtime exports: `createSignalRClient`, `event`, and `method`. Everything else is a type. Call `createSignalRClient` one time, in a client module, and import the functions from there. The sample shows such a module:
+
+<Snippet id="client" />
+
+The function has this signature:
+
+```ts
+function createSignalRClient<const H extends Record<HubString, HubDef>>(
+  config: SignalRClientConfig<H>,
+): { provideSignalR, getSignalR, keepHubAlive, onHubEvent, hubInvoke, hubSend, hubTeardown, hubStatus, onReconnected }
+```
+
+The result is one object of functions. Types come from the contract that `config.hubs` declares. For the options of `config`, see [Configuration reference](/docs/svelte/reference/config).
+
+## Members
+
+Call every function while a component initializes, in the `<script>` block or in a function that the block calls. The functions use `getContext` and `onDestroy`, so they need a component that is below the one that called `provideSignalR`. The library reads the hub, event, and method arguments one time.
+
+All functions except `provideSignalR` and `getSignalR` hold a hub. A held hub counts as a consumer. A lazy hub connects with its first consumer. It closes after its last consumer leaves and `graceMs` has passed.
+
+| Name | Signature | Returns | Lifetime | Keeps a lazy hub alive |
+| --- | --- | --- | --- | --- |
+| `provideSignalR` | `provideSignalR(options)` | `void` | Lives as long as the component that calls it. | no (it holds no hub) |
+| `getSignalR` | `getSignalR()` | `SignalRPublicContext` | Reads the context. | no |
+| `keepHubAlive` | `keepHubAlive(hub)` | `void` | Component destroy | yes |
+| `hubStatus` | `hubStatus(hub)` | `Readable<HubConnectionStatus>`: a store with only `subscribe`. Each hub has its own store. | Component destroy | yes |
+| `onHubEvent` | `onHubEvent(hub, event, handler)` | `void` | Component destroy removes the handler. | yes |
+| `hubInvoke` | `hubInvoke(hub, method, options?)` | `(...args) => Promise<Return>` | Component destroy aborts waiting calls, unless `keepAliveOnUnmount` is `true`. | yes |
+| `hubSend` | `hubSend(hub, method)` | `(...args) => Promise<boolean>`: `true` when the call is sent, `false` when the hub is not connected or the send fails. It never rejects. | Component destroy | yes |
+| `hubTeardown` | `hubTeardown(hub, method, options?)` | `(...args) => Promise<boolean>`: `true` when the call is sent, `false` otherwise. It never rejects. | Survives component destroy. | yes, and each call holds the hub until it ends |
+| `onReconnected` | `onReconnected(hub, callback)` | `void` | Component destroy removes the callback. | yes |
+| `event` | `event<Args>()` | A marker that declares a server event. `Args` is the tuple of handler arguments. | None. It carries types only. | no |
+| `method` | `method<Args, Return>()` | A marker that declares a server method. `Return` defaults to `void`. | None. It carries types only. | no |
+
+### provideSignalR
+
+Builds the session and sets the context. It starts the connections in `onMount`, so nothing connects on the server. On the server, it disables the session. See [Provider](/docs/svelte/concepts/provider) for the options and for the start and stop rules.
+
+### getSignalR
+
+Returns the context object, typed to your contract:
+
+| Member | Signature | Description |
+| --- | --- | --- |
+| `getConnection` | `(hub) => HubConnection \| null` | The raw connection, or `null` when there is none. Use it as a last resort. |
+| `getStatus` | `(hub) => HubConnectionStatus` | A point read. It does not subscribe to changes. |
+| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` | Resolves when the hub is connected. It rejects on timeout, on abort, when the session is disabled, and when the hub stopped after a final error. |
+
+### Calls
+
+`hubInvoke` waits for the connection, calls the method, and resolves with the typed result. `hubTeardown` is for `onDestroy`. It waits for the hub to connect and then sends. `onHubEvent` and `onReconnected` pass an error that a handler throws to `onError` with `info.source` set to `"callback"`. The subscription of `onHubEvent` survives reconnects and rebuilds. `onReconnected` does not run after the first connection.
+
+For the options of `hubInvoke` and `hubTeardown`, see [Configuration reference](/docs/svelte/reference/config#invoke-options). For the rules of each call, see [Calls](/docs/svelte/concepts/calls).
+
+## Types
+
+The package re-exports these types. Core defines most of them.
+
+| Type | Meaning |
+| --- | --- |
+| `MaybeReadable` | `T \| Readable<T>`: a plain value or a Svelte store. |
+| `SignalRProviderProps` | The options of `provideSignalR`. |
+| `SignalRClientConfig` | The argument of `createSignalRClient`. |
+| `PerHubConfig` | Per-hub settings: `lazy`, `graceMs`, `reconnect`, `logLevel`, `httpOptions`, `hubProtocol`, `configureBuilder`. |
+| `HubDef` | One hub entry in `config.hubs`: `PerHubConfig` plus `events` and `methods`. |
+| `EventDef` | The marker that `event()` returns. |
+| `MethodDef` | The marker that `method()` returns. |
+| `HubString` | A hub path. It starts with `/`. |
+| `HubContract` | The `events` and `methods` of one hub, as functions. |
+| `SignalRContract` | The map of hub paths to `HubContract`. |
+| `InferContract` | The contract that the library derives from the `hubs` config. |
+| `EventName` | The event names of one hub. |
+| `EventArgs` | The handler arguments of one event. |
+| `MethodName` | The method names of one hub. |
+| `MethodArgs` | The call arguments of one method. |
+| `MethodReturn` | The resolved result of one method. |
+| `HubConnectionStatus` | `"idle"`, `"connecting"`, `"connected"`, `"reconnecting"`, or `"disconnected"`. |
+| `SignalRErrorInfo` | The third argument of `onError`. `source` is `"connection"` or `"callback"`. |
+| `SignalRPublicContext` | The result of `getSignalR()`. |
+| `InvokeOptions` | The options of `hubInvoke`. |
+| `TeardownOptions` | The options of `hubTeardown`. |
+| `ReconnectConfig` | `true`, `false`, an array of delays in ms, or a custom retry policy. |
+| `HttpOptions` | The SignalR HTTP options, without `accessTokenFactory`. |
+| `HubProtocolConfig` | A hub protocol, or a function that returns one. |
+| `ConfigureBuilder` | A function that changes the `HubConnectionBuilder` on each build. |
+| `BuilderContext` | The second argument of `ConfigureBuilder`: the hub path and the base URL. |
+
+## Errors
+
+For the error names and messages, and for the placement errors, see [Troubleshooting](/docs/svelte/reference/troubleshooting). An `AbortError` is a `DOMException`. All other errors of a call are an `Error` with a name such as `SignalRTimeoutError`.

@@ -1,0 +1,86 @@
+---
+title: MessagePack and the connection builder
+description: Send binary MessagePack instead of JSON, and change the SignalR connection builder.
+---
+
+By default, SignalR sends JSON. Set `hubProtocol` to send another protocol, for example MessagePack. Your app installs the protocol package. <Pkg /> has no dependency on it. Install it with this command:
+
+```sh
+npm install @microsoft/signalr-protocol-msgpack
+```
+
+The major version of `@microsoft/signalr-protocol-msgpack` must match the major version of `@microsoft/signalr`.
+
+## Set the protocol on the client
+
+`hubProtocol` takes a protocol object or a factory. Set it in the global config or per hub. The per-hub value wins. If you set no protocol, the library does not call `withHubProtocol` and SignalR uses JSON. This client sets MessagePack for all hubs:
+
+<Snippet id="messagepack" />
+
+The library calls a factory once for each connection build. An automatic reconnect keeps the same connection, so it keeps the same protocol. A recovery after a failed connect and a `connectionKey` change build a new connection, so they call the factory again.
+
+## Switch the protocol at run time
+
+Let the factory read your app state. Then change `connectionKey` in the same step. The new key rebuilds the connection, and the factory runs again with the new state. This sample switches between MessagePack and JSON:
+
+<Snippet id="protocol-switch" />
+
+Set the state before you change the key. The rebuild reads the state when it runs. An automatic reconnect does not call the factory, so it never changes the protocol.
+
+## Enable MessagePack on the server
+
+The server must offer the same protocol:
+
+```csharp
+builder.Services.AddSignalR().AddMessagePackProtocol();
+```
+
+The server then accepts both JSON and MessagePack clients. Each client picks one when it connects. See [ASP.NET Core server](./server.mdx) for the rest of the server setup.
+
+## Value differences
+
+MessagePack decodes some values in another way than JSON does:
+
+| Value | JSON | MessagePack |
+| --- | --- | --- |
+| Property names | camelCase by default in ASP.NET Core | The names of the server type, usually PascalCase |
+| Dates | ISO 8601 strings | `Date` objects |
+| Binary data | Base64 strings | `Uint8Array` |
+| 64-bit integers | Numbers, with possible loss of precision | Values above `Number.MAX_SAFE_INTEGER` lose precision |
+
+The types that you write with `event()` and `method()` must match what the server sends. The library does no value conversion. A contract written for JSON, with `roomId` and `sentAt`, receives `RoomId` and `SentAt` with MessagePack.
+
+## Server-Sent Events cannot carry binary data
+
+A binary protocol cannot use Server-Sent Events. If `httpOptions.transport` is exactly `HttpTransportType.ServerSentEvents`, the library rejects a binary protocol with an error that names the hub.
+
+- For a protocol object, `createSignalRClient` throws at once.
+- For a factory, the library checks the protocol after each factory call. The hub gets the status `"disconnected"`, `onError` fires once, and the library does not retry.
+
+A transport value that includes WebSockets or long polling is valid.
+
+## Change the connection builder
+
+`configureBuilder` gives you the `HubConnectionBuilder` and a `BuilderContext` with `{ hub, baseUrl }`. It runs on every connection build, after the library's own calls (`withUrl`, the protocol, logging, and reconnect) and before `build()`. Return the builder that the library must use.
+
+The global hook runs first, then the per-hub hook. This sample sets two timeouts:
+
+```ts
+import { createSignalRClient } from "<Pkg />";
+
+createSignalRClient({
+  hubs: { "/hubs/rooms": {} },
+  configureBuilder: (builder) =>
+    builder.withServerTimeout(60_000).withKeepAliveInterval(20_000),
+});
+```
+
+Use the hook for options that the library has no key for:
+
+- `withServerTimeout(ms)`: how long the client waits for a message from the server before it closes the connection.
+- `withKeepAliveInterval(ms)`: how often the client pings the server.
+- `withStatefulReconnect()`: keeps the connection ID and the groups across a short drop. The server must also set `AllowStatefulReconnects = true` in the options of `MapHub`.
+
+Do not call `withAutomaticReconnect` in the hook unless you set `reconnect: false`. SignalR throws when it is called twice. To change logging, use the `logLevel` key.
+
+If `configureBuilder` throws, the hub gets the status `"disconnected"` and `onError` fires once.

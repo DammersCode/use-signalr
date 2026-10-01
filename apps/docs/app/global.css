@@ -1,0 +1,58 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Eclipse palette: neutral greys with one amber accent. */
+:root,
+.light {
+  --brand: #f5a524;
+  --brand-ink: #1a1203;
+  --wave: 63, 63, 70;
+  --color-fd-background: #fafaf9;
+  --color-fd-foreground: #18181b;
+  --color-fd-muted: #f2f2f0;
+  --color-fd-muted-foreground: #63636e;
+  --color-fd-popover: #ffffff;
+  --color-fd-popover-foreground: #18181b;
+  --color-fd-card: #ffffff;
+  --color-fd-card-foreground: #18181b;
+  --color-fd-border: #e4e4e7;
+  --color-fd-primary: #9a5f00;
+  --color-fd-primary-foreground: #ffffff;
+  --color-fd-secondary: #f2f2f0;
+  --color-fd-secondary-foreground: #18181b;
+  --color-fd-accent: #fdf1dc;
+  --color-fd-accent-foreground: #7a4b00;
+  --color-fd-ring: #f5a524;
+}
+
+.dark {
+  --wave: 228, 228, 231;
+  --color-fd-background: #0b0b0f;
+  --color-fd-foreground: #f4f4f5;
+  --color-fd-muted: #16161c;
+  --color-fd-muted-foreground: #8e8e99;
+  --color-fd-popover: #121217;
+  --color-fd-popover-foreground: #f4f4f5;
+  --color-fd-card: #121217;
+  --color-fd-card-foreground: #f4f4f5;
+  --color-fd-border: #26262e;
+  --color-fd-primary: #f5a524;
+  --color-fd-primary-foreground: #1a1203;
+  --color-fd-secondary: #1b1b22;
+  --color-fd-secondary-foreground: #f4f4f5;
+  --color-fd-accent: #2a2112;
+  --color-fd-accent-foreground: #f5c46b;
+  --color-fd-ring: #f5a524;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

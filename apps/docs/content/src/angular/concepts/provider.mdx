@@ -1,0 +1,88 @@
+---
+title: Provider
+description: Register provideSignalR in the app config with a base URL, a token factory, and optional signals.
+---
+
+<Api of="provider" /> registers the SignalR session in an Angular injector. The session builds, starts, retries, and reconnects every hub that the client declares.
+
+Add the result to `ApplicationConfig.providers`. You can also add it to the `providers` array of a route. This sample reads the token and the login state from a service:
+
+<Snippet id="provider" />
+
+`provideSignalR` returns `EnvironmentProviders`. It takes an options object, or a factory that returns one.
+
+## Options
+
+`baseUrl` and `accessTokenFactory` are required. All other options are optional.
+
+<AutoTypeTable path="../../packages/angular/src/types.ts" name="SignalROptions" />
+
+If you give no `onError`, the provider sends each error to the Angular `ErrorHandler`.
+
+## Types
+
+- `TokenFactory` is `() => string | Promise<string>`.
+- `MaybeSignal<T>` is a value, a `Signal<T>`, or a getter `() => T`.
+
+A `MaybeSignal` option reacts to change. The provider reads it in an `effect()`. A getter that reads signals works the same way as a `Signal`.
+
+`accessTokenFactory` is different. A plain function is the factory itself. To change the factory over time, pass a `Signal` that holds a factory. A getter that returns a factory does not work, because it looks like the factory.
+
+The token factory needs no signal for a token that changes. The library calls the factory each time it needs a token, so the factory can read a signal or a service on each call.
+
+## Options object or factory
+
+The factory form runs in an injection context, so `inject()` works in it. It runs once, when Angular creates the provider. The library reads the returned object once.
+
+To change a value later, return a signal or a getter for it. A new object does not replace the old one. This factory reads the login state from a service:
+
+```ts
+provideSignalR(() => {
+  const auth = inject(AuthService);
+  return {
+    baseUrl: "https://api.example.com",
+    accessTokenFactory: () => auth.token(),
+    enabled: auth.isLoggedIn,
+  };
+});
+```
+
+The options `onStatusChange` and `onError` are also read once from the returned object.
+
+## When the connection starts
+
+Angular creates the session when the app starts, through an environment initializer. The session exists before the first component. It does not connect yet, and every hub reports `idle`.
+
+The library defers the first start to `afterNextRender`. After the first render, an `effect()` reads `baseUrl`, `enabled`, and `connectionKey`. This effect starts the session. An eager hub connects at this time. A lazy hub connects when its first consumer is created.
+
+`afterNextRender` never runs on the server. As a result, server rendering opens no connection, and every hub stays `idle`.
+
+When the injector that holds the provider is destroyed, the session stops all hubs. A route injector lives as long as the app, because Angular does not destroy it when the user leaves the route. A provider on a route stays connected after the user navigates away. To connect only while a page is in use, declare the hub `lazy` and use it from that page.
+
+## Injection context
+
+Every `inject*` function must run in an injection context. These places work:
+
+- A component, directive, or service constructor.
+- A field initializer.
+- A factory for a provider.
+- A function that `runInInjectionContext` calls.
+
+To use one outside these places, call it with `runInInjectionContext`. This sample creates an invoke function from an injector:
+
+```ts
+import { Injector, runInInjectionContext } from "@angular/core";
+import { injectHubInvoke } from "./client";
+
+function createLoader(injector: Injector) {
+  return runInInjectionContext(injector, () => injectHubInvoke("/hubs/rooms", "GetHistory"));
+}
+```
+
+The scope of the injector sets the lifetime. When the component or the injector is destroyed, the library removes event handlers, aborts waiting invokes, and releases lazy hubs.
+
+## Errors from wrong placement
+
+A wrong placement throws an error. See [Troubleshooting](../reference/troubleshooting.mdx) for the messages and fixes.
+
+Each client has its own context token. Use the functions and the provider from the same `createSignalRClient` call.

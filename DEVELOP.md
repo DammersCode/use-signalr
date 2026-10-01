@@ -71,10 +71,10 @@ Open the browser console (F12) before you click. Every log line starts with
 | Echo | A basic invoke round-trip | `echo -> hello` |
 | Add(2,3) | Typed args and a typed return value | `add -> 5` |
 | SlowEcho(2s) | An invoke that waits on the server | `slowEcho -> slow` after 2 s |
-| Fail | A retried invoke against a business error | `invoke failed: attempts=1 retriable=false` |
+| Fail | A retried invoke against a business error | `invoke failed: <err>` |
 | Ping | A fire-and-forget send, plus the resulting broadcast | `ping sent: true`, then `echoed ping at ...` |
 | Leave | A fire-and-forget send that the server echoes back | `leave sent: true`, then `left <connectionId>` |
-| Kill | A server-forced disconnect | `kill sent: true`, then `status /hubs/chat: disconnected` |
+| Kill | A server-forced disconnect | `kill sent: true`, then `status /hubs/chat: connecting` |
 | ConnectionId | An invoke that reads server-side state | `connectionId -> <id>` |
 | Toggle counter | A lazy hub: connect on mount, teardown on unmount | `status /hubs/counter: connected`, then `count <n>`, then `left <connectionId>` on unmount |
 
@@ -90,9 +90,11 @@ Independent of any button:
 
 ## Test a reconnect
 
-`KillConnection` closes the connection cleanly. SignalR does not start an
-automatic reconnect after a clean close. To see a real reconnect, restart
-the server while an app runs:
+`KillConnection` closes the connection cleanly. The client treats a clean
+close as retriable, so the status goes to `connecting` and the client
+connects again. The status goes to `disconnected` only after a 400, 401,
+403, or 404 response. To see a longer outage, restart the server while an
+app runs:
 
 1. Start the server alone: `node scripts/dev.mjs server`.
 2. Start one app in a second terminal: `npm run dev -w examples/react`.
@@ -102,7 +104,7 @@ the server while an app runs:
 
 ## Backend
 
-`examples/server` is a minimal ASP.NET Core app with two hubs:
+`examples/server` is a minimal ASP.NET Core app with four hubs. The docs samples use `/hubs/rooms` and `/hubs/presence`. The example apps use these two:
 
 - `/hubs/chat`: request/response methods (`Echo`, `Add`, `SlowEcho`, `Fail`,
   `ConnectionId`) and fire-and-forget methods (`Ping`, `Leave`,

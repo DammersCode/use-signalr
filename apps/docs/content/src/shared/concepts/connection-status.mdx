@@ -1,0 +1,54 @@
+---
+title: Connection status
+description: The five statuses of a hub and the events that change them.
+---
+
+Each hub has its own status. The status is one of five values.
+
+| Status | Meaning |
+| --- | --- |
+| `idle` | No connection is wanted. This is the status before the session starts, during server rendering, and when `enabled` is `false` or `baseUrl` is empty. It is also the status after the session stops, and for a lazy hub with no consumer. It shows briefly during a rebuild. |
+| `connecting` | The first attempt runs, or the library waits for its next rebuild. The status stays `connecting` through all retries. |
+| `connected` | The connection is up. |
+| `reconnecting` | SignalR auto-reconnect runs. This needs `reconnect` other than `false`. |
+| `disconnected` | The hub is wanted but stopped for good. The cause is a 400, 401, 403, or 404 response to the negotiate request, or a configuration error. The library does not retry. |
+
+A configuration error is a binary protocol with Server-Sent Events from a factory, or a `configureBuilder` or protocol factory that throws.
+
+<Only not="core">
+
+## Read the status
+
+<Api of="status" /> returns the status of a hub. It updates when the status changes. This component shows a banner while the hub is not connected:
+
+<Snippet id="status" />
+
+The helper counts as a consumer, so it also starts a lazy hub. See [Lazy hubs](./lazy-hubs.mdx).
+
+</Only>
+
+## Transitions
+
+| Event | Statuses | Reconnect callbacks |
+| --- | --- | --- |
+| Start | `idle`, `connecting`, `connected` | no |
+| A connect attempt fails with a retriable error | stays `connecting`. The library retries after 2.5, 5, 7.5 s, and so on, up to 30 s | no |
+| The connection drops, auto-reconnect is on | `connected`, `reconnecting`, `connected` | yes |
+| Auto-reconnect gives up | `reconnecting`, `connecting`, a library rebuild, `connected` | yes |
+| The connection drops with `reconnect: false` | `connected`, `connecting`, `connected` after 2.5 s | yes |
+| A non-retriable error | `connecting`, `disconnected` | no |
+| `baseUrl`, `enabled`, or `connectionKey` changes | `idle`, `connecting`, `connected` | yes, if the hub was connected before |
+| A lazy hub loses its last consumer | `connected`, `idle` after `graceMs` | no |
+| A lazy hub gets a consumer again | `idle`, `connecting`, `connected` | no |
+| The session stops and starts again | `idle`, `connecting`, `connected` | no |
+
+During server rendering, the status is `idle`.
+
+<Only not="lit">
+The first client render also shows `idle`, so hydration matches.
+</Only>
+<Only in="lit">
+In Lit, the first client render shows `"connecting"`, because the controller starts the session in `hostConnected()`, before the first update.
+</Only>
+
+For the retries behind these transitions, see [Recovery](./recovery.mdx).

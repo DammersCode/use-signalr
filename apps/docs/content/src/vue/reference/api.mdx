@@ -1,0 +1,93 @@
+---
+title: API reference
+description: Every export of the Vue package, with signatures, return values, lifetimes, and placement errors.
+---
+
+The package `@dammers/use-signalr-vue` has three runtime exports: `createSignalRClient`, `event`, and `method`. Everything else is a type. Call `createSignalRClient` one time, in a client module, and import the composables from there. The sample shows such a module:
+
+<Snippet id="client" />
+
+The function has this signature:
+
+```ts
+function createSignalRClient<const H extends Record<HubString, HubDef>>(
+  config: SignalRClientConfig<H>,
+): Plugin<[SignalROptions]> & { useSignalR, useHubConsumer, useHubStatus, ... }
+```
+
+The result has two roles. It is a Vue plugin: install it with `app.use(signalR, options)`, as [Plugin](/docs/vue/concepts/provider) describes. It also carries the composables as properties. Types come from the contract that `config.hubs` declares. For the options of `config`, see [Configuration reference](/docs/vue/reference/config).
+
+## Members
+
+Every composable binds to the active effect scope. A component's `setup()` has one. Outside a component, run the call in an `effectScope()`. The library reads the hub, event, and method arguments one time, when you call the composable.
+
+All composables except `useSignalR` hold a hub. A held hub counts as a consumer. A lazy hub connects with its first consumer. It closes after its last consumer leaves and `graceMs` has passed.
+
+| Name | Signature | Returns | Lifetime | Keeps a lazy hub alive |
+| --- | --- | --- | --- | --- |
+| `useSignalR` | `useSignalR()` | `SignalRPublicContext` | Reads the context. No scope needed. | no |
+| `useHubConsumer` | `useHubConsumer(hub)` | `void` | Scope disposal | yes |
+| `useHubStatus` | `useHubStatus(hub)` | `Readonly<Ref<HubConnectionStatus>>`. Each hub has its own ref. | Scope disposal | yes |
+| `useSignalREvent` | `useSignalREvent(hub, event, handler)` | `void` | Scope disposal removes the handler. | yes |
+| `useSignalRInvoke` | `useSignalRInvoke(hub, method, options?)` | `(...args) => Promise<Return>` | Scope disposal aborts waiting calls, unless `keepAliveOnUnmount` is `true`. | yes |
+| `useSignalRSend` | `useSignalRSend(hub, method)` | `(...args) => Promise<boolean>`: `true` when the call is sent, `false` when the hub is not connected or the send fails. It never rejects. | Scope disposal | yes |
+| `useSignalRTeardown` | `useSignalRTeardown(hub, method, options?)` | `(...args) => Promise<boolean>`: `true` when the call is sent, `false` otherwise. It never rejects. | Survives scope disposal. | yes, and each call holds the hub until it ends |
+| `useOnReconnected` | `useOnReconnected(hub, callback)` | `void` | Scope disposal removes the callback. | yes |
+| `event` | `event<Args>()` | A marker that declares a server event. `Args` is the tuple of handler arguments. | None. It carries types only. | no |
+| `method` | `method<Args, Return>()` | A marker that declares a server method. `Return` defaults to `void`. | None. It carries types only. | no |
+
+### useSignalR
+
+Returns the context object, typed to your contract:
+
+| Member | Signature | Description |
+| --- | --- | --- |
+| `getConnection` | `(hub) => HubConnection \| null` | The raw connection, or `null` when there is none. Use it as a last resort. |
+| `getStatus` | `(hub) => HubConnectionStatus` | A point read. It does not subscribe to changes. |
+| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` | Resolves when the hub is connected. It rejects on timeout, on abort, when the session is disabled, and when the hub stopped after a final error. |
+
+### Calls
+
+`useSignalRInvoke` waits for the connection, calls the method, and resolves with the typed result. `useSignalRTeardown` is for a cleanup, for example in `onUnmounted`. It waits for the hub to connect and then sends. `useSignalREvent` and `useOnReconnected` pass an error that a handler throws to `onError` with `info.source` set to `"callback"`. The subscription of `useSignalREvent` survives reconnects and rebuilds. `useOnReconnected` does not run after the first connection.
+
+Templates unwrap the ref of `useHubStatus`. In a script, read `.value`.
+
+For the options of `useSignalRInvoke` and `useSignalRTeardown`, see [Configuration reference](/docs/vue/reference/config#invoke-options). For the rules of each call, see [Calls](/docs/vue/concepts/calls).
+
+## Types
+
+The package re-exports these types. Core defines most of them.
+
+| Type | Meaning |
+| --- | --- |
+| `MaybeRefOrGetter` | A plain value, a ref, a computed ref, or a getter. This is the Vue type. |
+| `SignalROptions` | The options of `app.use(signalR, options)`. |
+| `SignalRClientConfig` | The argument of `createSignalRClient`. |
+| `PerHubConfig` | Per-hub settings: `lazy`, `graceMs`, `reconnect`, `logLevel`, `httpOptions`, `hubProtocol`, `configureBuilder`. |
+| `HubDef` | One hub entry in `config.hubs`: `PerHubConfig` plus `events` and `methods`. |
+| `EventDef` | The marker that `event()` returns. |
+| `MethodDef` | The marker that `method()` returns. |
+| `HubString` | A hub path. It starts with `/`. |
+| `HubContract` | The `events` and `methods` of one hub, as functions. |
+| `SignalRContract` | The map of hub paths to `HubContract`. |
+| `InferContract` | The contract that the library derives from the `hubs` config. |
+| `EventName` | The event names of one hub. |
+| `EventArgs` | The handler arguments of one event. |
+| `MethodName` | The method names of one hub. |
+| `MethodArgs` | The call arguments of one method. |
+| `MethodReturn` | The resolved result of one method. |
+| `HubStatusRef` | The read-only ref that `useHubStatus` returns. Its value is a `HubConnectionStatus`. |
+| `HubConnectionStatus` | `"idle"`, `"connecting"`, `"connected"`, `"reconnecting"`, or `"disconnected"`. |
+| `SignalRErrorInfo` | The third argument of `onError`. `source` is `"connection"` or `"callback"`. |
+| `SignalRPublicContext` | The result of `useSignalR()`. |
+| `InvokeOptions` | The options of `useSignalRInvoke`. |
+| `TeardownOptions` | The options of `useSignalRTeardown`. |
+| `ReconnectConfig` | `true`, `false`, an array of delays in ms, or a custom retry policy. |
+| `HttpOptions` | The SignalR HTTP options, without `accessTokenFactory`. |
+| `HubProtocolConfig` | A hub protocol, or a function that returns one. |
+| `ConfigureBuilder` | A function that changes the `HubConnectionBuilder` on each build. |
+| `BuilderContext` | The second argument of `ConfigureBuilder`: the hub path and the base URL. |
+
+## Errors
+
+For the error names and messages, and for the placement errors, see [Troubleshooting](/docs/vue/reference/troubleshooting). An `AbortError` is a `DOMException`. All other errors of a call are an `Error` with a name such as `SignalRTimeoutError`.

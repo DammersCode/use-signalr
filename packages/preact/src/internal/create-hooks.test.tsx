@@ -16,25 +16,25 @@ function setup(options?: { connected?: boolean; failWaitOnce?: boolean }) {
   const statusStore = createStatusStore<HubString>();
   const acquire = vi.fn();
   const release = vi.fn();
-  const on = vi.fn();
-  const off = vi.fn();
+  const listeners = new Set<(...args: unknown[]) => void>();
+  const unsubscribe = vi.fn();
+  const subscribe = vi.fn((_hub: HubString, _event: string, listener: (...args: unknown[]) => void) => {
+    listeners.add(listener);
+    return () => { unsubscribe(); listeners.delete(listener); };
+  });
   const invoke = vi.fn().mockResolvedValue(7);
   const send = vi.fn().mockResolvedValue(undefined);
   let connected = options?.connected ?? true;
   let failedWaits = options?.failWaitOnce ? 1 : 0;
   const waiters: Array<() => void> = [];
   const connection = {
-    on,
-    off,
     invoke,
     send,
     state: connected ? HubConnectionState.Connected : HubConnectionState.Connecting,
   } as unknown as HubConnection;
-  const context = {
-    getConnection: () => connected ? connection : null,
-    isHubConnected: () => connected,
-    getStatus: (hub: HubString) => statusStore.get(hub),
-    waitForConnection: (_hub: HubString, timeout: number) => {
+  const getConnection = () => connected ? connection : null;
+  const getStatus = (hub: HubString) => statusStore.get(hub);
+  const waitForConnection = (_hub: HubString, timeout: number) => {
       if (failedWaits > 0) {
         failedWaits -= 1;
         return Promise.reject(new Error("transport drop"));
@@ -47,11 +47,17 @@ function setup(options?: { connected?: boolean; failWaitOnce?: boolean }) {
           resolve(connection);
         });
       });
-    },
+    };
+  const context = {
+    getConnection,
+    getStatus,
+    publicContext: Object.freeze({ getConnection, getStatus, waitForConnection }),
+    waitForConnection,
     statusStore,
     acquire,
     release,
     registerReconnect: () => () => {},
+    subscribe,
   } as unknown as SignalRContextValue<SignalRContract>;
   return {
     Context,
@@ -60,8 +66,9 @@ function setup(options?: { connected?: boolean; failWaitOnce?: boolean }) {
     statusStore,
     acquire,
     release,
-    on,
-    off,
+    subscribe,
+    unsubscribe,
+    listeners,
     invoke,
     send,
     connect: () => {
@@ -75,7 +82,7 @@ function setup(options?: { connected?: boolean; failWaitOnce?: boolean }) {
 describe("native Preact hooks", () => {
   it("reads provider context and releases lazy consumers", () => {
     const { Context, Hooks, context, acquire, release } = setup();
-    function Child() { expect(Hooks.useSignalR()).toBe(context); Hooks.useHubConsumer("/a"); return null; }
+    function Child() { expect(Hooks.useSignalR()).toBe(context.publicContext); Hooks.useHubConsumer("/a"); return null; }
     act(() => render(h(Context.Provider, { value: context }, h(Child, {})), root));
     expect(acquire).toHaveBeenCalledWith("/a");
     act(() => render(null, root));
@@ -95,8 +102,20 @@ describe("native Preact hooks", () => {
     expect(b).toBeGreaterThan(1);
   });
 
+  it("never renders the old hub status for a new hub", () => {
+    const { Context, Hooks, context, statusStore } = setup();
+    statusStore.set("/a", "connected");
+    const seen: string[] = [];
+    function Child({ hub }: { hub: "/a" | "/b" }) { seen.push(`${hub}:${Hooks.useHubStatus(hub)}`); return null; }
+    act(() => render(h(Context.Provider, { value: context }, h(Child, { hub: "/a" })), root));
+    act(() => render(h(Context.Provider, { value: context }, h(Child, { hub: "/b" })), root));
+    expect(seen).toContain("/a:connected");
+    expect(seen).not.toContain("/b:connected");
+    expect(seen.at(-1)).toBe("/b:idle");
+  });
+
   it("cleans up event listeners and delegates call wrappers", async () => {
-    const { Context, Hooks, context, statusStore, on, off, invoke, send } = setup();
+    const { Context, Hooks, context, statusStore, subscribe, unsubscribe, invoke, send } = setup();
     let call: (() => Promise<number>) | undefined;
     let fire: (() => Promise<boolean>) | undefined;
     let teardown: (() => Promise<boolean>) | undefined;
@@ -109,7 +128,7 @@ describe("native Preact hooks", () => {
     }
     act(() => render(h(Context.Provider, { value: context }, h(Child, {})), root));
     act(() => statusStore.set("/a", "connected"));
-    expect(on).toHaveBeenCalledWith("Tick", expect.any(Function));
+    expect(subscribe).toHaveBeenCalledWith("/a", "Tick", expect.any(Function));
     await expect(call!()).resolves.toBe(7);
     await expect(fire!()).resolves.toBe(true);
     (context.getConnection("/a") as unknown as { state: string }).state = HubConnectionState.Disconnected;
@@ -118,11 +137,11 @@ describe("native Preact hooks", () => {
     expect(invoke).toHaveBeenCalled();
     expect(send).toHaveBeenCalledTimes(2);
     act(() => render(null, root));
-    expect(off).toHaveBeenCalledWith("Tick", expect.any(Function));
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it("uses the latest event callback without another subscription", () => {
-    const { Context, Hooks, context, statusStore, on } = setup();
+    const { Context, Hooks, context, subscribe } = setup();
     const first = vi.fn();
     const second = vi.fn();
     function Child({ handler }: { handler: () => void }) {
@@ -130,10 +149,9 @@ describe("native Preact hooks", () => {
       return null;
     }
     act(() => render(h(Context.Provider, { value: context }, h(Child, { handler: first })), root));
-    act(() => statusStore.set("/a", "connected"));
-    const listener = on.mock.calls[0]![1] as () => void;
+    const listener = subscribe.mock.calls[0]![2] as () => void;
     act(() => render(h(Context.Provider, { value: context }, h(Child, { handler: second })), root));
-    expect(on).toHaveBeenCalledTimes(1);
+    expect(subscribe).toHaveBeenCalledTimes(1);
     listener();
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);

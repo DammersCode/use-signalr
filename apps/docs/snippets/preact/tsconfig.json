@@ -1,0 +1,11 @@
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "rootDirs": [".", "../shared"]
+  },
+  "include": ["./*.ts", "./*.tsx"]
+}

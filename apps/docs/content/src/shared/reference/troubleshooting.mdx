@@ -1,0 +1,77 @@
+---
+title: Troubleshooting
+description: Find the cause and the fix for a symptom or an error message.
+---
+
+## Symptoms
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| The status stays `"connecting"` and never connects. | The server is not reachable, or a CORS failure blocks the negotiate request. A CORS failure looks like a network error, so the library retries. | Open the network tab and look at the negotiate request. Allow credentials and the exact origin in the CORS policy of the server. |
+| The status is `"disconnected"`. | The negotiate request failed with 400, 401, 403, or 404, or a configuration error stopped the hub. The library does not retry. | Fix the token, the URL, or the configuration. Then change `connectionKey`, or set `enabled` to false and back to true. |
+| The status is `"idle"`. | No connection is wanted: `enabled` is false, `baseUrl` is `undefined` or `""`, a lazy hub has no consumer, or the code runs on the server. | Set `enabled` to true and give `baseUrl` a value. Use `"/"` for the same origin. For a lazy hub, add a consumer. |
+| A 401 does not stop the retries. | `skipNegotiation` is on. The browser hides HTTP status codes for the direct WebSocket request. A throwing `accessTokenFactory` also counts as retriable. | Turn off `skipNegotiation` to get `"disconnected"` on a 401. Make sure that `accessTokenFactory` does not throw. |
+| The token works on negotiate but WebSockets fail with 401. | The browser sends the token as the `access_token` query value on WebSockets and Server-Sent Events. The server reads only the `Authorization` header. | Read `access_token` from the query for hub paths on the server. |
+| An `Authorization` header in `httpOptions.headers` has no effect. | SignalR removes this header, because the library always sets `accessTokenFactory`. | Return the token from `accessTokenFactory`. |
+| After a re-login, the status stays `"disconnected"`. | The values did not change, so nothing retries. | Pass a new `connectionKey`, for example `${userId}:${counter}`. Do not use the token as the key. |
+| An invoke rejects with `SignalRTimeoutError`. | The hub did not connect within `timeout`. During a server render, no connection starts. | Increase `timeout`, or fix the connection. Do not call a hub during a server render. |
+| An invoke rejects with `SignalRDisabledError`. | `enabled` is false, or `baseUrl` is `undefined` or `""`. In Svelte and Angular, the session is also disabled on the server. | Enable the session. Call the hub in the browser. |
+| An invoke rejects with `SignalRDisconnectedError`. | The hub stopped after a non-retriable error. | Fix the cause that the message names. Then change `connectionKey`. |
+| An invoke rejects with `AbortError`. | The consumer unmounted while the call waited. | Ignore `AbortError` in fire-and-forget calls. |
+<Only not="core">
+| The group messages stop after a reconnect. | A new connection ID has no group memberships. | Join again when the status is `"connected"`. See the [groups guide](../guides/groups.mdx). |
+</Only>
+| A call runs twice on the server. | `retries` is above 0, and a drop made the library send the call again. | Use `retries` only for idempotent methods. |
+| The reconnect callback does not run on the first connect. | It runs only after a recovery of a hub that was connected before. | Fetch the initial state on the first connect in your own code. |
+| `onError` does not fire when the connection drops and comes back. | SignalR auto-reconnect fixed the drop, so there is no error. | Watch the status `"reconnecting"` for a drop alert. |
+<Only not="core">
+| Behind a proxy, connections close after a short time. | The idle timeout of the proxy is below the keep-alive interval, or the proxy buffers responses. | See [Reverse proxies](../guides/server.mdx#reverse-proxies) in the server guide. |
+</Only>
+| MessagePack fails to connect. | The server lacks `AddMessagePackProtocol()`, or the transport is Server-Sent Events. | Add the protocol on the server. Do not restrict the transport to Server-Sent Events. |
+
+<Only in="react">
+In development, React StrictMode also causes this `AbortError`. See [Notes](./notes.mdx).
+</Only>
+
+## Error messages
+
+Each error has a `name`. Test the `name`, not the message text.
+
+| Message | `name` | When |
+| --- | --- | --- |
+| `Timeout waiting for SignalR connection to <hub> (<ms>ms)` | `SignalRTimeoutError` | An invoke or a `waitForConnection` call did not see the hub connect in time. A teardown call resolves `false` instead. |
+| `SignalR is disabled: <hub>` | `SignalRDisabledError` | `enabled` is false, or `baseUrl` is `undefined` or `""`. |
+| `SignalR hub <hub> is disconnected: <reason>` | `SignalRDisconnectedError` | The hub stopped after a non-retriable error. The reason is the message of that error. |
+| `The consumer unmounted, so the call was aborted.` | `AbortError` | The consumer unmounted while the call waited. The error is a `DOMException`. |
+| `Hub "<hub>": skipNegotiation needs httpOptions.transport = HttpTransportType.WebSockets.` | `Error` | A configuration error. It is thrown when you create the client. |
+| `Hub "<hub>": the "<protocol>" protocol sends binary data. Server-Sent Events cannot carry binary data. Use WebSockets or LongPolling in httpOptions.transport, or use a text protocol.` | `Error` | A binary protocol object with the Server-Sent Events transport. It is thrown when you create the client. For a factory, the hub gets the status `"disconnected"` and `onError` fires. |
+| `<where>: the "<key>" option does not exist. <advice>` | `Error` | The keys `transport`, `skipNegotiation`, or `maxConnectRetries` at the top level or per hub. Move `transport` and `skipNegotiation` into `httpOptions`. Delete `maxConnectRetries`. |
+| `Reconnect retries exhausted` | passed to `onError` | SignalR auto-reconnect gave up. This happens about 42 seconds after a drop with the default delays. |
+| `The server or a proxy closed the connection.` | passed to `onError` | SignalR closed the connection with no error and did not start auto-reconnect, for example with `reconnect: false`. |
+
+`onError` fires on the first failed attempt of an outage, not on each retry. A failed attempt is a failed connect, or a close that starts a rebuild. The count resets after a successful connect. It fires once for a non-retriable error.
+
+<Only not="angular,core">
+Without `onError`, the library drops errors silently.
+</Only>
+<Only in="angular">
+Without `onError`, the library sends errors to the Angular `ErrorHandler`.
+</Only>
+
+<Only not="core">
+## Placement errors
+
+A helper throws when you call it in the wrong place:
+
+| Framework | Message | Fix |
+| --- | --- | --- |
+| React, Preact, Solid | `useSignalR must be used within a SignalRProvider` | Render the component below `SignalRProvider`. |
+| Svelte | `<function> must be called during component init, below provideSignalR` | Call the function in the script of a component, below the component that calls `provideSignalR`. Do not call it in an event handler. Outside component init, Svelte throws its own `lifecycle_outside_component` error. |
+| Vue | `useSignalR must be used after app.use(signalR, options)` | Install the plugin before you use a composable. |
+| Vue | `<name> must be called inside setup() or app.runWithContext()` | Call the composable in `setup()`, or wrap the call in `app.runWithContext()` inside an effect scope. |
+| Vue | `<name> must be called inside setup() or an effectScope` | Call the composable in `setup()` or in an effect scope, not in an event handler. |
+| Angular | `injectSignalR must be called in an injection context below provideSignalR` | Call the function in a constructor or a field initializer, and add `provideSignalR` to the providers. |
+| Angular | `NG0203` | Angular reports this when an `inject*` function runs outside an injection context. Move the call into a constructor or a field initializer. |
+
+Lit has no placement error. A controller takes its host in the constructor.
+</Only>

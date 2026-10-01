@@ -1,6 +1,10 @@
 import { event, method } from "./types.js";
 import type {
   EventArgs,
+  HubDef,
+  HubString,
+  SignalRClientConfig,
+  SignalRErrorInfo,
   EventName,
   InferContract,
   MethodArgs,
@@ -96,3 +100,45 @@ void badCount;
 // method<[room: string, silent: boolean]>() defaults its return to void.
 const joinReturn: MethodReturn<T, Chat, "Join"> = undefined;
 void joinReturn;
+
+// --- SignalRClientConfig: unknown per-hub keys are a type error. ---
+declare function define<const H extends Record<HubString, HubDef>>(config: SignalRClientConfig<H>): H;
+
+const defined = define({
+  hubs: {
+    "/hubs/chat": {
+      lazy: true,
+      httpOptions: { skipNegotiation: true },
+      events: { OnFoo: event<[x: number]>() },
+      methods: { Join: method<[room: string]>() },
+    },
+  },
+});
+const definedEventArgs: EventArgs<InferContract<typeof defined>, "/hubs/chat", "OnFoo"> = [1];
+void definedEventArgs;
+
+define({
+  hubs: {
+    "/hubs/chat": {
+      events: { OnFoo: event<[x: number]>() },
+      // @ts-expect-error - skipNegotiation belongs in httpOptions
+      skipNegotiation: true,
+    },
+  },
+});
+
+define({
+  hubs: {
+    "/hubs/chat": {
+      // @ts-expect-error - a typo in a per-hub key
+      grceMs: 10,
+    },
+  },
+});
+
+// --- SignalRErrorInfo: the source is a closed union. ---
+const infoSource: SignalRErrorInfo["source"] = "connection";
+void infoSource;
+// @ts-expect-error - "other" is not a source
+const badInfoSource: SignalRErrorInfo["source"] = "other";
+void badInfoSource;

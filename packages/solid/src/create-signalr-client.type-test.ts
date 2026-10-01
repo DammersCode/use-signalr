@@ -1,5 +1,7 @@
 import { createSignalRClient } from "./create-signalr-client.js";
 import { event, method } from "@dammers/use-signalr-core";
+import type { HubConnection, IHubProtocol } from "@microsoft/signalr";
+import type { HubConnectionStatus } from "@dammers/use-signalr-core";
 
 // Compile-time-only checks that the app contract is correctly INFERRED from
 // `event()`/`method()` declarations in the config, end to end through
@@ -7,6 +9,8 @@ import { event, method } from "@dammers/use-signalr-core";
 // `npm run typecheck` enforces the negative assertions below.
 
 const {
+  SignalRProvider,
+  useSignalR,
   useSignalREffect,
   useSignalRInvoke,
   useSignalRSend,
@@ -103,3 +107,67 @@ async function checkTeardown() {
   await teardown("room-1", "yes");
 }
 void checkTeardown;
+
+// --- Public context has exactly three members ---
+function checkPublicContext() {
+  const ctx = useSignalR();
+  const connection: HubConnection | null = ctx.getConnection("/hubs/chat");
+  const status: HubConnectionStatus = ctx.getStatus("/hubs/chat");
+  void connection;
+  void status;
+  // @ts-expect-error - acquire is internal
+  ctx.acquire;
+  // @ts-expect-error - statusStore is internal
+  ctx.statusStore;
+  // @ts-expect-error - isHubConnected was removed
+  ctx.isHubConnected;
+  // @ts-expect-error - /hubs/missing was never declared in the config
+  ctx.getStatus("/hubs/missing");
+}
+void checkPublicContext;
+
+// --- Provider callbacks ---
+type ProviderProps = Parameters<typeof SignalRProvider>[0];
+export const statusCallbackOk: NonNullable<ProviderProps["onStatusChange"]> = (hub) => {
+  const exactHub: "/hubs/chat" = hub;
+  void exactHub;
+};
+export const errorCallbackOk: NonNullable<ProviderProps["onError"]> = (hub) => {
+  const exactHub: "/hubs/chat" = hub;
+  void exactHub;
+};
+// @ts-expect-error - /hubs/missing was never declared in the config
+export const statusCallbackBad: NonNullable<ProviderProps["onStatusChange"]> = (hub: "/hubs/missing") => {
+  void hub;
+};
+// @ts-expect-error - /hubs/missing was never declared in the config
+export const errorCallbackBad: NonNullable<ProviderProps["onError"]> = (hub: "/hubs/missing") => {
+  void hub;
+};
+export const errorInfoTyped: NonNullable<ProviderProps["onError"]> = (_hub, _error, info) => {
+  const source: "connection" | "callback" = info.source;
+  void source;
+};
+export const errorInfoBad: NonNullable<ProviderProps["onError"]> = (_hub, _error, info) => {
+  // @ts-expect-error - "other" is not a source
+  const source: "other" = info.source;
+  void source;
+};
+
+// --- Hub protocol and builder hook ---
+declare const protocol: IHubProtocol;
+createSignalRClient({ hubs: {}, hubProtocol: () => protocol, configureBuilder: (builder) => builder });
+createSignalRClient({ hubs: { "/hubs/a": { hubProtocol: protocol, configureBuilder: (builder, ctx) => (void ctx.hub, builder) } } });
+// @ts-expect-error - configureBuilder must return the builder
+createSignalRClient({ hubs: {}, configureBuilder: () => undefined });
+
+// --- Unknown per-hub keys ---
+createSignalRClient({
+  hubs: {
+    "/hubs/a": {
+      events: { OnFoo: event<[x: number]>() },
+      // @ts-expect-error - skipNegotiation belongs in httpOptions
+      skipNegotiation: true,
+    },
+  },
+});

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { InvokeError } from "@dammers/use-signalr-vue";
 import { createLogger } from "@examples/contract";
 import {
   useSignalREvent,
@@ -46,11 +45,7 @@ async function onFail() {
   try {
     await fail();
   } catch (err) {
-    if (err instanceof InvokeError) {
-      log.invokeFailed(err);
-    } else {
-      log.log(`invoke failed: ${String(err)}`);
-    }
+    log.log(`invoke failed: ${String(err)}`);
   }
 }
 </script>

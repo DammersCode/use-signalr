@@ -1,30 +1,29 @@
 {
   "name": "use-signalr",
   "private": true,
-  "version": "0.5.0",
+  "version": "1.0.0",
   "type": "module",
   "license": "MIT",
   "author": "Dammers",
   "repository": "github:DammersCode/use-signalr",
   "workspaces": [
     "packages/*",
+    "apps/*",
     "examples/*"
   ],
   "scripts": {
-    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/solid --if-present && npm run build -w packages/svelte --if-present && npm run build -w packages/angular --if-present && npm run build -w packages/vue --if-present && npm run build -w packages/preact --if-present && npm run build -w packages/lit --if-present",
-    "typecheck": "npm run build -w packages/core && npm run typecheck --workspaces --if-present",
+    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/solid --if-present && npm run build -w packages/svelte --if-present && npm run build -w packages/angular --if-present && npm run build -w packages/vue --if-present && npm run build -w packages/preact --if-present && npm run build -w packages/lit --if-present && npm run build -w examples/shared",
+    "typecheck": "npm run build && npm run typecheck --workspaces --if-present",
     "test": "npm run build -w packages/core && npm run test --workspaces --if-present",
     "check": "node scripts/check-docs.mjs",
     "check:dist": "node scripts/check-dist.mjs",
-    "build:og": "node scripts/build-og.mjs",
     "dev": "node scripts/dev.mjs",
     "preversion": "npm run check && npm run typecheck && npm test",
-    "version": "node scripts/sync-versions.mjs && git add packages/*/package.json package-lock.json",
+    "version": "node scripts/sync-versions.mjs && npm install --package-lock-only --ignore-scripts && git add packages/*/package.json examples/*/package.json apps/*/package.json package-lock.json",
     "postversion": "git push && git push --tags"
   },
   "devDependencies": {
     "jsdom": "^29.1.1",
-    "simple-icons": "^16.28.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }

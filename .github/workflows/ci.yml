@@ -8,12 +8,16 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: npm
 
       - run: npm ci
@@ -22,3 +26,102 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run check:dist
+      - run: npm run build -w apps/docs
+
+  # Node 20.19 is the lowest version that vite and vitest support.
+  floor:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: core
+            deps: ""
+          - package: react
+            deps: "react@19.0.0 react-dom@19.0.0 @types/react@19.0.0"
+          - package: preact
+            deps: "preact@10.20.0"
+          - package: solid
+            deps: "solid-js@1.7.0"
+          - package: svelte
+            deps: "svelte@5.15.0"
+          - package: vue
+            deps: "vue@3.3.0"
+          - package: angular
+            deps: "@angular/core@20.0.0 @angular/compiler@20.0.0 @angular/platform-browser@20.0.0 @angular/common@20.0.0 rxjs@7.6.0"
+          - package: lit
+            deps: "lit@3.0.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19"
+          cache: npm
+
+      - run: npm ci
+      # Legacy peer deps: dev tools can require newer peers than the floor.
+      - run: npm install --no-save --legacy-peer-deps @microsoft/signalr@8.0.0 ${{ matrix.deps }}
+      # A second copy of a peer breaks vi.mock and single-instance libraries.
+      - name: Check for duplicate peer copies
+        run: |
+          node -e '
+          const fs = require("fs");
+          const peers = ["@microsoft/signalr", "react", "react-dom", "preact", "solid-js", "svelte", "vue", "lit", "rxjs", "@angular/core", "@angular/common", "@angular/compiler", "@angular/platform-browser"];
+          const dir = "packages/${{ matrix.package }}/node_modules/";
+          const nested = peers.filter((name) => fs.existsSync(dir + name));
+          if (nested.length) { console.error("Nested copies:", nested); process.exit(1); }
+          '
+      - run: npm run build -w packages/core
+      - run: npm run typecheck -w packages/${{ matrix.package }}
+      - run: npm test -w packages/${{ matrix.package }}
+
+  # The newest release of each supported major that the lockfile and the floor jobs do not cover.
+  compat:
+    name: compat (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: signalr 8
+            packages: "core react preact solid svelte vue angular lit"
+            deps: "@microsoft/signalr@^8"
+          - name: signalr 9
+            packages: "core react preact solid svelte vue angular lit"
+            deps: "@microsoft/signalr@^9"
+          - name: angular 20
+            packages: "angular"
+            deps: "@angular/core@^20 @angular/compiler@^20 @angular/platform-browser@^20 @angular/common@^20"
+          - name: angular 21
+            packages: "angular"
+            deps: "@angular/core@^21 @angular/compiler@^21 @angular/platform-browser@^21 @angular/common@^21"
+          - name: preact 11
+            packages: "preact"
+            deps: "preact@^11"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+      - run: npm install --no-save --legacy-peer-deps ${{ matrix.deps }}
+      # A second copy of a peer breaks vi.mock and single-instance libraries.
+      - name: Check for duplicate peer copies
+        run: |
+          node -e '
+          const fs = require("fs");
+          const peers = ["@microsoft/signalr", "react", "react-dom", "preact", "solid-js", "svelte", "vue", "lit", "rxjs", "@angular/core", "@angular/common", "@angular/compiler", "@angular/platform-browser"];
+          const nested = "${{ matrix.packages }}".split(" ").flatMap((p) => peers.filter((name) => fs.existsSync(`packages/${p}/node_modules/${name}`)).map((name) => `${p}: ${name}`));
+          if (nested.length) { console.error("Nested copies:", nested); process.exit(1); }
+          '
+      - run: npm run build -w packages/core
+      - name: Type-check and test
+        run: |
+          for p in ${{ matrix.packages }}; do
+            npm run typecheck -w packages/$p
+            npm test -w packages/$p
+          done

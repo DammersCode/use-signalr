@@ -5,11 +5,9 @@ dist/
 *.log
 tarballs/
 
-.superpowers/
-dist-site/
-
 bin/
 obj/
 
 .angular/
 out-tsc/
+apps/docs/AGENTS.md

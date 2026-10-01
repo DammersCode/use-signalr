@@ -9,7 +9,7 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
   const statuses = new Map<H, HubConnectionStatus>();
   const listeners = new Map<H, Set<() => void>>();
   return {
-    get: (hub) => statuses.get(hub) ?? "disconnected",
+    get: (hub) => statuses.get(hub) ?? "idle",
     set: (hub, status) => {
       if (statuses.get(hub) === status) return;
       statuses.set(hub, status);

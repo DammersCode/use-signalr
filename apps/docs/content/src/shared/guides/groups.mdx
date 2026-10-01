@@ -1,0 +1,56 @@
+---
+title: Groups and rooms
+description: Keep server group membership correct across reconnects.
+---
+
+A SignalR group belongs to a connection ID, not to a user. When the connection ID changes, the server forgets the old memberships. Your client must join the groups again.
+
+## Why groups are lost
+
+The server removes a closed connection from all groups. A new connection ID appears in these cases:
+
+- SignalR auto-reconnect finishes, unless you turn on stateful reconnect.
+- The library rebuilds a lost connection.
+- `baseUrl`, `enabled`, or `connectionKey` changes.
+- A lazy hub stops and starts again.
+
+In all these cases, the status goes back to `"connected"`. So the status is the reliable signal to join.
+
+## The recommended pattern
+
+Join when the status is `"connected"`. Key the effect on the status and the room ID. Do not return a cleanup from this effect, because a status change then leaves and joins again. Leave in a separate cleanup through the <Api of="teardown" /> sender. This sample joins and leaves a room:
+
+<Snippet id="groups" />
+
+The join call ignores `AbortError`. An unmount aborts a pending call, and this is not a failure.
+
+<Only in="lit">
+In Lit, `disconnectedCallback` also runs when the DOM moves the element. Check `isConnected` in a microtask before you send the leave.
+</Only>
+
+The leave is best-effort. If the hub never connected in time, the leave resolves to `false` and the server removes the connection from its groups when the connection closes.
+
+## Make the server join idempotent
+
+The client can join twice, for example, when a retried join runs twice. Adding a connection to a group that it is already in changes nothing, so `JoinRoom` is safe to repeat:
+
+<Snippet file="examples/server/Hubs/RoomHub.cs" />
+
+## Join on the server instead
+
+If group membership follows the identity of the user, not a screen, join in `OnConnectedAsync`. Every new connection ID, including each reconnect, then joins the group before the client sends anything:
+
+```csharp
+public override async Task OnConnectedAsync()
+{
+    var userId = Context.UserIdentifier;
+    await Groups.AddToGroupAsync(Context.ConnectionId, $"user:{userId}");
+    await base.OnConnectedAsync();
+}
+```
+
+Then the client needs no join call for these groups.
+
+## Retries and groups
+
+Set `retries` above 0 only for idempotent methods. After a drop, a retried call can run twice on the server. `JoinRoom` is idempotent. `SendMessage` is not, so do not retry it.

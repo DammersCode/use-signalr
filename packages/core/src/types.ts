@@ -249,7 +249,7 @@ export interface InvokeOptions {
 /** Options for a teardown send. */
 export interface TeardownOptions {
   /**
-   * Maximum time in ms for the whole call: the wait for the hub to connect and the send. After that the library gives up and the call resolves `false`. With a timeout that is not finite, the call has no time limit, and a send that never ends keeps its connection open.
+   * Maximum time in ms for the whole call: the wait for the hub to connect and the send. After that the library gives up and the call resolves `false`. A timeout above 2^31-1 ms counts as 2^31-1 ms. With a timeout that is not finite, the call has no time limit, and a send that never ends keeps its connection open.
    * @default 10000
    */
   timeout?: number;

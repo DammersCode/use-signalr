@@ -84,7 +84,7 @@ Call `update` from a lifecycle hook that does not run during server rendering. S
 
 ### Stop on cleanup
 
-`session.stop()` sets every hub to `"idle"`, closes the live connections, and forgets which hubs connected before. It keeps a connected hub open while a teardown call on it is pending, and closes it when the send ends. Calling it again does nothing.
+`session.stop()` sets every hub to `"idle"`, closes the live connections, and forgets which hubs connected before. It keeps a connected hub open while a teardown call on it is pending, and closes it when the send ends. Calling it again leaves the hubs stopped. It also ends the waits of teardown calls that began after the first call.
 
 After `stop()`, the next `update` call with the same values builds the connections again. A framework that unmounts and mounts a provider again therefore needs no extra code to reconnect.
 

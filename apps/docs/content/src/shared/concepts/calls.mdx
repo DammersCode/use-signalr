@@ -34,7 +34,7 @@ The library has three ways to call a server method. They differ in waiting, retu
 
 <Snippet id="teardown" />
 
-A teardown is pending from the moment you call it until its send ends. When the session stops while a teardown is pending on a connected hub, the library keeps that connection open until the send ends, then closes it. If the hub has not connected yet, the stop ends the wait and the call resolves `false`. A change of `enabled`, `baseUrl`, or `connectionKey` closes the old connections at once. A teardown that already holds an old connection then cannot land.
+A teardown is pending from the moment you call it until its send ends. When the session stops while a teardown is pending on a connected hub, the library keeps that connection open until the send ends, then closes it. If the hub has not connected yet, the stop ends the wait and the call resolves `false`. A teardown that begins after the stop waits for its timeout, because the session is stopped. A change of `enabled`, `baseUrl`, or `connectionKey` closes the old connections at once. A teardown that already holds an old connection then cannot land.
 
 </Only>
 

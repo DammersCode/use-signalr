@@ -80,7 +80,7 @@ Svelte 5 does not allow `await` at the top level of a component script, unless y
 <Only in="vue">
 ## Vue and Nuxt
 
-Package imports do not access browser globals. During a server render, the plugin provides an inert context, so composables work and report `"idle"`.
+Package imports do not access browser globals. During a server render, the plugin provides a context that never connects, so composables work and report `"idle"`.
 
 The browser starts the session after `app.mount()`. This keeps the first client render equal to the server HTML.
 

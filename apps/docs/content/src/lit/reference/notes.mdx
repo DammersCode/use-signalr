@@ -20,7 +20,7 @@ To remove a controller before its host is destroyed, call `controller.dispose()`
 
 ## Status and rendering
 
-By default, a status change requests a host update (`reactiveStatus` is `true`). The controller requests updates only for its own hub. A host with two controllers for two hubs does not render for a status change of a hub that it does not read.
+By default, a status change requests a host update (`reactiveStatus` is `true`). Each controller requests updates for its own hub. A host with two controllers renders when the status of either hub changes. Set `reactiveStatus` to `false` on a controller whose status the host does not show.
 
 To turn this off, pass `{ reactiveStatus: false }` to `session.hub`. Then the host renders only for its own reasons.
 

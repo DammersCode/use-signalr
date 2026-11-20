@@ -38,7 +38,7 @@ The plugin starts the session after `app.mount()` returns, not at `app.use()`. T
 | An option changes | The session updates. The statuses go to `"idle"` and then to `"connecting"` again. When `enabled` turns `false`, the statuses go to `"idle"` only. |
 | `app.unmount()` | The plugin stops the watcher and closes all connections. |
 
-On the server, the plugin provides an inert context. Nothing connects and every status is `"idle"`.
+On the server, the plugin provides the session context but never starts watching the options. Nothing connects and every status is `"idle"`. A call that waits for a connection rejects when its timeout ends.
 
 Vue 3.5 and later has `app.onUnmount`, and the plugin uses it. Older versions get a wrapped `app.unmount` that does the same work.
 

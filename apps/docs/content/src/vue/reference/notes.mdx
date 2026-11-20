@@ -87,7 +87,7 @@ A component that hydrates shows `"idle"` until it mounts, then the live status. 
 
 ## Nuxt
 
-Package imports do not touch browser globals, and they start no connection. On the server, the plugin gives the composables an inert context. Use one universal Nuxt plugin, without the `.client` suffix. For the plugin sample and the SSR rules, see [Server rendering](/docs/vue/guides/ssr#vue-and-nuxt).
+Package imports do not touch browser globals, and they start no connection. On the server, the plugin gives the composables a context that never connects. Use one universal Nuxt plugin, without the `.client` suffix. For the plugin sample and the SSR rules, see [Server rendering](/docs/vue/guides/ssr#vue-and-nuxt).
 
 A hub call that runs during a server render waits until its timeout, because no connection starts there. Start such calls from `onMounted`.
 

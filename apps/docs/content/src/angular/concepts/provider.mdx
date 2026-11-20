@@ -51,7 +51,7 @@ The options `onStatusChange` and `onError` are also read once from the returned 
 
 ## When the connection starts
 
-Angular creates the session when the app starts, through an environment initializer. The session exists before the first component. It does not connect yet, and every hub reports `idle`.
+Angular creates the session through an environment initializer. With `ApplicationConfig.providers`, that happens when the app starts. With the `providers` of a route, it happens when the router first activates the route. The session exists before the first component. It does not connect yet, and every hub reports `idle`.
 
 The library defers the first start to `afterNextRender`. After the first render, an `effect()` reads `baseUrl`, `enabled`, and `connectionKey`. This effect starts the session. An eager hub connects at this time. A lazy hub connects when its first consumer is created.
 

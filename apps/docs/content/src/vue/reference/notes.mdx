@@ -17,7 +17,7 @@ const token = ref<string>();
 
 app.use(signalR, {
   baseUrl: "https://api.example.com",
-  accessTokenFactory: () => token.value,
+  accessTokenFactory: () => token.value ?? "",
   enabled: () => user.value !== undefined,
   connectionKey: user,
 });

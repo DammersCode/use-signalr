@@ -12,9 +12,12 @@ const statusStore: StatusStore<Hub> = {
   set: (hub, status) => void statuses.set(hub, status),
 };
 
+const hubList = hubKeys(config);
+const resolved = new Map(hubList.map((hub) => [hub, resolveHubConfig(config, hub)]));
+
 const session = createSignalRSession<Contract>({
-  hubs: hubKeys(config),
-  resolve: (hub) => resolveHubConfig(config, hub),
+  hubs: hubList,
+  resolve: (hub) => resolved.get(hub)!,
   statusStore,
   getAccessToken: () => "token",
   onError: (hub, error, info) => console.error(hub, info.source, error),

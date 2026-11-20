@@ -10,7 +10,7 @@ import type {
 } from "@dammers/use-signalr-core";
 
 /**
- * Creates a fully-typed SignalR client. Returns a provider function and a set
+ * Creates a typed SignalR client. Returns a provider function and a set
  * of stores/functions, typed against the contract inferred from
  * `config.hubs`: the keys declare the hubs, and each hub's
  * `event()`/`method()` declarations declare its events and methods.
@@ -43,7 +43,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     provideSignalR,
     /**
-     * Escape hatch to the SignalR context (`getConnection`, `getStatus`,
+     * Gives access to the SignalR context (`getConnection`, `getStatus`,
      * and `waitForConnection`). Call it during component init, below
      * `provideSignalR`. Prefer the typed functions below. Use this only for
      * the underlying `HubConnection` or a point read.
@@ -89,7 +89,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     hubTeardown: hooks.hubTeardown,
     /**
      * Live connection status of a hub, as a Svelte store. Call it during
-     * component init. Subscribe with `$` to re-render only when this hub's
+     * component init. Subscribe with `$` to run again only when this hub's
      * status changes. It also keeps a lazy hub connected until the component
      * is destroyed.
      */
@@ -97,7 +97,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
      * state that went stale while offline. It also runs after a rebuild, but
-     * only for a hub that was connected before.
+     * only for a hub that was connected before. Call it during component init.
      */
     onReconnected: hooks.onReconnected,
   };

@@ -12,7 +12,7 @@ import type {
 import type { SignalRContextValue } from "./types.js";
 
 /**
- * Creates a fully-typed SignalR client. Returns a provider function and a set
+ * Creates a typed SignalR client. Returns a provider function and a set
  * of `inject*` functions, typed against the contract inferred from
  * `config.hubs`: the keys declare the hubs, and each hub's
  * `event()`/`method()` declarations declare its events and methods.
@@ -36,7 +36,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
 
   return {
     /**
-     * Builds, starts, retries, and auto-reconnects every configured hub.
+     * Builds, starts, retries, and reconnects on its own every configured hub.
      * Returns `EnvironmentProviders`. Add it to `ApplicationConfig.providers`
      * or to the `providers` array of a route. Pass an options object, or a
      * factory function that can call `inject()`. Give `baseUrl`, and gate the
@@ -48,20 +48,20 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     provideSignalR,
     /**
-     * Escape hatch to the SignalR context (`getConnection`, `getStatus`,
+     * Gives access to the SignalR context (`getConnection`, `getStatus`,
      * and `waitForConnection`). Prefer the typed `inject*` functions below.
      * Use this only for the underlying `HubConnection` or a point read.
      */
     injectSignalR: hooks.injectSignalR,
     /**
-     * Keeps a (possibly lazy) hub connected for the injection scope's
+     * Keeps a hub, eager or lazy, connected for the injection scope's
      * lifetime, without subscribing to events or status. Acquires
      * immediately, releases on `DestroyRef.onDestroy`.
      */
     injectKeepHubAlive: hooks.injectKeepHubAlive,
     /**
      * Subscribes to a typed server event for the injection scope's lifetime.
-     * Handler args are inferred from your contract. The subscription survives
+     * Handler arguments are inferred from your contract. The subscription survives
      * reconnects and rebuilds.
      */
     injectHubEvent: hooks.injectHubEvent,
@@ -93,7 +93,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     injectHubTeardown: hooks.injectHubTeardown,
     /**
      * Live connection status of a hub, as a granular `Signal`. Reading it in
-     * a `computed()`/effect/template re-runs only when this hub's status
+     * a `computed()`/effect/template runs again only when this hub's status
      * changes. Also keeps a lazy hub connected while the injection scope is
      * alive.
      */

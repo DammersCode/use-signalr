@@ -19,7 +19,7 @@ The result has two roles. It is a Vue plugin: install it with `app.use(signalR, 
 
 ## Members
 
-Every composable binds to the active effect scope. A component's `setup()` has one. Outside a component, run the call in an `effectScope()`. The library reads the hub, event, and method arguments one time, when you call the composable.
+Call a composable in `setup()`. Outside a component, run it in an `effectScope()` inside `app.runWithContext()`. `useSignalR` needs only `setup()` or `app.runWithContext()`, not a scope. The library reads the hub, event, and method arguments one time, when you call the composable.
 
 All composables except `useSignalR` hold a hub. A held hub counts as a consumer. A lazy hub connects with its first consumer. It closes after its last consumer leaves and `graceMs` has passed.
 

@@ -33,29 +33,33 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     useSignalR: composables.useSignalR,
     /**
-     * Keeps a (possibly lazy) hub connected while the scope is alive, without
-     * subscribing to events or status. Call it in `setup()` or an effect scope.
+     * Keeps a hub, eager or lazy, connected while the scope is alive, without
+     * subscribing to events or status. Call it in `setup()`, or inside an
+     * effect scope that runs in `app.runWithContext()`.
      */
     useHubConsumer: composables.useHubConsumer,
     /**
      * Gives the live connection status of a hub as a read-only `Ref`. It
      * updates only when this hub's status changes. It also keeps a lazy hub
      * connected while the scope is alive. A component that hydrates shows
-     * `"idle"` until it mounts. Call it in `setup()` or an effect scope.
+     * `"idle"` until it mounts. Call it in `setup()`, or inside an effect scope
+     * that runs in `app.runWithContext()`.
      */
     useHubStatus: composables.useHubStatus,
     /**
      * Subscribes to a typed server event while the scope is alive. Handler
-     * args come from your contract. The subscription survives reconnects and
-     * rebuilds. Call it in `setup()` or an effect scope.
+     * arguments come from your contract. The subscription survives reconnects
+     * and rebuilds. Call it in `setup()`, or inside an effect scope that runs
+     * in `app.runWithContext()`.
      */
     useSignalREvent: composables.useSignalREvent,
     /**
      * Gives a typed invoker that waits for the connection and resolves with
      * the method's return value. It fails fast by default. Opt in to retry for
      * idempotent methods only. When the scope ends, a waiting call rejects
-     * with `AbortError`, unless you set `keepAliveOnUnmount`. With it, the call also holds a lazy hub open until it settles. Call it in
-     * `setup()` or an effect scope.
+     * with `AbortError`, unless you set `keepAliveOnUnmount`. With it, the call
+     * also holds a lazy hub open until it settles. Call it in `setup()`, or
+     * inside an effect scope that runs in `app.runWithContext()`.
      */
     useSignalRInvoke: composables.useSignalRInvoke,
     /**
@@ -64,7 +68,8 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * the hub is not connected and it drops the call. It also resolves `false`
      * when the send fails. It never throws, so a cleanup can call it. For a
      * call that must land in a cleanup, use `useSignalRTeardown`. Call it in
-     * `setup()` or an effect scope.
+     * `setup()`, or inside an effect scope that runs in
+     * `app.runWithContext()`.
      */
     useSignalRSend: composables.useSignalRSend,
     /**
@@ -73,13 +78,15 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * and holds a lazy hub open until the call is sent. It resolves `true`
      * if the call is sent. It resolves `false` if the hub does not connect in
      * time, the session is disabled, the hub failed, or the send fails. It
-     * never throws. Call it in `setup()` or an effect scope.
+     * never throws. Call it in `setup()`, or inside an effect scope that runs
+     * in `app.runWithContext()`.
      */
     useSignalRTeardown: composables.useSignalRTeardown,
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
      * state that went stale while offline. It also runs after a rebuild, but
-     * only for a hub that was connected before.
+     * only for a hub that was connected before. Call it in `setup()`, or inside
+     * an effect scope that runs in `app.runWithContext()`.
      */
     useOnReconnected: composables.useOnReconnected,
   });

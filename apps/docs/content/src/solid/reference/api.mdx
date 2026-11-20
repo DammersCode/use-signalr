@@ -11,7 +11,7 @@ Everything on this page comes from `@dammers/use-signalr-solid`. The package has
 function createSignalRClient<const H extends Record<HubString, HubDef>>(
   config: SignalRClientConfig<H>,
 ): {
-  SignalRProvider: (props: SignalRProviderProps<Hub>) => JSX.Element;
+  SignalRProvider: (props: SignalRProviderProps<Hub>) => Node | string | number | boolean | null | undefined;
   useSignalR: () => SignalRPublicContext<T>;
   useHubConsumer: (hub: Hub) => void;
   useSignalREffect: (hub, event, handler) => void;
@@ -57,7 +57,7 @@ All types are exports of the package. Most come from `@dammers/use-signalr-core`
 
 | Type | Meaning |
 | --- | --- |
-| `SignalRProviderProps` | The props of `SignalRProvider`. It adds `children: JSX.Element` to the shared provider props. |
+| `SignalRProviderProps` | The props of `SignalRProvider`. It adds `children` to the shared provider props. The type of `children` is a Solid node: a DOM node, a string, a number, a boolean, `null`, `undefined`, an array of these, or a function that returns one. |
 | `SignalRClientConfig` | The argument of `createSignalRClient`. |
 | `PerHubConfig` | The options that one hub can set. |
 | `HubDef` | One entry of `hubs`: `PerHubConfig` plus `events` and `methods`. |

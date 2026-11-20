@@ -19,19 +19,19 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(c
     /** Provider that builds, starts, retries, and reconnects every configured hub. Mount it once, near the root. */
     SignalRProvider,
     /**
-     * Escape hatch to the SignalR context (`getConnection`, `getStatus`, and
+     * Gives access to the SignalR context (`getConnection`, `getStatus`, and
      * `waitForConnection`). Prefer the typed hooks. Use this only for the
      * underlying `HubConnection` or a point read.
      */
     useSignalR: hooks.useSignalR,
     /**
-     * Keeps a (possibly lazy) hub connected for the component's lifetime,
+     * Keeps a hub, eager or lazy, connected for the component's lifetime,
      * without subscribing to events or status.
      */
     useHubConsumer: hooks.useHubConsumer,
     /**
      * Subscribes to a typed server event for the component's lifetime. Handler
-     * args are inferred from your contract. The subscription survives
+     * arguments are inferred from your contract. The subscription survives
      * reconnects and rebuilds.
      */
     useSignalREffect: hooks.useSignalREffect,
@@ -62,7 +62,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(c
      */
     useSignalRTeardown: hooks.useSignalRTeardown,
     /**
-     * Live connection status of a hub. Re-renders only when this hub's status
+     * Live connection status of a hub. Renders again only when this hub's status
      * changes. Also keeps a lazy hub connected while mounted.
      */
     useHubStatus: hooks.useHubStatus,

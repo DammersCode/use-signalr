@@ -112,7 +112,7 @@ function createRuntime<T extends SignalRContract>(
       stopped = true;
       session.stop();
     },
-    /** Escape hatch to the SignalR context (`getConnection`, `getStatus`, and `waitForConnection`). Use this only for the underlying `HubConnection` or a point read. */
+    /** Gives access to the SignalR context (`getConnection`, `getStatus`, and `waitForConnection`). Use this only for the underlying `HubConnection` or a point read. */
     context: session.publicContext,
   };
 }
@@ -199,7 +199,7 @@ export class HubController<
     this.host.removeController(this);
   }
 
-  /** Subscribes to a typed server event while the host is connected. Handler args are inferred from your contract. Returns an unsubscribe function. */
+  /** Subscribes to a typed server event while the host is connected. Handler arguments are inferred from your contract. Returns an unsubscribe function. */
   on<E extends EventName<T, H>>(
     event: E,
     handler: (...args: EventArgs<T, H, E>) => void,

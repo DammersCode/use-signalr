@@ -26,13 +26,15 @@ In a `.svelte` file, read a store with the `$` prefix. The `$` prefix works only
 <p>Status: {$status}</p>
 ```
 
-To read the status as a rune-style value in a `.svelte.ts` module, use `fromStore` from `svelte/store`. It returns an object with a reactive `current` property:
+To read the status as a rune-style value, use `fromStore` from `svelte/store`. Call it while a component initializes, for example in a function in a `.svelte.ts` module that the component script calls. It returns an object with a reactive `current` property:
 
 ```ts
 import { fromStore } from "svelte/store";
 
-const status = fromStore(hubStatus("/hubs/rooms"));
-// status.current is "idle", "connecting", "connected", and so on
+export function roomsStatus() {
+  return fromStore(hubStatus("/hubs/rooms"));
+}
+// roomsStatus().current is "idle", "connecting", "connected", and so on
 ```
 
 To give a rune value to the provider, use `toStore`. A plain value that you read from `$state` or `$props()` is not reactive for the provider:

@@ -23,7 +23,7 @@ In the signatures below, `hub` is a hub path from your contract. `event` and `me
 | `injectHubEvent` | `(hub, event, handler)` | `void` | The injection scope. | yes |
 | `injectHubInvoke` | `(hub, method, options?)` | `(...args) => Promise<Return>` | The injection scope. A pending call aborts on destroy. | yes |
 | `injectHubSend` | `(hub, method)` | `(...args) => Promise<boolean>` | The injection scope. | yes |
-| `injectHubTeardown` | `(hub, method, options?)` | `(...args) => Promise<boolean>` | The injection scope. A call survives destroy. | yes |
+| `injectHubTeardown` | `(hub, method, options?)` | `(...args) => Promise<boolean>` | The injection scope. A call survives destroy. | each call, until the send ends |
 | `injectHubStatus` | `(hub)` | `Signal<HubConnectionStatus>` | The injection scope. | yes |
 | `injectOnReconnected` | `(hub, callback)` | `void` | The injection scope. | yes |
 | `event` | `event<Args>()` | `EventDef` | none | n/a |

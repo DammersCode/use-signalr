@@ -12,7 +12,7 @@ import type {
 import type { SignalRContextValue } from "./types.js";
 
 /**
- * Creates a fully-typed SignalR client. Returns a provider and hooks, typed
+ * Creates a typed SignalR client. Returns a provider and hooks, typed
  * against the contract inferred from `config.hubs`: the keys declare the
  * hubs, and each hub's `event()`/`method()` declarations declare its events
  * and methods.
@@ -36,13 +36,13 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
 
   return {
     /**
-     * Provider that builds, starts, retries, and auto-reconnects every
+     * Provider that builds, starts, retries, and reconnects on its own every
      * configured hub. Pass `baseUrl` and `accessTokenFactory`, and gate them
      * with `enabled`. Mount it once, above every `<Suspense>`, or `<Loading>` on Solid 2. It reads `baseUrl`, `enabled`, and `connectionKey` as reactive props.
      */
     SignalRProvider,
     /**
-     * Escape hatch to the SignalR context (`getConnection`, `getStatus`,
+     * Gives access to the SignalR context (`getConnection`, `getStatus`,
      * and `waitForConnection`). Prefer the typed hooks below. Use this only
      * for the underlying `HubConnection` or a point read.
      */
@@ -55,7 +55,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     useHubConsumer: hooks.useHubConsumer,
     /**
      * Subscribes to a typed server event for the lifetime of its owner.
-     * Handler args are inferred from your contract. The subscription survives
+     * Handler arguments are inferred from your contract. The subscription survives
      * reconnects and rebuilds.
      */
     useSignalREffect: hooks.useSignalREffect,
@@ -85,8 +85,8 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     useSignalRTeardown: hooks.useSignalRTeardown,
     /**
-     * Live connection status of a hub, as an accessor. Re-runs the tracking
-     * scope only when this hub's status changes. Also keeps a lazy hub
+     * Live connection status of a hub, as an accessor. Runs the tracking
+     * scope again only when this hub's status changes. Also keeps a lazy hub
      * connected until its owner is disposed.
      */
     useHubStatus: hooks.useHubStatus,

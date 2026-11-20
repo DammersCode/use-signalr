@@ -67,4 +67,4 @@ Solid 2 has no `<Suspense>` and no `createResource`. It uses `<Loading>` and asy
 
 ## Status and the reconnect callback
 
-An effect that reads the status accessor runs as soon as the status changes. It therefore runs before the reconnect callback. The [recovery guide](/docs/solid/concepts/recovery) describes the callback.
+On Solid 1, an effect that reads the status accessor runs as soon as the status changes. It therefore runs before the reconnect callback. On Solid 2, effects run after the current batch, so the callback runs first. The [recovery guide](/docs/solid/concepts/recovery) describes the callback.

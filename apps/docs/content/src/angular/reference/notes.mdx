@@ -61,11 +61,9 @@ You can import the package and call `provideSignalR` during a server render. The
 
 On the server, the provider disables the session. A wait or an invoke that runs during a server render rejects at once with `SignalRDisabledError`, and every status stays `idle`. Run calls in `afterNextRender`, or in an `effect()` that waits for the status `connected`.
 
-When no `onError` is set, the provider sends errors to `ErrorHandler`. That handler receives the error only, not the hub or `info.source`. While a hub is down, the handler gets the error once, on the first failed attempt. Set `onError` to filter it.
-
 ## Errors
 
-If you give no `onError`, the provider sends each error to the Angular `ErrorHandler`. Give an `onError` to take over the handling. Then the `ErrorHandler` gets no connection errors.
+If you give no `onError`, the provider sends each error to the Angular `ErrorHandler`. Give an `onError` to take over the handling. Then the `ErrorHandler` gets no connection errors. The `ErrorHandler` receives the error only, not the hub or `info.source`. While a hub is down, it gets the error once, on the first failed attempt.
 
 ## Status and the reconnect callback
 

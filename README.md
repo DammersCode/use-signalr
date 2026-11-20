@@ -46,7 +46,7 @@ Every adapter has the same capabilities. All packages need `@microsoft/signalr` 
 
 ## Example
 
-This React file declares a hub, connects it, and reads a typed method result. The quick start of each framework builds the same example from the same contract:
+This React file declares a hub, connects it, and reads a typed method result. The home page of the docs shows the same example for each framework:
 
 <!-- hero:react:start -->
 ```tsx

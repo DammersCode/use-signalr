@@ -64,6 +64,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * method's return value. Fails fast by default. Opt in to retry for
      * idempotent methods only. When the component unmounts, a call that still
      * waits rejects with `AbortError`, unless you set `keepAliveOnUnmount`.
+     * With `keepAliveOnUnmount`, the call also holds a lazy hub open until it settles.
      */
     useSignalRInvoke: hooks.useSignalRInvoke,
     /**
@@ -91,8 +92,8 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     useHubStatus: hooks.useHubStatus,
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
-     * state that went stale while offline. It also runs after a rebuild that a
-     * `connectionKey`, `baseUrl`, or `enabled` change causes.
+     * state that went stale while offline. It also runs after a rebuild, but
+     * only for a hub that was connected before.
      */
     useOnReconnected: hooks.useOnReconnected,
   };

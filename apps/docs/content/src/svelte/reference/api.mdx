@@ -19,7 +19,7 @@ The result is one object of functions. Types come from the contract that `config
 
 ## Members
 
-Call every function while a component initializes, in the `<script>` block or in a function that the block calls. The functions use `getContext` and `onDestroy`, so they need a component that is below the one that called `provideSignalR`. The library reads the hub, event, and method arguments one time.
+Call every function while a component initializes, in the `<script>` block or in a function that the block calls. The functions use `getContext` and `onDestroy`, so `provideSignalR` must have run before them: in the same component, earlier in the script, or in a component above. The library reads the hub, event, and method arguments one time.
 
 All functions except `provideSignalR` and `getSignalR` hold a hub. A held hub counts as a consumer. A lazy hub connects with its first consumer. It closes after its last consumer leaves and `graceMs` has passed.
 

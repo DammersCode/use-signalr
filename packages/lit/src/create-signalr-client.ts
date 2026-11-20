@@ -216,7 +216,7 @@ export class HubController<
     };
   }
 
-  /** Runs a callback after each reconnect, not the first connect, to refetch state that went stale while offline. */
+  /** Runs a callback after each reconnect, not the first connect, to refetch state that went stale while offline. It also runs after a rebuild, but only for a hub that was connected before. */
   onReconnected(callback: () => void) {
     const entry: ReconnectEntry = { run: () => callback() };
     this.reconnectEntries.add(entry);

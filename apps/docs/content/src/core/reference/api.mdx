@@ -214,8 +214,8 @@ Declares an invocable server method, for example `method<[roomId: string], boole
 | `HubString` | A hub path that starts with `/`, for example `/hubs/chat`. |
 | `HubContract` | The contract of one hub: optional `events` and `methods`. |
 | `SignalRContract` | The contract of an app: a map from hub path to `HubContract`. |
-| `EventDef<A>` | The phantom-typed declaration that `event()` returns. |
-| `MethodDef<A, R>` | The phantom-typed declaration that `method()` returns. |
+| `EventDef<A>` | The declaration that `event()` returns. It exists for its type only and has no runtime data. |
+| `MethodDef<A, R>` | The declaration that `method()` returns. It exists for its type only and has no runtime data. |
 | `HubDef` | The runtime definition of one hub: `PerHubConfig` plus `events` and `methods`. |
 | `InferContract<H>` | Derives the `SignalRContract` from a `hubs` config object. |
 | `EventName<T, H>` | The event names of hub `H`. |

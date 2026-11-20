@@ -5,7 +5,7 @@ description: Vue-specific rules for the SignalR package. Nuxt, refs and getters,
 
 ## Requirements
 
-The package needs Vue 3.3 or later and `@microsoft/signalr` 8, 9, 10, or 11. Vue 3.3 added `toValue` and `MaybeRefOrGetter`, which the plugin options use.
+The package needs Vue 3.3 or later and `@microsoft/signalr` 8, 9, 10, or 11, and Node 20.19 or later. Vue 3.3 added `toValue` and `MaybeRefOrGetter`, which the plugin options use.
 
 ## Refs and getters as inputs
 
@@ -93,4 +93,4 @@ A hub call that runs during a server render waits until its timeout, because no 
 
 ## Status and the reconnect callback
 
-A watcher runs once per flush, after the reconnect callback returns. It sees the settled status of the flush. When a status such as `connecting` changes and settles within one flush, the watcher does not run for it. The [recovery guide](/docs/vue/concepts/recovery) describes the callback.
+A watcher with the default `flush` runs once per flush, after the reconnect callback returns. It sees the settled status of the flush. A watcher with `flush: "sync"` runs as soon as the status changes, before the callback. When a status such as `connecting` changes and settles within one flush, the watcher does not run for it. The [recovery guide](/docs/vue/concepts/recovery) describes the callback.

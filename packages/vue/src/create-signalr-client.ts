@@ -54,7 +54,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * Gives a typed invoker that waits for the connection and resolves with
      * the method's return value. It fails fast by default. Opt in to retry for
      * idempotent methods only. When the scope ends, a waiting call rejects
-     * with `AbortError`, unless you set `keepAliveOnUnmount`. Call it in
+     * with `AbortError`, unless you set `keepAliveOnUnmount`. With it, the call also holds a lazy hub open until it settles. Call it in
      * `setup()` or an effect scope.
      */
     useSignalRInvoke: composables.useSignalRInvoke,
@@ -78,9 +78,8 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     useSignalRTeardown: composables.useSignalRTeardown,
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
-     * state that went stale while offline. It also runs after a rebuild from
-     * a `baseUrl`, `enabled`, or `connectionKey` change. Call it in `setup()`
-     * or an effect scope.
+     * state that went stale while offline. It also runs after a rebuild, but
+     * only for a hub that was connected before.
      */
     useOnReconnected: composables.useOnReconnected,
   });

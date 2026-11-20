@@ -96,7 +96,8 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     hubStatus: hooks.hubStatus,
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
-     * state that went stale while offline. Call it during component init.
+     * state that went stale while offline. It also runs after a rebuild, but
+     * only for a hub that was connected before.
      */
     onReconnected: hooks.onReconnected,
   };

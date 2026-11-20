@@ -20,6 +20,7 @@ The favicons and app icons in `apps/docs/public` are PNG renders of `symbol.svg`
 | `lockup-horizontal-black.svg`, `lockup-horizontal-white.svg` | One-colour print |
 | `wordmark-*.svg` | Text only, when the symbol is already near |
 | `apps/docs/public/favicon.*`, `*icon*.png`, `site.webmanifest` | Favicons and app icons for the docs site |
+| `apps/docs/public/social-preview.png` | Social preview card, 1280 × 640. A copy of the image on the GitHub repository. The docs site uses it as `og:image` and `twitter:image` (`apps/docs/app/layout.tsx`). Replace both when the card changes. |
 
 ## Colours (Eclipse)
 

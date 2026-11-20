@@ -127,7 +127,7 @@ function createTeardownSender<
     acquire: (hub: H) => void;
     release: (hub: H) => void;
     waitForConnection: (hub: H, timeoutMs: number, signal?: AbortSignal) => Promise<HubConnection>;
-    beginSend?: (hub: H) => { signal: AbortSignal; end: () => void };
+    beginSend?: (hub: H) => { signal: AbortSignal; use: (connection: HubConnection) => void; end: () => void };
   };
   hub: H;
   method: M;

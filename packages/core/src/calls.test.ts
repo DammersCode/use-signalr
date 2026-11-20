@@ -335,6 +335,24 @@ describe("createTeardownSender", () => {
   it("does not give up at once when the timeout is larger than a timer can hold", async () => {
     vi.useFakeTimers();
     try {
+      const release = vi.fn();
+      const send = createTeardownSender<Contract, "/hub", "Count">({
+        target: { acquire: vi.fn(), release, waitForConnection: () => new Promise<HubConnection>(() => {}) },
+        hub: "/hub",
+        method: "Count",
+        getOptions: () => ({ timeout: 2 ** 31 }),
+      });
+      void send();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(release).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("has no time limit when the timeout is not finite", async () => {
+    vi.useFakeTimers();
+    try {
       const { release } = (() => {
         const acquire = vi.fn();
         const release = vi.fn();

@@ -393,7 +393,7 @@ describe("svelte integration (real provider, real core session)", () => {
     view.unmount();
   });
 
-  it("S10: an event handler stops receiving events after its component unmounts", async () => {
+  it("an event handler stops receiving events after its component unmounts", async () => {
     const client = makeClient();
     const show = writable(true);
     const received: number[] = [];

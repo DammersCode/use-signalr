@@ -168,7 +168,7 @@ export function createTeardownSender<
     release: (hub: H) => void;
     waitForConnection: (hub: H, timeoutMs: number, signal?: AbortSignal) => Promise<HubConnection>;
     /** Tells the session that a send is pending, so `stop()` can let it finish. Pass the one from the session context. */
-    beginSend?: (hub: H) => { signal: AbortSignal; end: () => void };
+    beginSend?: (hub: H) => { signal: AbortSignal; use: (connection: HubConnection) => void; end: () => void };
   };
   hub: H;
   method: M;
@@ -195,6 +195,7 @@ export function createTeardownSender<
       void (async () => {
         try {
           const connection = await waitForConnection(hub, timeout, inFlight?.signal);
+          inFlight?.use(connection);
           await connection.send(method, ...(args as unknown[]));
           finish(true);
         } catch {

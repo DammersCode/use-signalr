@@ -102,7 +102,7 @@ Some frameworks run the cleanup and the setup again at once. React does this in 
 | `publicContext` | A frozen object with only the three members above. |
 | `statusStore` | The store that you passed to the session. Read it to subscribe to status. |
 | `acquire(hub)` and `release(hub)` | Reference counts for lazy hubs. |
-| `beginSend(hub)` | Registers a teardown send. Returns `{ signal, end }`. Pass it to `createTeardownSender`. |
+| `beginSend(hub)` | Registers a teardown send. Returns `{ signal, use, end }`. Pass it to `createTeardownSender`. |
 | `registerReconnect(hub, callback)` | Registers a reconnect callback. Returns an unsubscribe function. |
 | `subscribe(hub, event, handler)` | Registers an event handler. Returns an unsubscribe function. |
 

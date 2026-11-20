@@ -56,9 +56,13 @@ export interface SignalRContextValueBase<T extends SignalRContract, TStore>
   release: (hub: keyof T & HubString) => void;
   /**
    * Tells the session that a teardown send is pending on a hub. `stop()` then keeps that connection open until `end()`, so the send can finish.
-   * The signal aborts the wait for the connection when the session stops. Call `end()` once, when the send ends.
+   * The signal aborts the wait for the connection when the session stops. Call `use(connection)` with the connection that carries the send, and `end()` once, when the send ends.
    */
-  beginSend: (hub: keyof T & HubString) => { signal: AbortSignal; end: () => void };
+  beginSend: (hub: keyof T & HubString) => {
+    signal: AbortSignal;
+    use: (connection: HubConnection) => void;
+    end: () => void;
+  };
   /** Registers a callback that runs after each reconnect, not after the first connect. Returns an unsubscribe function. */
   registerReconnect: (hub: keyof T & HubString, cb: () => void) => () => void;
   /** Registers an event handler. The handler survives rebuilds. Returns an unsubscribe function. */

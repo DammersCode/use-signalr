@@ -289,7 +289,7 @@ describe("events through the registry", () => {
     expect(received).toEqual(["still"]);
   });
 
-  it("S10 runs onReconnected once when a recovery rebuild connects again", async () => {
+  it("runs onReconnected once when a recovery rebuild connects again", async () => {
     const { client, Provider } = setup();
     const onReconnected = vi.fn();
     function Rejoin() {
@@ -324,7 +324,7 @@ describe("events through the registry", () => {
     expect(onReconnected).toHaveBeenCalledTimes(1);
   });
 
-  it("S11 passes the error source to onError", async () => {
+  it("passes the error source to onError", async () => {
     const { client, Provider } = setup();
     const onError = vi.fn();
     function Bad() {

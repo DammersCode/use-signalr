@@ -1796,6 +1796,35 @@ describe("stop() with a teardown call in flight", () => {
     expect(second.stop).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the new connection open for a teardown that waited through a rebuild and sends on it", async () => {
+    vi.useFakeTimers();
+    try {
+      startGate = new Promise<void>(() => {});
+      const session = makeSession();
+      session.update({ baseUrl: "https://example.test" });
+      await vi.advanceTimersByTimeAsync(0);
+      let finishSend: () => void = () => {};
+      sendGate = new Promise<void>((resolve) => {
+        finishSend = resolve;
+      });
+      const result = makeTeardown(session, 60_000)();
+
+      startGate = undefined;
+      session.update({ baseUrl: "https://example.test", connectionKey: 2 });
+      await vi.advanceTimersByTimeAsync(0);
+      const second = fakeConnections[fakeConnections.length - 1]!;
+      expect(second.send).toHaveBeenCalledWith("Leave");
+
+      session.stop();
+      expect(second.stop).not.toHaveBeenCalled();
+      finishSend();
+      await expect(result).resolves.toBe(true);
+      expect(second.stop).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("goes idle at once and hides the connection while a teardown is pending, and leaves other waits alone", async () => {
     sendGate = new Promise<void>(() => {});
     const statusStore = makeFakeStatusStore();
@@ -1841,11 +1870,13 @@ describe("stop() with a teardown call in flight", () => {
     const listener = connection.on.mock.calls.find((call) => call[0] === "Tick")?.[1] as
       | ((...args: unknown[]) => void)
       | undefined;
-    listener?.("late");
+    expect(listener).toBeDefined();
+    expect(connection.stop).not.toHaveBeenCalled();
+    listener!("late");
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it("stops at once and keeps the status idle when no teardown is in flight", async () => {
+  it("stops at once when no teardown is pending", async () => {
     const session = makeSession();
     session.update({ baseUrl: "https://example.test" });
     await new Promise((resolve) => setTimeout(resolve, 0));

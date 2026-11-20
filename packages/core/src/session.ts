@@ -53,7 +53,7 @@ export interface SignalRSession<
   T extends SignalRContract,
   TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,
 > {
-  /** Sets every hub to `"idle"`, closes the live connections, and forgets which hubs connected before. A connected hub with a pending teardown call stays open until the send ends. Calling it again does nothing. */
+  /** Sets every hub to `"idle"`, closes the live connections, and forgets which hubs connected before. A connected hub with a pending teardown call stays open until the send ends. Calling it again leaves the hubs stopped. */
   stop: () => void;
   /** Does nothing if the values equal the last applied values. Otherwise it disposes the live connections and, if `enabled` is true and `baseUrl` is not empty, builds new ones. A rebuild keeps which hubs connected, so their reconnect callbacks run. */
   update: (values: SignalRSessionValues) => void;
@@ -86,12 +86,11 @@ export function createSignalRSession<
   // Hubs that stopped after a non-retriable error, with the error. A wait on one can never succeed.
   const failed = new Map<Hub, Error>();
   // Teardown sends pending, and connections that stop() left open for them until they end.
-  // A send belongs to the connections that exist when it begins. `epoch` counts the disposed ones.
-  type PendingSend = { controller: AbortController; epoch: number };
+  // A send is bound to the connection it sends on, so stop() keeps exactly the connections in use.
+  type PendingSend = { controller: AbortController; connection?: HubConnection };
   type HeldConnection = { hub: Hub; connection: HubConnection; sends: Set<PendingSend> };
   const pendingSends = new Map<Hub, Set<PendingSend>>();
   const heldConnections = new Set<HeldConnection>();
-  let epoch = 0;
   let disabled = false;
   let current: ConnectionManager<Hub> | null = null;
   let applied: SignalRSessionValues | null = null;
@@ -223,7 +222,6 @@ export function createSignalRSession<
       .forEach((connection, hub) =>
         heldConnections.add({ hub, connection, sends: new Set(keep?.get(hub)) }),
       );
-    epoch += 1;
     hubs.forEach((h) => {
       if (resolve(h).lazy && !refCounts.get(h)) connectedBefore.delete(h); // a lazy hub with no consumer starts fresh
     });
@@ -235,8 +233,9 @@ export function createSignalRSession<
   const stop = () => {
     const keep = new Map<Hub, Set<PendingSend>>();
     hubs.forEach((h) => {
-      const live = [...(pendingSends.get(h) ?? [])].filter((send) => send.epoch === epoch);
-      if (live.length > 0) keep.set(h, new Set(live));
+      const connection = current?.getConnection(h);
+      const live = [...(pendingSends.get(h) ?? [])].filter((send) => send.connection === connection);
+      if (connection && live.length > 0) keep.set(h, new Set(live));
     });
     teardown(keep);
     connectedBefore.clear();
@@ -285,13 +284,20 @@ export function createSignalRSession<
       if (next === 0) current?.reconcile();
     },
     beginSend: (hub) => {
-      const send: PendingSend = { controller: new AbortController(), epoch };
+      const live = current?.getConnection(hub);
+      const send: PendingSend = {
+        controller: new AbortController(),
+        connection: live?.state === HubConnectionState.Connected ? live : undefined,
+      };
       let set = pendingSends.get(hub);
       if (!set) pendingSends.set(hub, (set = new Set()));
       set.add(send);
       let ended = false;
       return {
         signal: send.controller.signal,
+        use: (connection) => {
+          send.connection = connection;
+        },
         end: () => {
           if (ended) return;
           ended = true;

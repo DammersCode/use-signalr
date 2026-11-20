@@ -218,6 +218,31 @@ describe("default onError", () => {
     injector.destroy();
   });
 
+  it("survives a user onError that throws while it reports a throwing onStatusChange", async () => {
+    const { provideSignalR } = makeClient();
+    const onError = vi.fn(() => {
+      throw new Error("handler broke");
+    });
+    const parent = TestBed.inject(EnvironmentInjector);
+    const injector = createEnvironmentInjector(
+      [
+        provideSignalR({
+          baseUrl: "https://example.test",
+          accessTokenFactory: () => "t",
+          onError,
+          onStatusChange: () => {
+            throw new Error("boom");
+          },
+        }),
+      ],
+      parent,
+    );
+    await flush(TestBed.inject(ApplicationRef));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onError).toHaveBeenCalled();
+    injector.destroy();
+  });
+
   it("prefers a user onError", async () => {
     const { provideSignalR } = makeClient();
     const handleError = vi.fn();

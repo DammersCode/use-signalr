@@ -283,7 +283,7 @@ describe("Preact adapter with the real session", () => {
     expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
   });
 
-  it("S10: runs onReconnected once when a recovery rebuild connects again", async () => {
+  it("runs onReconnected once when a recovery rebuild connects again", async () => {
     const reconnected = vi.fn();
     function Rejoin() { client.useOnReconnected(HUB, reconnected); return null; }
     act(() => render(h(Provider, {}, h(Rejoin, {})), root));

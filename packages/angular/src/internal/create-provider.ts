@@ -96,7 +96,11 @@ export function createSignalRProvider<T extends SignalRContract>(
                     });
                   }
                 } catch (error) {
-                  report(hub, error, { source: "callback" });
+                  try {
+                    report(hub, error, { source: "callback" });
+                  } catch {
+                    // Nothing is left to report to.
+                  }
                 }
               }),
             onError: (hub, err, info) => inZone(() => report(hub, err, info)),

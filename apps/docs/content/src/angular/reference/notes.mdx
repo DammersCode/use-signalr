@@ -3,9 +3,9 @@ title: Angular notes
 description: Zone, signals, RxJS, server rendering, and cleanup in the Angular package.
 ---
 
-## Versions
+## Requirements
 
-The package needs `@angular/core` ^20, ^21, or ^22 and `@microsoft/signalr` ^8, ^9, or ^10. It needs Node 20.19 or later. `rxjs` ^7.6 is an optional peer. Only the `rxjs-interop` entry point uses it.
+The package needs `@angular/core` ^20, ^21, or ^22 and `@microsoft/signalr` ^8, ^9, ^10, or ^11. It needs Node 20.19 or later. `rxjs` ^7.6 is an optional peer. Only the `rxjs-interop` entry point uses it.
 
 ## Signals first
 
@@ -48,10 +48,12 @@ Signals are the main API. The entry point `@dammers/use-signalr-angular/rxjs-int
 import { hubStatus$ } from "@dammers/use-signalr-angular/rxjs-interop";
 import { injectHubStatus } from "./client";
 
-const status$ = hubStatus$(injectHubStatus("/hubs/rooms"));
+export function roomsStatus$() {
+  return hubStatus$(injectHubStatus("/hubs/rooms"));
+}
 ```
 
-Call `hubStatus$` in an injection context. To call it elsewhere, pass `{ injector }`.
+Call the function that wraps `hubStatus$` in an injection context, for example in a component constructor or a service. To call `hubStatus$` elsewhere, pass `{ injector }`.
 
 ## Server rendering
 
@@ -61,8 +63,10 @@ You can import the package and call `provideSignalR` during a server render. The
 
 On the server, the provider disables the session. A wait or an invoke that runs during a server render rejects at once with `SignalRDisabledError`, and every status stays `idle`. Run calls in `afterNextRender`, or in an `effect()` that waits for the status `connected`.
 
-When no `onError` is set, the provider sends errors to `ErrorHandler`. That handler receives the error only, not the hub or `info.source`. While a hub is down, the same error can repeat at each retry. Set `onError` to filter it.
-
 ## Errors
 
-If you give no `onError`, the provider sends each error to the Angular `ErrorHandler`. Give an `onError` to take over the handling. Then the `ErrorHandler` gets no connection errors.
+If you give no `onError`, the provider sends each error to the Angular `ErrorHandler`. Give an `onError` to take over the handling. Then the `ErrorHandler` gets no connection errors. The `ErrorHandler` receives the error only, not the hub or `info.source`. While a hub is down, it gets the error once, on the first failed attempt.
+
+## Status and the reconnect callback
+
+An `effect` that reads the status signal runs in the next change detection, after the reconnect callback returned. The [recovery guide](/docs/angular/concepts/recovery) describes the callback.

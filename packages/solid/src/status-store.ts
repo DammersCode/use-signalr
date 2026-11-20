@@ -1,5 +1,4 @@
-import { createSignal } from "solid-js";
-import type { Accessor, Setter } from "solid-js";
+import { createOwnedWriteSignal } from "./internal/solid-compat.js";
 import type { HubConnectionStatus, StatusStore } from "@dammers/use-signalr-core";
 
 export type { StatusStore };
@@ -10,22 +9,27 @@ export type { StatusStore };
  * snapshot — so a per-hub read lets an effect track only the hub it reads.
  */
 export function createStatusStore<H extends string>(): StatusStore<H> {
-  const signals = new Map<
-    H,
-    [Accessor<HubConnectionStatus>, Setter<HubConnectionStatus>]
-  >();
+  const signals = new Map<H, ReturnType<typeof createOwnedWriteSignal<HubConnectionStatus>>>();
+  // Solid 2 batches signal writes, so a read right after a write would see the old value.
+  const values = new Map<H, HubConnectionStatus>();
 
   const getOrCreate = (hub: H) => {
     let entry = signals.get(hub);
     if (!entry) {
-      entry = createSignal<HubConnectionStatus>("idle");
+      entry = createOwnedWriteSignal<HubConnectionStatus>("idle", { ownedWrite: true });
       signals.set(hub, entry);
     }
     return entry;
   };
 
   return {
-    get: (hub) => getOrCreate(hub)[0](),
-    set: (hub, status) => getOrCreate(hub)[1](status),
+    get: (hub) => {
+      getOrCreate(hub)[0]();
+      return values.get(hub) ?? "idle";
+    },
+    set: (hub, status) => {
+      values.set(hub, status);
+      getOrCreate(hub)[1](status);
+    },
   };
 }

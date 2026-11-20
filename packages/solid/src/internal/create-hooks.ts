@@ -105,11 +105,11 @@ export function createSignalRHooks<T extends SignalRContract>(
     method: M,
     options?: TeardownOptions,
   ) {
-    const { acquire, release, waitForConnection } = useInternalContext();
+    const { acquire, release, waitForConnection, beginSend } = useInternalContext();
     useHubConsumer(hub);
 
     return createTeardownSender<T, H, M>({
-      target: { acquire, release, waitForConnection },
+      target: { acquire, release, waitForConnection, beginSend },
       hub,
       method,
       getOptions: () => options,

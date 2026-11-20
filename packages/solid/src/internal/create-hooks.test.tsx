@@ -1,4 +1,5 @@
-import { onCleanup, onMount } from "solid-js";
+import { onCleanup } from "solid-js";
+import { onMount } from "./test-compat.js";
 import { describe, it, expect } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { makeHarness } from "./test-harness.js";

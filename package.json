@@ -18,8 +18,8 @@
     "check": "node scripts/check-docs.mjs",
     "check:dist": "node scripts/check-dist.mjs",
     "dev": "node scripts/dev.mjs",
-    "preversion": "npm run check && npm run typecheck && npm test",
-    "version": "node scripts/sync-versions.mjs && npm install --package-lock-only --ignore-scripts && git add packages/*/package.json examples/*/package.json apps/*/package.json package-lock.json",
+    "preversion": "npm run check && npm run typecheck && npm test && npm run check:dist",
+    "version": "node scripts/sync-versions.mjs && node scripts/stamp-changelog.mjs && npm install --package-lock-only --ignore-scripts && git add CHANGELOG.md packages/*/package.json examples/*/package.json apps/*/package.json package-lock.json",
     "postversion": "git push && git push --tags"
   },
   "devDependencies": {

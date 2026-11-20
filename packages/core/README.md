@@ -23,7 +23,7 @@ This package is for adapter authors. To use SignalR in an app, install the adapt
 npm install @dammers/use-signalr-core @microsoft/signalr
 ```
 
-It needs `@microsoft/signalr` ^8 || ^9 || ^10 and Node 20.19 or later. It has no runtime dependencies.
+It needs `@microsoft/signalr` ^8 || ^9 || ^10 || ^11 and Node 20.19 or later. It has no runtime dependencies.
 
 ## Documentation
 

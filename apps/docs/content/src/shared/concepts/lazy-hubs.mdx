@@ -3,7 +3,7 @@ title: Lazy hubs
 description: Connect a hub only while a consumer needs it, and keep it open for a grace period.
 ---
 
-By default, the library connects every hub in the contract when the app starts. A lazy hub connects only when a consumer needs it. Set `lazy: true` for one hub, or for all hubs.
+By default, the library connects every hub in the contract when the app starts. A hub that does this is an eager hub. A lazy hub connects only when a consumer needs it. Set `lazy: true` for one hub, or for all hubs.
 
 ## Grace period
 
@@ -24,7 +24,7 @@ Each of these counts as a consumer for the hub that you pass:
 
 </Only>
 <Only in="lit">
-A controller from <Api of="keepAlive" /> is one consumer. It counts while its host is connected to the DOM. <Api of="event" />, <Api of="invoke" />, <Api of="send" />, <Api of="teardown" />, <Api of="status" />, and <Api of="reconnected" /> are methods of this controller. They use this one consumer.
+A controller from <Api of="keepAlive" /> is one consumer. It counts while its host is connected to the DOM. <Api of="event" />, <Api of="send" />, <Api of="status" />, and <Api of="reconnected" /> are members of this controller. They use this one consumer. <Api of="invoke" /> with `keepAliveOnUnmount` and <Api of="teardown" /> acquire the hub on their own, for the length of each call.
 
 </Only>
 <Only in="react,preact">
@@ -40,7 +40,7 @@ The consumer ends when the effect scope of the helper stops, for example when th
 
 </Only>
 <Only in="angular">
-The consumer ends when the injection context is destroyed.
+The consumer ends when the component or injector is destroyed.
 
 </Only>
 <Only in="svelte">
@@ -55,4 +55,4 @@ Here, a component keeps the lazy presence hub alive and shows its online count:
 <Snippet id="lazy" />
 
 </Only>
-A teardown call holds a lazy hub open until it is sent, even after its own consumer leaves.
+A teardown call holds a lazy hub open until its send ends, even after its own consumer leaves.

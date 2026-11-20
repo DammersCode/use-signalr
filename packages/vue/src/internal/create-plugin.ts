@@ -32,7 +32,8 @@ export function createPlugin<T extends SignalRContract>(
         if (disposed) return;
         disposed = true;
         scope?.stop();
-        session.stop();
+        // Vue runs this before the `unmounted` hooks, so a teardown call in a hook registers first.
+        queueMicrotask(() => session.stop());
       };
       const scope = typeof window === "undefined" ? undefined : effectScope(true);
       const startWatching = () =>

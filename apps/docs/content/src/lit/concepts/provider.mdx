@@ -39,7 +39,7 @@ session.update({ connectionKey: `${userId}:${loginCount}` });
 
 ## Stop the session
 
-`session.stop()` stops every hub and releases the connections. Call it on logout or when the app shuts down.
+`session.stop()` stops every hub and closes the connections. A connection with a pending teardown call stays open until the send ends. Call it on logout or when the app shuts down.
 
 After `stop()`, the session stays stopped. A host that connects to a stopped session does not start it. The next `update()` starts it again.
 
@@ -55,4 +55,4 @@ After `stop()`, the session stays stopped. A host that connects to a stopped ses
 
 ## Context
 
-`session.context` gives the escape hatch with `getConnection`, `getStatus`, and `waitForConnection`. Use it only when the controller cannot express a call.
+`session.context` gives access to `getConnection`, `getStatus`, and `waitForConnection`. Use it only for the underlying `HubConnection` or a one-time read.

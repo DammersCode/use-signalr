@@ -126,6 +126,7 @@ export function makeHarness(opts?: {
         });
       });
     },
+    beginSend: () => ({ signal: new AbortController().signal, use: () => {}, end: () => {} }),
     acquire: () => {
       harness.acquireCount += 1;
     },

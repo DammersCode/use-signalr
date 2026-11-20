@@ -99,11 +99,11 @@ export function createSignalRHooks<T extends SignalRContract>(contextKey: symbol
     method: M,
     options?: TeardownOptions,
   ) {
-    const { acquire, release, waitForConnection } = getInternalContext("hubTeardown");
+    const { acquire, release, waitForConnection, beginSend } = getInternalContext("hubTeardown");
     keepHubAlive(hub);
 
     return createTeardownSender<T, H, M>({
-      target: { acquire, release, waitForConnection },
+      target: { acquire, release, waitForConnection, beginSend },
       hub,
       method,
       getOptions: () => options,

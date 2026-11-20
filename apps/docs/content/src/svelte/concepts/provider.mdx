@@ -49,12 +49,12 @@ The provider starts the session in `onMount`. Svelte never runs `onMount` on the
 | Moment | What happens |
 | --- | --- |
 | `provideSignalR(options)` runs | The provider builds the session and sets the context. No connection starts. |
-| The component mounts | The provider subscribes to the identity options and starts the session. Eager hubs connect. Lazy hubs wait for their first consumer. |
-| An option changes | The session updates. The statuses go to `"idle"` and then to `"connecting"` again. |
-| The component is destroyed | The provider unsubscribes and closes all connections. |
+| The component mounts | The provider subscribes to `baseUrl`, `enabled`, and `connectionKey` and starts the session. Eager hubs connect. Lazy hubs wait for their first consumer. |
+| An option changes | The session updates. The statuses go to `"idle"`. They go to `"connecting"` again when `enabled` is true and `baseUrl` is set. A lazy hub without a consumer stays `"idle"`. |
+| The component is destroyed | The provider unsubscribes and closes all connections. A connection with a pending teardown call stays open until the send ends. |
 
 The provider lives as long as the component that calls it. For one session in the whole app, call it in the root layout.
 
 ## Placement error
 
-Every function of the client reads the context from the component that is above it. If the context is missing, the function throws. Call `provideSignalR` in a parent component, and call the other functions while a component initializes, not in an event handler or after an `await`. For the message, see [Troubleshooting](/docs/svelte/reference/troubleshooting#placement-errors).
+Every function of the client reads the context that `provideSignalR` set. If the context is missing, the function throws. Call `provideSignalR` first, in the same component or in a parent component. Then call the other functions while a component initializes. Do not call them in an event handler or after an `await`. For the message, see [Troubleshooting](/docs/svelte/reference/troubleshooting#placement-errors).

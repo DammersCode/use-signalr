@@ -12,7 +12,7 @@ import type {
 import type { SignalRContextValue } from "./types.js";
 
 /**
- * Creates a fully-typed SignalR client. Returns a provider and hooks, typed
+ * Creates a typed SignalR client. Returns a provider and hooks, typed
  * against the contract inferred from `config.hubs`: the keys declare the
  * hubs, and each hub's `event()`/`method()` declarations declare its events
  * and methods.
@@ -36,15 +36,15 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
 
   return {
     /**
-     * Provider that builds, starts, retries, and auto-reconnects every
+     * Provider that builds, starts, retries, and reconnects on its own every
      * configured hub. Pass `baseUrl` and `accessTokenFactory`, and gate them
-     * with `enabled`. Mount it once, above every `<Suspense>`. It reads `baseUrl`, `enabled`, and `connectionKey` as reactive props.
+     * with `enabled`. Mount it once, above every `<Suspense>`, or `<Loading>` on Solid 2. It reads `baseUrl`, `enabled`, and `connectionKey` as reactive props.
      */
     SignalRProvider,
     /**
-     * Escape hatch to the SignalR context (`getConnection`, `getStatus`,
+     * Gives access to the SignalR context (`getConnection`, `getStatus`,
      * and `waitForConnection`). Prefer the typed hooks below. Use this only
-     * for the underlying `HubConnection` or a point read.
+     * for the underlying `HubConnection` or a one-time read.
      */
     useSignalR: hooks.useSignalR,
     /**
@@ -55,7 +55,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     useHubConsumer: hooks.useHubConsumer,
     /**
      * Subscribes to a typed server event for the lifetime of its owner.
-     * Handler args are inferred from your contract. The subscription survives
+     * Handler arguments are inferred from your contract. The subscription survives
      * reconnects and rebuilds.
      */
     useSignalREffect: hooks.useSignalREffect,
@@ -76,22 +76,24 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     useSignalRSend: hooks.useSignalRSend,
     /**
-     * Typed teardown sender for a method invoked in a cleanup.
-     * Survives the disposal of the calling component, queues while the hub is
-     * still connecting instead of dropping, and holds a lazy hub open until
-     * the flush completes. Best-effort: resolves `true` if dispatched,
-     * `false` if the hub never connected in time or the send fails. Never throws.
+     * Typed teardown sender for a method invoked in a cleanup. Survives the
+     * disposal of the calling component, queues while the hub is still
+     * connecting instead of dropping, and holds a lazy hub open until the send
+     * ends. Resolves `true` if the call is sent. Resolves `false` if the hub
+     * does not connect in time, the session stops while the call waits for the hub, the session is disabled, the hub failed, or the send fails or does not end in time. Never throws.
+     * If the session stops while the call is pending on a connected hub, the call is sent before the connection closes.
      */
     useSignalRTeardown: hooks.useSignalRTeardown,
     /**
-     * Live connection status of a hub, as an accessor. Re-runs the tracking
-     * scope only when this hub's status changes. Also keeps a lazy hub
+     * Live connection status of a hub, as an accessor. Runs the tracking
+     * scope again only when this hub's status changes. Also keeps a lazy hub
      * connected until its owner is disposed.
      */
     useHubStatus: hooks.useHubStatus,
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
-     * state that went stale while offline.
+     * state that went stale while offline. It also runs after a rebuild, but
+     * only for a hub that was connected before.
      */
     useOnReconnected: hooks.useOnReconnected,
   };

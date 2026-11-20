@@ -85,6 +85,7 @@ Every adapter keeps these scenarios in its `integration.test.*`. The tests use t
 | S7 | Unmount while an invoke waits for the connection | It rejects with `AbortError`. The server gets no invoke. |
 | S8 | First connect | The status goes through `"connecting"` to `"connected"`. |
 | S9 | Lazy hub | It connects with the first consumer. It stops after the last consumer plus `graceMs`. |
+| S12 | The provider and a consumer end together, and the consumer cleanup calls a teardown on a connected hub | The call lands, and the connection closes after the send. |
 
 ## Example apps
 
@@ -117,17 +118,19 @@ The documentation site lives in [`apps/docs`](./apps/docs). Its README explains 
 
 All packages are versioned in lockstep — one version number, always released together.
 
+Run it on `main`, with a clean working tree and the changes listed under `## Unreleased` in `CHANGELOG.md`:
+
 ```bash
-npm version patch   # 1.0.0 -> 1.0.1  (minor | major for features | breaking)
+npm version minor   # 1.0.0 -> 1.1.0  (patch for fixes | major for breaking changes)
 ```
 
 `npm version` runs, in order:
 
-1. `preversion`: `npm run check && npm run typecheck && npm test` — a failure here stops the release before anything is tagged.
-2. The root `version` bumps `package.json`, then `version` script runs `scripts/sync-versions.mjs`, which writes the new version into every `packages/*/package.json` and into each `@dammers/use-signalr-*` dependency. It also writes the pins in `examples/*/package.json`. Then it updates `package-lock.json` and stages these files.
+1. `preversion`: `npm run check && npm run typecheck && npm test && npm run check:dist` — a failure here stops the release before anything is tagged.
+2. The root `version` bumps `package.json`, then `version` script runs `scripts/sync-versions.mjs`, which writes the new version into every `packages/*/package.json` and into each `@dammers/use-signalr-*` dependency. It also writes the pins in `examples/*/package.json`. Then `scripts/stamp-changelog.mjs` renames `## Unreleased` to the new version and opens an empty `## Unreleased` above it. It stops when that section is empty. Then it updates `package-lock.json` and stages these files.
 3. A single `v*` tag is created and pushed (`postversion` pushes the branch and all tags).
 
-The pushed tag triggers the GitHub Actions release workflow, which builds, tests, verifies the tag matches every package's version, and publishes all packages to npm with provenance. Publishing authenticates through npm trusted publishing (OIDC) — no token to store or rotate.
+The pushed tag triggers the GitHub Actions release workflow, which checks that the tagged commit is on `main`, builds, tests, verifies the tag matches every package's version and has a changelog section, and publishes all packages to npm with provenance. Publishing authenticates through npm trusted publishing (OIDC) — no token to store or rotate.
 
 Do not edit `version` by hand in any single `package.json`. The release workflow fails if the tag and any package's version disagree. A full release gets the npm dist-tag `latest`.
 

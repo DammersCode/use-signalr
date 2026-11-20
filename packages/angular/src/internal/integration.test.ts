@@ -2,7 +2,9 @@ import "@angular/compiler";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   ApplicationRef,
+  DestroyRef,
   Component,
+  inject,
   NgZone,
   provideZoneChangeDetection,
   provideZonelessChangeDetection,
@@ -25,6 +27,7 @@ interface FakeConn {
   reconnectingHandlers: Array<() => void>;
   reconnectedHandlers: Array<() => void>;
   invoke: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   connect: () => void;
   push: (name: string, ...args: unknown[]) => void;
@@ -45,6 +48,7 @@ function makeFakeConn(): FakeConn {
     reconnectingHandlers: [],
     reconnectedHandlers: [],
     invoke: vi.fn((_method: string, arg: string) => Promise.resolve(`echo:${arg}`)),
+    send: vi.fn(() => (conn.state === "Connected" ? Promise.resolve() : Promise.reject(new Error("not connected")))),
     stop: vi.fn(() => {
       conn.state = "Disconnected";
       return Promise.resolve();
@@ -260,6 +264,32 @@ describe("provider teardown", () => {
     TestBed.resetTestingModule();
     await tick();
     expect(connections).toHaveLength(1);
+    expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("S12 teardown with the provider", () => {
+  it("lands a teardown call from a destroy hook when the injector and its consumer end together", async () => {
+    const client = makeClient();
+    let result: Promise<boolean> | undefined;
+    const Cmp = component(() => {
+      const leave = client.injectHubTeardown(HUB, "Echo");
+      inject(DestroyRef).onDestroy(() => {
+        result = leave("bye");
+      });
+    });
+    const appRef = setup(client);
+    TestBed.createComponent(Cmp);
+    await flush(appRef);
+    connections[0]!.connect();
+    await tick();
+
+    TestBed.resetTestingModule();
+    await tick();
+    await tick();
+
+    await expect(result).resolves.toBe(true);
+    expect(connections[0]!.send).toHaveBeenCalledWith("Echo", "bye");
     expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
   });
 });

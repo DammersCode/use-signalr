@@ -12,7 +12,7 @@ import type {
 import type { SignalRContextValue } from "./types.js";
 
 /**
- * Creates a fully-typed SignalR client. Returns a provider function and a set
+ * Creates a typed SignalR client. Returns a provider function and a set
  * of `inject*` functions, typed against the contract inferred from
  * `config.hubs`: the keys declare the hubs, and each hub's
  * `event()`/`method()` declarations declare its events and methods.
@@ -36,32 +36,32 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
 
   return {
     /**
-     * Builds, starts, retries, and auto-reconnects every configured hub.
-     * Returns `EnvironmentProviders` — add it to `ApplicationConfig.providers`
-     * (or a route's `providers` array). Pass an options object, or a factory
-     * that can call `inject()`. Give `baseUrl` and `accessTokenFactory`, and
-     * gate with `enabled`. Each can be a plain value or a zero-arg
-     * getter/`Signal`, so token rotation and enable/disable stay reactive.
-     * Without `onError`, errors go to Angular's `ErrorHandler`. All
-     * connection work happens client-side only (inside `afterNextRender`), so
-     * this is safe to provide during SSR.
+     * Builds, starts, retries, and reconnects on its own every configured hub.
+     * Returns `EnvironmentProviders`. Add it to `ApplicationConfig.providers`
+     * or to the `providers` array of a route. Pass an options object, or a
+     * factory function that can call `inject()`. Give `baseUrl`, and gate the
+     * hubs with `enabled`. Each of these can be a plain value, a getter, or a
+     * `Signal`. `accessTokenFactory` is a plain function or a `Signal` of one.
+     * A getter does not work there. Without `onError`, errors go to Angular's
+     * `ErrorHandler`. The connection starts in the browser only, after
+     * `afterNextRender`, so the provider is safe during server rendering.
      */
     provideSignalR,
     /**
-     * Escape hatch to the SignalR context (`getConnection`, `getStatus`,
+     * Gives access to the SignalR context (`getConnection`, `getStatus`,
      * and `waitForConnection`). Prefer the typed `inject*` functions below.
-     * Use this only for the underlying `HubConnection` or a point read.
+     * Use this only for the underlying `HubConnection` or a one-time read.
      */
     injectSignalR: hooks.injectSignalR,
     /**
-     * Keeps a (possibly lazy) hub connected for the injection scope's
-     * lifetime, without subscribing to events or status. Acquires
+     * Keeps a hub, eager or lazy, connected for the lifetime of the calling
+     * component or injector, without subscribing to events or status. Acquires
      * immediately, releases on `DestroyRef.onDestroy`.
      */
     injectKeepHubAlive: hooks.injectKeepHubAlive,
     /**
-     * Subscribes to a typed server event for the injection scope's lifetime.
-     * Handler args are inferred from your contract. The subscription survives
+     * Subscribes to a typed server event for the lifetime of the calling component or injector.
+     * Handler arguments are inferred from your contract. The subscription survives
      * reconnects and rebuilds.
      */
     injectHubEvent: hooks.injectHubEvent,
@@ -69,37 +69,39 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * Typed invoker that waits for the connection and resolves with the
      * method's return value. Fails fast by default. Opt in to retry for
      * idempotent methods only. Pending calls reject with an `AbortError` when
-     * the injection scope is destroyed, unless `keepAliveOnUnmount` is set.
+     * the calling component or injector is destroyed, unless `keepAliveOnUnmount` is `true`.
      * With `keepAliveOnUnmount`, the call also keeps a lazy hub connected
      * until it ends.
      */
     injectHubInvoke: hooks.injectHubInvoke,
     /**
-     * Typed fire-and-forget sender. It does not wait for the connection. It resolves
-     * `true` when it sends the call, and `false` when the hub is not connected and
-     * it drops the call. It never throws, so a cleanup can call it. For a call that
-     * must land in a cleanup, use
-     * `injectHubTeardown`.
+     * Typed fire-and-forget sender. It does not wait for the connection. It
+     * resolves `true` when it sends the call, and `false` when the hub is not
+     * connected and it drops the call. It also resolves `false` when the send
+     * fails. It never throws, so a cleanup can call it. For a call that must
+     * land in a cleanup, use `injectHubTeardown`.
      */
     injectHubSend: hooks.injectHubSend,
     /**
-     * Typed teardown sender for a method invoked in a teardown.
-     * Survives the calling scope's disposal, queues while the hub is still
-     * connecting instead of dropping, and holds a lazy hub open until the
-     * flush completes. Best-effort: resolves `true` if dispatched, `false`
-     * if the hub never connected in time. Never throws.
+     * Typed teardown sender for a method invoked when a component or injector
+     * is destroyed. Survives the destroy, queues while the hub is still connecting
+     * instead of dropping, and holds a lazy hub open until the send ends.
+     * Resolves `true` if the call is sent. Resolves `false` if the hub does
+     * not connect in time, the session stops while the call waits for the hub, the session is disabled, the hub failed, or the send fails or does not end in time. Never throws.
+     * If the session stops while the call is pending on a connected hub, the call is sent before the connection closes.
      */
     injectHubTeardown: hooks.injectHubTeardown,
     /**
      * Live connection status of a hub, as a granular `Signal`. Reading it in
-     * a `computed()`/effect/template re-runs only when this hub's status
-     * changes. Also keeps a lazy hub connected while the injection scope is
+     * a `computed()`/effect/template runs again only when this hub's status
+     * changes. Also keeps a lazy hub connected while the calling component or injector is
      * alive.
      */
     injectHubStatus: hooks.injectHubStatus,
     /**
-     * Runs a callback after each reconnect and after each rebuild, not the
-     * first connect, to refetch state that went stale while offline.
+     * Runs a callback after each reconnect, not the first connect, to refetch
+     * state that went stale while offline. It also runs after a rebuild, but
+     * only for a hub that was connected before.
      */
     injectOnReconnected: hooks.injectOnReconnected,
   };

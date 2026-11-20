@@ -39,7 +39,7 @@ To recover, pass a new `connectionKey`, for example after a new login. Use the u
 
 <Snippet id="connection-key" />
 
-The same value does nothing. You can also set `enabled` to `false` and then to `true`. For a lazy hub, it is enough that all consumers leave and one consumer comes back.
+The same value does nothing. You can also set `enabled` to `false` and then to `true`. For a lazy hub, all consumers must leave and stay away until `graceMs` has passed. Then one consumer comes back. A framework can merge two changes in one event handler into one value. Then nothing changes.
 
 ## Logout
 

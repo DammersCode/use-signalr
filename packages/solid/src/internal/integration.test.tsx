@@ -1,6 +1,7 @@
-import { createEffect, createSignal, onMount, Show } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, onMount } from "./test-compat.js";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { JSX } from "solid-js";
+import type { SolidNode } from "../types.js";
 import { render } from "@solidjs/testing-library";
 import { createSignalRClient, event, method } from "../index.js";
 
@@ -37,7 +38,7 @@ function makeFakeConnection() {
       return Promise.resolve();
     }),
     invoke: vi.fn((..._args: unknown[]) => Promise.resolve("ok")),
-    send: vi.fn(() => Promise.resolve()),
+    send: vi.fn(() => (conn.state === "Connected" ? Promise.resolve() : Promise.reject(new Error("not connected")))),
     onclose: vi.fn((fn: (err?: unknown) => void) => {
       lifecycle.close = fn;
     }),
@@ -108,7 +109,7 @@ function makeClient(hubOptions: { lazy?: boolean; graceMs?: number } = {}) {
 
 const mountProvider = (
   client: ReturnType<typeof makeClient>,
-  children: () => JSX.Element,
+  children: () => SolidNode,
   props: { connectionKey?: () => string; onError?: () => void } = {},
 ) =>
   render(() => (
@@ -441,5 +442,31 @@ describe("lazy hub (S9)", () => {
     await new Promise((r) => setTimeout(r, 120));
     expect(fakes[0].conn.stop).toHaveBeenCalledTimes(1);
     view.unmount();
+  });
+});
+
+describe("teardown with the provider (S12)", () => {
+  it("S12 a teardown call in a cleanup lands when the provider and its consumer unmount together", async () => {
+    const client = makeClient();
+    let result: Promise<boolean> | undefined;
+    function Leaver() {
+      const leave = client.useSignalRTeardown(HUB, "Ping");
+      onCleanup(() => {
+        result = leave();
+      });
+      return null;
+    }
+    const view = mountProvider(client, () => <Leaver />);
+    await tick();
+    fakes[0].finishStart();
+    await tick();
+
+    view.unmount();
+    await tick();
+    await tick();
+
+    await expect(result).resolves.toBe(true);
+    expect(fakes[0].conn.send).toHaveBeenCalledWith("Ping");
+    expect(fakes[0].conn.stop).toHaveBeenCalledTimes(1);
   });
 });

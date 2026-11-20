@@ -68,7 +68,7 @@ export interface ConnectionManagerDeps<Hub extends HubString> {
   onStatus: (hub: Hub, status: HubConnectionStatus, error?: unknown) => void;
   /** Reports once per outage: the first failed attempt of a retriable outage, or a non-retriable error. */
   onError: (hub: Hub, error: unknown, info: SignalRErrorInfo) => void;
-  /** True while this manager's generation is the live one. Guards stale rebuilds. */
+  /** True while this manager is the live one. Guards stale rebuilds. */
   isCurrent: () => boolean;
 }
 
@@ -76,11 +76,11 @@ export interface ConnectionManager<Hub extends HubString> {
   /** Builds/starts desired hubs and stops undesired ones. Safe to call repeatedly. */
   reconcile: () => void;
   getConnection: (hub: Hub) => HubConnection | null;
-  /** Stops all connections and cancels timers. */
-  dispose: () => void;
+  /** Stops all connections and cancels timers. A connected hub in `keep` stays open and is returned, so the caller closes it. */
+  dispose: (keep?: ReadonlySet<Hub>) => Map<Hub, HubConnection>;
 }
 
-/** Owns the hub connections of one provider generation: build, start with recovery, lazy ref-counted stop. */
+/** Owns the hub connections of one provider: build, start with recovery, lazy ref-counted stop. */
 export function createConnectionManager<Hub extends HubString>(
   deps: ConnectionManagerDeps<Hub>,
 ): ConnectionManager<Hub> {
@@ -316,7 +316,8 @@ export function createConnectionManager<Hub extends HubString>(
 
   const getConnection = (hub: Hub) => built.get(hub)?.connection ?? null;
 
-  const dispose = () => {
+  const dispose = (keep?: ReadonlySet<Hub>) => {
+    const left = new Map<Hub, HubConnection>();
     disposing = true;
     stopTimers.forEach((id) => clearTimeout(id));
     stopTimers.clear();
@@ -324,8 +325,12 @@ export function createConnectionManager<Hub extends HubString>(
     recoverTimers.clear();
     attempts.clear();
     misconfigured.clear();
-    built.forEach((e, hub) => stopConnection(hub, e.connection));
+    built.forEach((e, hub) => {
+      if (keep?.has(hub) && e.connection.state === HubConnectionState.Connected) left.set(hub, e.connection);
+      else stopConnection(hub, e.connection);
+    });
     // refCounts are kept across rebuilds on purpose.
+    return left;
   };
 
   return { reconcile, getConnection, dispose };

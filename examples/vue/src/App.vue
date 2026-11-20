@@ -37,9 +37,13 @@ useOnReconnected("/hubs/chat", () => {
   log.reconnected();
 });
 
-watch(chatStatus, (status) => {
-  log.status("/hubs/chat", status);
-});
+watch(
+  chatStatus,
+  (status) => {
+    log.status("/hubs/chat", status);
+  },
+  { immediate: true },
+);
 
 async function onFail() {
   try {

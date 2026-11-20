@@ -11,7 +11,7 @@ Provider and hooks for typed [SignalR](https://learn.microsoft.com/aspnet/core/s
 npm install @dammers/use-signalr-solid @microsoft/signalr
 ```
 
-It needs `solid-js` ^1.7, `@microsoft/signalr` ^8 || ^9 || ^10, and Node 20.19 or later.
+It needs `solid-js` ^1.7 || ^2, `@microsoft/signalr` ^8 || ^9 || ^10 || ^11, and Node 20.19 or later.
 
 ## Example
 

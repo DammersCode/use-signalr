@@ -10,7 +10,7 @@ import type {
 } from "@dammers/use-signalr-core";
 
 /**
- * Creates a fully-typed SignalR client. Returns a provider function and a set
+ * Creates a typed SignalR client. Returns a provider function and a set
  * of stores/functions, typed against the contract inferred from
  * `config.hubs`: the keys declare the hubs, and each hub's
  * `event()`/`method()` declarations declare its events and methods.
@@ -43,10 +43,10 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     provideSignalR,
     /**
-     * Escape hatch to the SignalR context (`getConnection`, `getStatus`,
+     * Gives access to the SignalR context (`getConnection`, `getStatus`,
      * and `waitForConnection`). Call it during component init, below
      * `provideSignalR`. Prefer the typed functions below. Use this only for
-     * the underlying `HubConnection` or a point read.
+     * the underlying `HubConnection` or a one-time read.
      */
     getSignalR: hooks.getSignalR,
     /**
@@ -73,30 +73,31 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Typed fire-and-forget sender. Call it during component init. It does
      * not wait for the connection. It resolves `true` when it sends the call,
-     * and `false` when the hub is not connected or the send fails. It never
-     * throws, so a cleanup can call it. For a call that must land in a
-     * cleanup, use `hubTeardown`.
+     * and `false` when the hub is not connected and it drops the call. It also
+     * resolves `false` when the send fails. It never throws, so a cleanup can
+     * call it. For a call that must land in a cleanup, use `hubTeardown`.
      */
     hubSend: hooks.hubSend,
     /**
      * Typed teardown sender for a method that you call in `onDestroy`. Call
      * it during component init. It survives the destroy of the component,
      * queues while the hub is still connecting instead of dropping, and holds
-     * a lazy hub open until the flush completes. It resolves `true` if it
-     * sends the call. It resolves `false` when the hub does not connect in
-     * time, when the session is disabled, or when the send fails. It never throws.
+     * a lazy hub open until the send ends. It resolves `true` if the call
+     * is sent. It resolves `false` if the hub does not connect in time, the session stops while the call waits for the hub, the session is disabled, the hub failed, or the send fails or does not end in time. It never throws.
+     * If the session stops while the call is pending on a connected hub, the call is sent before the connection closes.
      */
     hubTeardown: hooks.hubTeardown,
     /**
      * Live connection status of a hub, as a Svelte store. Call it during
-     * component init. Subscribe with `$` to re-render only when this hub's
+     * component init. Subscribe with `$` to run again only when this hub's
      * status changes. It also keeps a lazy hub connected until the component
      * is destroyed.
      */
     hubStatus: hooks.hubStatus,
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
-     * state that went stale while offline. Call it during component init.
+     * state that went stale while offline. It also runs after a rebuild, but
+     * only for a hub that was connected before. Call it during component init.
      */
     onReconnected: hooks.onReconnected,
   };

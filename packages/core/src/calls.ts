@@ -1,5 +1,6 @@
 import { HubConnectionState } from "@microsoft/signalr";
 import { isFinalWaitError } from "./errors.js";
+import { MAX_TIMER_MS } from "./timers.js";
 import {
   DEFAULT_BACKOFF,
   isRetriableInvokeError,
@@ -69,7 +70,7 @@ export interface InvokerOptions<
   method: M;
   /** Called at call time. Returns the `InvokeOptions` for this call. */
   getOptions: () => InvokeOptions | undefined;
-  /** Called at call time. Aborting the returned signal aborts the call. */
+  /** Called at call time. Aborting the returned signal aborts a call that still waits. A call that is already sent finishes. */
   getSignal?: () => AbortSignal | undefined;
 }
 
@@ -151,13 +152,21 @@ export function createSender<
   };
 }
 
+function ignoreErrors(fn: () => void) {
+  try {
+    fn();
+  } catch {
+    // Nothing is left to report to.
+  }
+}
+
 /** Teardown sender. It acquires the hub itself, so it still works after its consumer is gone. */
 export function createTeardownSender<
   T extends SignalRContract,
   H extends keyof T & HubString,
   M extends MethodName<T, H>,
 >({
-  target: { acquire, release, waitForConnection },
+  target: { acquire, release, waitForConnection, beginSend },
   hub,
   method,
   getOptions,
@@ -165,7 +174,9 @@ export function createTeardownSender<
   target: {
     acquire: (hub: H) => void;
     release: (hub: H) => void;
-    waitForConnection: (hub: H, timeoutMs: number) => Promise<HubConnection>;
+    waitForConnection: (hub: H, timeoutMs: number, signal?: AbortSignal) => Promise<HubConnection>;
+    /** Tells the session that a send is pending, so `stop()` can let it finish. Pass the one from the session context. */
+    beginSend?: (hub: H) => { signal: AbortSignal; use: (connection: HubConnection) => void; end: () => void };
   };
   hub: H;
   method: M;
@@ -173,17 +184,33 @@ export function createTeardownSender<
 }): (...args: MethodArgs<T, H, M>) => Promise<boolean> {
   return (...args: MethodArgs<T, H, M>): Promise<boolean> => {
     const timeout = getOptions()?.timeout ?? DEFAULT_TEARDOWN_TIMEOUT;
+    const inFlight = beginSend?.(hub); // registered before any await, so a later stop() sees it
     acquire(hub); // hold the hub open past our own unmount, until flushed
-    return (async () => {
-      try {
-        const connection = await waitForConnection(hub, timeout);
-        await connection.send(method, ...(args as unknown[]));
-        return true;
-      } catch {
-        return false; // never connected in time, or the send failed: best-effort
-      } finally {
-        release(hub);
-      }
-    })();
+    return new Promise<boolean>((resolve) => {
+      let finished = false;
+      const finish = (sent: boolean) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        resolve(sent);
+        // A failing cleanup must not leave the call pending or throw from a timer.
+        ignoreErrors(() => release(hub));
+        ignoreErrors(() => inFlight?.end());
+      };
+      // The timeout also covers the send, so a stuck send cannot hold a stopped connection open.
+      const timer = Number.isFinite(timeout)
+        ? setTimeout(() => finish(false), Math.min(timeout, MAX_TIMER_MS))
+        : undefined;
+      void (async () => {
+        try {
+          const connection = await waitForConnection(hub, timeout, inFlight?.signal);
+          inFlight?.use(connection);
+          await connection.send(method, ...(args as unknown[]));
+          finish(true);
+        } catch {
+          finish(false); // never connected in time, the session stopped, or the send failed: best-effort
+        }
+      })();
+    });
   };
 }

@@ -5,7 +5,7 @@ import type { Observable } from "rxjs";
 import type { HubConnectionStatus } from "@dammers/use-signalr-core";
 
 export interface HubStatusObservableOptions {
-  /** Injector to run outside an injection context (for example inside a service constructor). */
+  /** Injector to run outside an injection context (for example in an event handler). */
   injector?: Injector;
 }
 

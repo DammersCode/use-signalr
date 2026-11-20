@@ -1,6 +1,6 @@
 import { createComponent } from "solid-js";
-import { renderToString, isServer } from "solid-js/web";
 import { describe, it, expect, vi } from "vitest";
+import { isSolid2 } from "./internal/test-compat.js";
 import { createSignalRClient, event, method } from "./index.js";
 
 const HUB = "/hubs/chat" as const;
@@ -25,6 +25,8 @@ vi.mock("@microsoft/signalr", () => ({
   HubConnectionState: { Disconnected: "Disconnected", Connected: "Connected" },
   LogLevel: { Information: 2 },
 }));
+
+const { renderToString, isServer } = (await import(isSolid2 ? "@solidjs/web" : "solid-js/web")) as typeof import("solid-js/web");
 
 describe("server render with the solid-js server build", () => {
   it("renders the initial status and opens no connection", () => {

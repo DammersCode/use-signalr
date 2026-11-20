@@ -107,12 +107,12 @@ function createRuntime<T extends SignalRContract>(
       stopped = false;
       if (hasHost) sync();
     },
-    /** Stops every hub and releases the connections. The session stays stopped until the next `update()`. */
+    /** Stops every hub and closes the connections. A connection with a pending teardown call stays open until the send ends. The session stays stopped until the next `update()`. */
     stop: () => {
       stopped = true;
       session.stop();
     },
-    /** Escape hatch to the SignalR context (`getConnection`, `getStatus`, and `waitForConnection`). Use this only for the underlying `HubConnection` or a point read. */
+    /** Gives access to the SignalR context (`getConnection`, `getStatus`, and `waitForConnection`). Use this only for the underlying `HubConnection` or a one-time read. */
     context: session.publicContext,
   };
 }
@@ -176,7 +176,7 @@ export class HubController<
     });
   }
 
-  /** Lit calls this when the host disconnects. Pending calls abort at the end of the task, unless the host connects again first. */
+  /** Lit calls this when the host disconnects. Pending calls abort a moment later, unless the host connects again first. */
   hostDisconnected() {
     if (!this.connected) return;
     this.connected = false;
@@ -199,7 +199,7 @@ export class HubController<
     this.host.removeController(this);
   }
 
-  /** Subscribes to a typed server event while the host is connected. Handler args are inferred from your contract. Returns an unsubscribe function. */
+  /** Subscribes to a typed server event while the host is connected. Handler arguments are inferred from your contract. Returns an unsubscribe function. */
   on<E extends EventName<T, H>>(
     event: E,
     handler: (...args: EventArgs<T, H, E>) => void,
@@ -216,7 +216,7 @@ export class HubController<
     };
   }
 
-  /** Runs a callback after each reconnect, not the first connect, to refetch state that went stale while offline. */
+  /** Runs a callback after each reconnect, not the first connect, to refetch state that went stale while offline. It also runs after a rebuild, but only for a hub that was connected before. */
   onReconnected(callback: () => void) {
     const entry: ReconnectEntry = { run: () => callback() };
     this.reconnectEntries.add(entry);
@@ -229,7 +229,7 @@ export class HubController<
     };
   }
 
-  /** Typed invoker that waits for the connection and resolves with the method's return value. Fails fast by default. Opt in to retry for idempotent methods only. */
+  /** Typed invoker that waits for the connection and resolves with the method's return value. Fails fast by default. Opt in to retry for idempotent methods only. A pending call rejects with an `AbortError` when the host disconnects, unless `keepAliveOnUnmount` is true. With `keepAliveOnUnmount`, the call also holds a lazy hub open until it settles. */
   invoke<M extends MethodName<T, H>>(method: M, options?: InvokeOptions) {
     return createInvoker<T, H, M>({
       target: this.context,
@@ -240,7 +240,7 @@ export class HubController<
     });
   }
 
-  /** Typed fire-and-forget sender. It does not wait for the connection. It resolves `true` when it sends the call, and `false` when the hub is not connected and it drops the call. It never throws, so a cleanup can call it. For a call that must land in a cleanup, use `teardown`. */
+  /** Typed fire-and-forget sender. It does not wait for the connection. It resolves `true` when it sends the call, and `false` when the hub is not connected and it drops the call. It also resolves `false` when the send fails. It never throws, so a cleanup can call it. For a call that must land in a cleanup, use `teardown`. */
   send<M extends MethodName<T, H>>(method: M) {
     return createSender<T, H, M>({
       getConnection: this.context.getConnection,
@@ -249,7 +249,7 @@ export class HubController<
     });
   }
 
-  /** Typed teardown sender for a method invoked in a cleanup. Survives host disconnect, queues while the hub is still connecting, and holds a lazy hub open until the flush completes. Never throws. */
+  /** Typed teardown sender for a method invoked in a cleanup. Survives the host disconnect, queues while the hub is still connecting instead of dropping, and holds a lazy hub open until the send ends. Resolves `true` if the call is sent. Resolves `false` if the hub does not connect in time, the session stops while the call waits for the hub, the session is disabled, the hub failed, or the send fails or does not end in time. Never throws. If the session stops while the call is pending on a connected hub, the call is sent before the connection closes. */
   teardown<M extends MethodName<T, H>>(
     method: M,
     options?: TeardownOptions,

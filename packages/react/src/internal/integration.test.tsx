@@ -14,6 +14,7 @@ interface FakeConn {
   handlers: Map<string, Handler[]>;
   startResolvers: Array<() => void>;
   invokeCalls: string[];
+  sendCalls: string[];
   lifecycle: {
     onclose?: (err?: unknown) => void;
     onreconnecting?: () => void;
@@ -23,6 +24,7 @@ interface FakeConn {
   start: () => Promise<void>;
   stop: ReturnType<typeof vi.fn>;
   invoke: (name: string) => Promise<string>;
+  send: (name: string) => Promise<void>;
   on: (name: string, fn: Handler) => void;
   off: () => void;
   onclose: (fn: () => void) => void;
@@ -38,6 +40,7 @@ function makeConn(): FakeConn {
     handlers: new Map(),
     startResolvers: [],
     invokeCalls: [],
+    sendCalls: [],
     lifecycle: {},
     state: "Disconnected",
     start: () =>
@@ -54,6 +57,11 @@ function makeConn(): FakeConn {
     invoke: (name) => {
       conn.invokeCalls.push(name);
       return Promise.resolve("ok");
+    },
+    send: (name) => {
+      if (conn.state !== "Connected") return Promise.reject(new Error("not connected"));
+      conn.sendCalls.push(name);
+      return Promise.resolve();
     },
     on: (name, fn) => {
       conn.handlers.set(name, [...(conn.handlers.get(name) ?? []), fn]);
@@ -281,7 +289,7 @@ describe("events through the registry", () => {
     expect(received).toEqual(["still"]);
   });
 
-  it("S10 runs onReconnected once when a recovery rebuild connects again", async () => {
+  it("runs onReconnected once when a recovery rebuild connects again", async () => {
     const { client, Provider } = setup();
     const onReconnected = vi.fn();
     function Rejoin() {
@@ -316,7 +324,7 @@ describe("events through the registry", () => {
     expect(onReconnected).toHaveBeenCalledTimes(1);
   });
 
-  it("S11 passes the error source to onError", async () => {
+  it("passes the error source to onError", async () => {
     const { client, Provider } = setup();
     const onError = vi.fn();
     function Bad() {
@@ -706,5 +714,33 @@ describe("hubProtocol and configureBuilder", () => {
     expect(conns).toHaveLength(1);
     expect(protocolCalls).toEqual([protocol]);
     expect(contexts).toEqual([{ hub: HUB, baseUrl: "https://example.test" }]);
+  });
+});
+
+describe("teardown with the provider (S12)", () => {
+  it("S12 a teardown call in a cleanup lands when the provider and its consumer unmount together", async () => {
+    const { client, Provider } = setup();
+    function Leaver() {
+      const leave = client.useSignalRTeardown(HUB, "Join");
+      useEffect(() => () => void leave(), [leave]);
+      return null;
+    }
+    const view = render(
+      <Provider>
+        <Leaver />
+      </Provider>,
+    );
+    await settle();
+    await connect(liveChat());
+    const conn = liveChat();
+
+    view.unmount();
+    await act(async () => {
+      await tick();
+      await tick();
+    });
+
+    expect(conn.sendCalls).toEqual(["Join"]);
+    expect(conn.stop).toHaveBeenCalledTimes(1);
   });
 });

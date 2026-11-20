@@ -14,9 +14,13 @@ useSignalREvent("/hubs/counter", "Count", (value) => {
   count.value = value;
 });
 
-watch(status, (value) => {
-  log.status("/hubs/counter", value);
-});
+watch(
+  status,
+  (value) => {
+    log.status("/hubs/counter", value);
+  },
+  { immediate: true },
+);
 
 onScopeDispose(() => {
   void leave();

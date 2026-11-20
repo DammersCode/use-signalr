@@ -19,7 +19,7 @@ The result has two roles. It is a Vue plugin: install it with `app.use(signalR, 
 
 ## Members
 
-Every composable binds to the active effect scope. A component's `setup()` has one. Outside a component, run the call in an `effectScope()`. The library reads the hub, event, and method arguments one time, when you call the composable.
+Call a composable in `setup()`. Outside a component, run it in an `effectScope()` inside `app.runWithContext()`. `useSignalR` needs only `setup()` or `app.runWithContext()`, not a scope. The library reads the hub, event, and method arguments one time, when you call the composable.
 
 All composables except `useSignalR` hold a hub. A held hub counts as a consumer. A lazy hub connects with its first consumer. It closes after its last consumer leaves and `graceMs` has passed.
 
@@ -43,8 +43,8 @@ Returns the context object, typed to your contract:
 | Member | Signature | Description |
 | --- | --- | --- |
 | `getConnection` | `(hub) => HubConnection \| null` | The raw connection, or `null` when there is none. Use it as a last resort. |
-| `getStatus` | `(hub) => HubConnectionStatus` | A point read. It does not subscribe to changes. |
-| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` | Resolves when the hub is connected. It rejects on timeout, on abort, when the session is disabled, and when the hub stopped after a final error. |
+| `getStatus` | `(hub) => HubConnectionStatus` | A one-time read. Inside a `computed` or a watcher, the read also tracks the status. |
+| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` | Resolves when the hub is connected. It rejects on timeout, on abort, when the session is disabled, and when the hub stopped after a non-retriable error. |
 
 ### Calls
 

@@ -11,7 +11,7 @@ Everything on this page comes from `@dammers/use-signalr-solid`. The package has
 function createSignalRClient<const H extends Record<HubString, HubDef>>(
   config: SignalRClientConfig<H>,
 ): {
-  SignalRProvider: (props: SignalRProviderProps<Hub>) => JSX.Element;
+  SignalRProvider: (props: SignalRProviderProps<Hub>) => Node | string | number | boolean | null | undefined;
   useSignalR: () => SignalRPublicContext<T>;
   useHubConsumer: (hub: Hub) => void;
   useSignalREffect: (hub, event, handler) => void;
@@ -39,7 +39,7 @@ The members of the result and the two contract helpers are in this table:
 | `useSignalREffect` | `(hub, event, handler)` | `void` | The owner of the component. It removes the handler on cleanup. | Yes |
 | `useSignalRInvoke` | `(hub, method, options?: InvokeOptions)` | A stable function. It resolves with the return value of the method. | The owner of the component. On cleanup it aborts calls that wait, unless `keepAliveOnUnmount` is `true`. | Yes |
 | `useSignalRSend` | `(hub, method)` | A stable function. It resolves `true` when it sent the call, `false` when the hub was not connected or the send failed. It never throws. | The owner of the component. The function stays safe to call after cleanup. | Yes |
-| `useSignalRTeardown` | `(hub, method, options?: TeardownOptions)` | A stable function. It waits for the hub, then sends. It resolves `true` when it sent the call, `false` when the hub did not connect in time, the session was disabled, or the send failed. It never throws. | The function outlives the component. It holds a lazy hub open until the send ends. | Yes, while the owner lives |
+| `useSignalRTeardown` | `(hub, method, options?: TeardownOptions)` | A stable function. It waits for the hub, then sends. It resolves `true` when it sent the call, `false` when the hub did not connect in time, the session stopped while the call waited for the hub, the hub failed, the session was disabled, or the send failed or did not end in time. It never throws. | The function outlives the component. It holds a lazy hub open until the send ends. | Yes, while the owner lives |
 | `useHubStatus` | `(hub)` | An `Accessor<HubConnectionStatus>`. A tracking scope that reads it runs again only when the status of this hub changes. | The owner of the component. | Yes |
 | `useOnReconnected` | `(hub, callback)` | `void`. The callback runs after each reconnect, not after the first connect. | The owner of the component. It removes the callback on cleanup. | Yes |
 | `event` | `<A extends unknown[] = []>()` | `EventDef<A>`. `A` is the tuple of handler arguments. | None. It carries types only and returns an empty object at run time. | No |
@@ -57,7 +57,7 @@ All types are exports of the package. Most come from `@dammers/use-signalr-core`
 
 | Type | Meaning |
 | --- | --- |
-| `SignalRProviderProps` | The props of `SignalRProvider`. It adds `children: JSX.Element` to the shared provider props. |
+| `SignalRProviderProps` | The props of `SignalRProvider`. It adds `children` to the shared provider props. The type of `children` is a Solid node: a DOM node, a string, a number, a boolean, `null`, `undefined`, an array of these, or a function that returns one. |
 | `SignalRClientConfig` | The argument of `createSignalRClient`. |
 | `PerHubConfig` | The options that one hub can set. |
 | `HubDef` | One entry of `hubs`: `PerHubConfig` plus `events` and `methods`. |

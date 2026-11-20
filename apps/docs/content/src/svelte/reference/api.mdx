@@ -19,7 +19,7 @@ The result is one object of functions. Types come from the contract that `config
 
 ## Members
 
-Call every function while a component initializes, in the `<script>` block or in a function that the block calls. The functions use `getContext` and `onDestroy`, so they need a component that is below the one that called `provideSignalR`. The library reads the hub, event, and method arguments one time.
+Call every function while a component initializes, in the `<script>` block or in a function that the block calls. The functions use `getContext` and `onDestroy`. `provideSignalR` must run before them, in the same component or in a component above. The library reads the hub, event, and method arguments one time.
 
 All functions except `provideSignalR` and `getSignalR` hold a hub. A held hub counts as a consumer. A lazy hub connects with its first consumer. It closes after its last consumer leaves and `graceMs` has passed.
 
@@ -48,8 +48,8 @@ Returns the context object, typed to your contract:
 | Member | Signature | Description |
 | --- | --- | --- |
 | `getConnection` | `(hub) => HubConnection \| null` | The raw connection, or `null` when there is none. Use it as a last resort. |
-| `getStatus` | `(hub) => HubConnectionStatus` | A point read. It does not subscribe to changes. |
-| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` | Resolves when the hub is connected. It rejects on timeout, on abort, when the session is disabled, and when the hub stopped after a final error. |
+| `getStatus` | `(hub) => HubConnectionStatus` | A one-time read. It does not subscribe to changes. |
+| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` | Resolves when the hub is connected. It rejects on timeout, on abort, when the session is disabled, and when the hub stopped after a non-retriable error. |
 
 ### Calls
 

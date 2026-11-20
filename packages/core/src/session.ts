@@ -1,6 +1,7 @@
 import { HubConnectionState } from "@microsoft/signalr";
 import { createConnectionManager, runUserCallback } from "./connection-manager.js";
 import { SIGNALR_ERROR_NAMES, namedError } from "./errors.js";
+import { MAX_TIMER_MS } from "./timers.js";
 import type { HubConnection } from "@microsoft/signalr";
 import type { ConnectionManager } from "./connection-manager.js";
 import type { StatusStore } from "./status-store.js";
@@ -13,7 +14,6 @@ import type {
 } from "./types.js";
 import type { SignalRContextValueBase, SignalRPublicContext } from "./context.js";
 
-const MAX_TIMER_MS = 2 ** 31 - 1;
 
 export interface SignalRSessionDeps<
   T extends SignalRContract,
@@ -53,9 +53,9 @@ export interface SignalRSession<
   T extends SignalRContract,
   TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,
 > {
-  /** Disposes the live generation, sets every hub to `"idle"`, and forgets which hubs connected before. Calling it again does nothing. */
+  /** Sets every hub to `"idle"`, closes the live connections, and forgets which hubs connected before. A connected hub with a pending teardown call stays open until the send ends. Calling it again leaves the hubs stopped. It also ends the waits of teardown calls that began after the first call. */
   stop: () => void;
-  /** Does nothing if the values equal the last applied values. Otherwise it disposes the live generation and, if `enabled` is true and `baseUrl` is not empty, builds a new one. A rebuild keeps which hubs connected, so their reconnect callbacks run. */
+  /** Does nothing if the values equal the last applied values. Otherwise it disposes the live connections and, if `enabled` is true and `baseUrl` is not empty, builds new ones. A rebuild keeps which hubs connected, so their reconnect callbacks run. */
   update: (values: SignalRSessionValues) => void;
   /** The value that an adapter puts into its framework context. Its identity is stable. */
   context: SignalRContextValueBase<T, TStore>;
@@ -63,7 +63,7 @@ export interface SignalRSession<
   publicContext: SignalRPublicContext<T>;
 }
 
-/** Owns the manager generation, lazy ref-counts, reconnect listeners, and the context value. Adapters add only framework binding. */
+/** Owns the live connections, the lazy reference counts, the reconnect listeners, and the context value. Adapters add only framework binding. */
 export function createSignalRSession<
   T extends SignalRContract,
   TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,
@@ -85,6 +85,12 @@ export function createSignalRSession<
   const waiters = new Map<Hub, Set<Waiter>>();
   // Hubs that stopped after a non-retriable error, with the error. A wait on one can never succeed.
   const failed = new Map<Hub, Error>();
+  // Teardown sends pending, and connections that stop() left open for them until they end.
+  // A send is bound to the connection it sends on, so stop() keeps exactly the connections in use.
+  type PendingSend = { controller: AbortController; connection?: HubConnection };
+  type HeldConnection = { hub: Hub; connection: HubConnection; sends: Set<PendingSend> };
+  const pendingSends = new Map<Hub, Set<PendingSend>>();
+  const heldConnections = new Set<HeldConnection>();
   let disabled = false;
   let current: ConnectionManager<Hub> | null = null;
   let applied: SignalRSessionValues | null = null;
@@ -192,7 +198,36 @@ export function createSignalRSession<
     manager.reconcile(); // build eager hubs plus already-referenced lazy hubs
   };
 
-  const teardown = () => {
+  const closeHeldWithout = (send: PendingSend) => {
+    heldConnections.forEach((held) => {
+      held.sends.delete(send);
+      if (held.sends.size > 0) return;
+      heldConnections.delete(held);
+      void held.connection.stop().catch((err: unknown) =>
+        runUserCallback(
+          held.hub,
+          () => onError?.(held.hub, err, { source: "connection" }),
+          () => {},
+        ),
+      );
+    });
+  };
+
+  // A send that is not bound yet counts as bound to a connected hub: its wait has resolved, and `use()` runs a microtask later.
+  const sendsOnLiveConnections = () => {
+    const keep = new Map<Hub, Set<PendingSend>>();
+    hubs.forEach((h) => {
+      const connection = current?.getConnection(h);
+      if (connection?.state !== HubConnectionState.Connected) return;
+      const live = [...(pendingSends.get(h) ?? [])].filter(
+        (send) => send.connection === connection || send.connection === undefined,
+      );
+      if (live.length > 0) keep.set(h, new Set(live));
+    });
+    return keep;
+  };
+
+  const teardown = (keepPendingSends = false) => {
     // Publish before dispose, so listeners still see the live connection.
     hubs.forEach((h) => {
       const wasIdle = statusStore.get(h) === "idle";
@@ -200,7 +235,13 @@ export function createSignalRSession<
       if (wasIdle) return;
       runUserCallback(h, () => onStatusChange?.(h, "idle"), reportCallbackError);
     });
-    current?.dispose();
+    // Read after the publish: a listener may begin a teardown during it.
+    const keep = keepPendingSends ? sendsOnLiveConnections() : undefined;
+    current
+      ?.dispose(keep && new Set(keep.keys()))
+      .forEach((connection, hub) =>
+        heldConnections.add({ hub, connection, sends: new Set(keep?.get(hub)) }),
+      );
     hubs.forEach((h) => {
       if (resolve(h).lazy && !refCounts.get(h)) connectedBefore.delete(h); // a lazy hub with no consumer starts fresh
     });
@@ -210,8 +251,9 @@ export function createSignalRSession<
   };
 
   const stop = () => {
-    teardown();
+    teardown(true);
     connectedBefore.clear();
+    pendingSends.forEach((set) => set.forEach((send) => send.controller.abort()));
   };
 
   const update = ({ baseUrl, enabled, connectionKey }: SignalRSessionValues) => {
@@ -254,6 +296,29 @@ export function createSignalRSession<
       const next = Math.max(0, (refCounts.get(hub) ?? 0) - 1);
       refCounts.set(hub, next);
       if (next === 0) current?.reconcile();
+    },
+    beginSend: (hub) => {
+      const live = current?.getConnection(hub);
+      const send: PendingSend = {
+        controller: new AbortController(),
+        connection: live?.state === HubConnectionState.Connected ? live : undefined,
+      };
+      let set = pendingSends.get(hub);
+      if (!set) pendingSends.set(hub, (set = new Set()));
+      set.add(send);
+      let ended = false;
+      return {
+        signal: send.controller.signal,
+        use: (connection) => {
+          send.connection = connection;
+        },
+        end: () => {
+          if (ended) return;
+          ended = true;
+          set.delete(send);
+          closeHeldWithout(send);
+        },
+      };
     },
     registerReconnect: (hub, cb) => {
       let set = reconnectListeners.get(hub);

@@ -170,6 +170,79 @@ describe("default onError", () => {
     injector.destroy();
   });
 
+  it("reports a rejecting onStatusChange to ErrorHandler when no onError is given", async () => {
+    const { provideSignalR } = makeClient();
+    const handleError = vi.fn();
+    const parent = TestBed.inject(EnvironmentInjector);
+    const injector = createEnvironmentInjector(
+      [
+        { provide: ErrorHandler, useValue: { handleError } },
+        provideSignalR({
+          baseUrl: "https://example.test",
+          accessTokenFactory: () => "t",
+          onStatusChange: () => Promise.reject(new Error("async boom")) as unknown as void,
+        }),
+      ],
+      parent,
+    );
+    await flush(TestBed.inject(ApplicationRef));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(handleError).toHaveBeenCalledWith(expect.objectContaining({ message: "async boom" }));
+    injector.destroy();
+  });
+
+  it("reports an async onStatusChange that rejects to a user onError with source callback", async () => {
+    const { provideSignalR } = makeClient();
+    const onError = vi.fn();
+    const parent = TestBed.inject(EnvironmentInjector);
+    const injector = createEnvironmentInjector(
+      [
+        provideSignalR({
+          baseUrl: "https://example.test",
+          accessTokenFactory: () => "t",
+          onError,
+          onStatusChange: (async () => {
+            throw new Error("async boom");
+          }) as () => void,
+        }),
+      ],
+      parent,
+    );
+    await flush(TestBed.inject(ApplicationRef));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onError).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ message: "async boom" }),
+      { source: "callback" },
+    );
+    injector.destroy();
+  });
+
+  it("survives a user onError that throws while it reports a throwing onStatusChange", async () => {
+    const { provideSignalR } = makeClient();
+    const onError = vi.fn(() => {
+      throw new Error("handler broke");
+    });
+    const parent = TestBed.inject(EnvironmentInjector);
+    const injector = createEnvironmentInjector(
+      [
+        provideSignalR({
+          baseUrl: "https://example.test",
+          accessTokenFactory: () => "t",
+          onError,
+          onStatusChange: () => {
+            throw new Error("boom");
+          },
+        }),
+      ],
+      parent,
+    );
+    await flush(TestBed.inject(ApplicationRef));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onError).toHaveBeenCalled();
+    injector.destroy();
+  });
+
   it("prefers a user onError", async () => {
     const { provideSignalR } = makeClient();
     const handleError = vi.fn();

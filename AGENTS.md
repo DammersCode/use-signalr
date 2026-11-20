@@ -17,7 +17,7 @@ Everything in this repo is written in English: code, comments, docs, plans, comm
 - Write a comment only when the code cannot say it: a constraint outside the code, a workaround for an external bug, or a deliberate simplification and its ceiling. One idea, one line, at most 25 words, active voice, condition first.
 - Delete instead of writing: restatements of the next line, history, references to plans or finding IDs, commented-out code.
 - Write JSDoc and comments with the `simple-english` skill.
-- Types flow from the contract (`event()`, `method()`). Keep the code free of `any` and unchecked casts. Accepted exceptions: the `EventArgs` cast at the event boundary, the `any` constraints of the contract types in core `types.ts`, the phantom casts in `event()` and `method()`, the `Object.keys` cast in `hubKeys`, and the `args as unknown[]` casts where calls reach SignalR.
+- Types flow from the contract (`event()`, `method()`). Keep the code free of `any` and unchecked casts. Accepted exceptions: the `EventArgs` cast at the event boundary, the `any` constraints of the contract types in core `types.ts`, the phantom casts in `event()` and `method()`, the `Object.keys` cast in `hubKeys`, the `args as unknown[]` casts where calls reach SignalR, and the casts in `packages/solid/src/internal/solid-compat.ts` that bridge Solid 1 and Solid 2.
 - Keep runtime dependencies at zero. Framework and SignalR packages are peers.
 
 ## Tests
@@ -25,7 +25,7 @@ Everything in this repo is written in English: code, comments, docs, plans, comm
 - Write the failing test first and watch it fail. Then fix.
 - Prove each new test with a mutation: revert the fix, the test goes red; restore it.
 - Adapter tests read core from `packages/core/dist`. After a core change, build core before adapter tests (`npm test` does it).
-- Every adapter keeps the integration scenarios S1 to S9 (`CONTRIBUTING.md`, "Adapter integration scenarios") in its `integration.test.*`, against the real core session with only `@microsoft/signalr` mocked.
+- Every adapter keeps the integration scenarios S1 to S9 and S12 (`CONTRIBUTING.md`, "Adapter integration scenarios") in its `integration.test.*`, against the real core session with only `@microsoft/signalr` mocked.
 - Peer floors in `package.json` are the lowest versions the CI `floor` job proves. Raise a floor only with a failing run as evidence.
 - The CI `compat` job tests the newest release of each supported major that the lockfile does not cover. Widen a peer range only together with a `compat` entry for the new major.
 

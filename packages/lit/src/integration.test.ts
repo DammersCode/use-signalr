@@ -50,7 +50,10 @@ function fakeConnection(url: string, accessTokenFactory?: () => unknown): FakeCo
         });
       });
     },
-    stop: vi.fn(() => Promise.resolve()),
+    stop: vi.fn(() => {
+      connection.state = "Disconnected";
+      return Promise.resolve();
+    }),
     onclose: () => {},
     onreconnecting: (listener) => {
       connection.lifecycle.reconnecting = listener;
@@ -59,7 +62,9 @@ function fakeConnection(url: string, accessTokenFactory?: () => unknown): FakeCo
       connection.lifecycle.reconnected = listener;
     },
     invoke: vi.fn(() => Promise.resolve(7)),
-    send: vi.fn(() => Promise.resolve()),
+    send: vi.fn(() =>
+      connection.state === "Connected" ? Promise.resolve() : Promise.reject(new Error("not connected")),
+    ),
   };
   return connection;
 }
@@ -338,6 +343,38 @@ describe("Lit integration with the real session", () => {
     await tick(30);
     expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
     session.stop();
+  });
+
+  it("S12: a teardown call in disconnectedCallback lands when the session stops right after", async () => {
+    const client = createSignalRClient({
+      hubs: { "/hub": { methods: { Count: method<[], number>() } } },
+    });
+    const session = client.createSession({
+      baseUrl: "https://example.test",
+      accessTokenFactory: () => "token",
+    });
+    let result: Promise<boolean> | undefined;
+    class Host extends LitElement {
+      controller = session.hub(this, "/hub");
+      disconnectedCallback() {
+        super.disconnectedCallback();
+        result = this.controller.teardown("Count")();
+      }
+      render() { return html``; }
+    }
+    const host = document.createElement(define(Host)) as Host;
+    document.body.append(host);
+    await host.updateComplete;
+    await tick();
+
+    host.remove();
+    session.stop();
+    await tick();
+    await tick();
+
+    await expect(result).resolves.toBe(true);
+    expect(connections[0]!.send).toHaveBeenCalledWith("Count");
+    expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
   });
 
   it("moving the element in the DOM in one task keeps the connection and the handlers", async () => {

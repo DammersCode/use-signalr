@@ -1,3 +1,4 @@
+import { onDestroy } from "svelte";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/svelte";
 import { writable } from "svelte/store";
@@ -18,6 +19,7 @@ interface FakeConnection {
   state: string;
   handlers: Map<string, Handler>;
   invoke: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   on: ReturnType<typeof vi.fn>;
@@ -43,6 +45,7 @@ function makeFakeConnection(): FakeConnection {
     state: "Disconnected",
     handlers,
     invoke: vi.fn(() => Promise.resolve("server-result")),
+    send: vi.fn(() => (conn.state === "Connected" ? Promise.resolve() : Promise.reject(new Error("not connected")))),
     start: vi.fn(
       () =>
         new Promise<void>((resolve) => {
@@ -390,7 +393,7 @@ describe("svelte integration (real provider, real core session)", () => {
     view.unmount();
   });
 
-  it("S10: an event handler stops receiving events after its component unmounts", async () => {
+  it("an event handler stops receiving events after its component unmounts", async () => {
     const client = makeClient();
     const show = writable(true);
     const received: number[] = [];
@@ -411,5 +414,29 @@ describe("svelte integration (real provider, real core session)", () => {
     connections[0].push("OnFoo", 2);
     expect(received).toEqual([1]);
     view.unmount();
+  });
+});
+
+describe("teardown with the provider (S12)", () => {
+  it("S12: a teardown call in onDestroy lands when the provider and its consumer unmount together", async () => {
+    const client = makeClient();
+    let result: Promise<boolean> | undefined;
+    const view = mountApp(client, () => {
+      const leave = client.hubTeardown(HUB, "Ping");
+      onDestroy(() => {
+        result = leave();
+      });
+    });
+    await tick();
+    connections[0].resolveStart();
+    await tick();
+
+    view.unmount();
+    await tick();
+    await tick();
+
+    await expect(result).resolves.toBe(true);
+    expect(connections[0].send).toHaveBeenCalledWith("Ping");
+    expect(connections[0].stop).toHaveBeenCalledTimes(1);
   });
 });

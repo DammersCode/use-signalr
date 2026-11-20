@@ -240,7 +240,7 @@ export interface InvokeOptions {
   /** `true` retries, `false` throws at once, `undefined` uses the default rule. */
   isRetriable?: (error: unknown) => boolean | undefined;
   /**
-   * If `true`, a teardown does not abort the wait or the retry delays, and the call holds a lazy hub open until it settles. If `false`, a teardown aborts them with an `AbortError`. A call that was already sent finishes in both cases.
+   * If `true`, ending the consumer does not abort the wait or the retry delays, and the call holds a lazy hub open until it settles. If `false`, ending the consumer aborts them with an `AbortError`. A call that was already sent finishes in both cases.
    * @default false
    */
   keepAliveOnUnmount?: boolean;
@@ -249,7 +249,7 @@ export interface InvokeOptions {
 /** Options for a teardown send. */
 export interface TeardownOptions {
   /**
-   * Maximum time in ms to wait for the hub to connect before the library gives up the send.
+   * Maximum time in ms for the whole call: the wait for the hub to connect and the send. After that the library gives up and the call resolves `false`. A timeout above 2^31-1 ms counts as 2^31-1 ms. With a timeout that is not finite, the call has no time limit, and a send that never ends keeps its connection open.
    * @default 10000
    */
   timeout?: number;

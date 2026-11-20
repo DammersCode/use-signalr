@@ -26,7 +26,7 @@ In the signatures below, `event` and `method` are names from the contract of the
 | `controller.status` | getter | `HubConnectionStatus` | The controller. | n/a |
 | `controller.on` | `(event, handler)` | An unsubscribe function. | The host connection. | no |
 | `controller.onReconnected` | `(callback)` | An unsubscribe function. | The host connection. | no |
-| `controller.invoke` | `(method, options?)` | `(...args) => Promise<Return>` | The host connection. A pending call aborts on disconnect. | no |
+| `controller.invoke` | `(method, options?)` | `(...args) => Promise<Return>` | The host connection. A pending call aborts on disconnect. | only with `keepAliveOnUnmount` |
 | `controller.send` | `(method)` | `(...args) => Promise<boolean>` | none | no |
 | `controller.teardown` | `(method, options?)` | `(...args) => Promise<boolean>` | A call survives the disconnect of the host. | each call, until the send ends |
 | `controller.dispose` | `()` | `void` | none | n/a |
@@ -35,7 +35,7 @@ In the signatures below, `event` and `method` are names from the contract of the
 | `event` | `event<Args>()` | `EventDef` | none | n/a |
 | `method` | `method<Args, Return>()` | `MethodDef` | none | n/a |
 
-`HubController<T, H>` implements the Lit `ReactiveController`. The controller as a whole keeps a lazy hub alive. It acquires the hub in `hostConnected()` and releases it in `hostDisconnected()`. `on`, `onReconnected`, `invoke`, and `send` do not acquire the hub. Each `teardown` call acquires it until its send ends. See [Session](../concepts/provider.mdx) for the options of `createSession`.
+`HubController<T, H>` implements the Lit `ReactiveController`. The controller as a whole keeps a lazy hub alive. It acquires the hub in `hostConnected()` and releases it in `hostDisconnected()`. `on`, `onReconnected`, and `send` do not acquire the hub. `invoke` acquires it only with `keepAliveOnUnmount`, until the call settles. Each `teardown` call acquires it until its send ends. See [Session](../concepts/provider.mdx) for the options of `createSession`.
 
 ### session.update
 
@@ -63,7 +63,7 @@ Runs `callback` after each reconnect, not after the first connect. Use it to loa
 
 ### controller.invoke
 
-Returns a typed function. The function waits for the connection and resolves with the return value of the server method. When the host disconnects and does not connect again in the same task, a pending call rejects with an `AbortError`, unless `options.keepAliveOnUnmount` is `true`.
+Returns a typed function. The function waits for the connection and resolves with the return value of the server method. When the host disconnects and does not connect again right after, a pending call rejects with an `AbortError`, unless `options.keepAliveOnUnmount` is `true`.
 
 ### controller.send
 
@@ -74,9 +74,10 @@ Returns a typed function that does not wait for the connection. The function res
 Returns a typed function for a call in a cleanup. The function waits for the hub, then sends. It resolves `true` when it sends the call. It resolves `false` when one of these happens:
 
 - The hub does not connect in time.
+- The session stops while the call waits for the hub.
 - The session is disabled.
 - The hub failed.
-- The send fails.
+- The send fails or does not end in time.
 
 It never rejects. The call survives the disconnect of the host. It holds a lazy hub open until it is done.
 

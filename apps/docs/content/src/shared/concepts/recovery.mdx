@@ -48,6 +48,8 @@ A reconnect callback runs after each recovery of a hub that was connected before
 - a library rebuild after a lost connection,
 - a rebuild after a change of `connectionKey`, `baseUrl`, or `enabled`, when the hub was connected before.
 
+The library sets the status to `connected` first and then runs the callbacks. Whether a status effect in your own code runs before or after a callback depends on the framework. The notes page of each framework says which.
+
 It does not run on the first connect, after the session stops and starts again, or when a lazy hub stops and starts again.
 
 The server forgets the groups of a closed connection. Join your groups again in a reconnect callback, or join in `OnConnectedAsync` on the server.

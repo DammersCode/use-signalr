@@ -5,7 +5,7 @@ description: Vue-specific rules for the SignalR package. Nuxt, refs and getters,
 
 ## Requirements
 
-The package needs Vue 3.3 or later and `@microsoft/signalr` 8, 9, or 10. Vue 3.3 added `toValue` and `MaybeRefOrGetter`, which the plugin options use.
+The package needs Vue 3.3 or later and `@microsoft/signalr` 8, 9, 10, or 11, and Node 20.19 or later. Vue 3.3 added `toValue` and `MaybeRefOrGetter`, which the plugin options use.
 
 ## Refs and getters as inputs
 
@@ -17,7 +17,7 @@ const token = ref<string>();
 
 app.use(signalR, {
   baseUrl: "https://api.example.com",
-  accessTokenFactory: () => token.value,
+  accessTokenFactory: () => token.value ?? "",
   enabled: () => user.value !== undefined,
   connectionKey: user,
 });
@@ -87,6 +87,10 @@ A component that hydrates shows `"idle"` until it mounts, then the live status. 
 
 ## Nuxt
 
-Package imports do not touch browser globals, and they start no connection. On the server, the plugin gives the composables an inert context. Use one universal Nuxt plugin, without the `.client` suffix. For the plugin sample and the SSR rules, see [Server rendering](/docs/vue/guides/ssr#vue-and-nuxt).
+Package imports do not touch browser globals, and they start no connection. On the server, the plugin gives the composables a context that never connects. Use one universal Nuxt plugin, without the `.client` suffix. For the plugin sample and the SSR rules, see [Server rendering](/docs/vue/guides/ssr#vue-and-nuxt).
 
 A hub call that runs during a server render waits until its timeout, because no connection starts there. Start such calls from `onMounted`.
+
+## Status and the reconnect callback
+
+A watcher with the default `flush` runs after the reconnect callback returns. A watcher with `flush: "sync"` runs as soon as the status changes, before the callback. A `watch` without `immediate` does not report the status that exists when you create it. A lazy hub is already `"connecting"` during the setup of its consumer, so add `{ immediate: true }` to see it. The [recovery guide](/docs/vue/concepts/recovery) describes the callback.

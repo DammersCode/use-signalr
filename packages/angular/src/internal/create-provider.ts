@@ -85,9 +85,22 @@ export function createSignalRProvider<T extends SignalRContract>(
               inZone(() => {
                 // A deferred call runs outside the session's own guard, so it reports its error itself.
                 try {
-                  options.onStatusChange?.(hub, status);
+                  const result: unknown = options.onStatusChange?.(hub, status);
+                  if (typeof (result as PromiseLike<unknown> | undefined)?.then === "function") {
+                    (result as PromiseLike<unknown>).then(undefined, (error: unknown) => {
+                      try {
+                        report(hub, error, { source: "callback" });
+                      } catch {
+                        // Nothing is left to report to.
+                      }
+                    });
+                  }
                 } catch (error) {
-                  report(hub, error, { source: "callback" });
+                  try {
+                    report(hub, error, { source: "callback" });
+                  } catch {
+                    // Nothing is left to report to.
+                  }
                 }
               }),
             onError: (hub, err, info) => inZone(() => report(hub, err, info)),

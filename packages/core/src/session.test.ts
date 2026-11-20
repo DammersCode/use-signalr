@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { HttpError, TransferFormat } from "@microsoft/signalr";
 import type { IHubProtocol } from "@microsoft/signalr";
+import { createTeardownSender } from "./calls.js";
 import { createSignalRSession } from "./session.js";
-import type { HubConnectionStatus, HubString, ResolvedHubConfig } from "./types.js";
+import type { HubConnectionStatus, HubString, MethodDef, ResolvedHubConfig } from "./types.js";
 import type { StatusStore } from "./status-store.js";
 
 // --- Fake @microsoft/signalr ---
@@ -10,19 +11,30 @@ import type { StatusStore } from "./status-store.js";
 // HubConnectionBuilder (runtime) and HubConnectionState (a runtime enum)
 // from the package. Mirrors connection-manager.test.ts's mocking pattern.
 function makeFakeConnection() {
-  return {
+  const conn = {
     on: vi.fn(),
     off: vi.fn(),
-    start: vi.fn(() => (startError ? Promise.reject(startError) : Promise.resolve())),
+    start: vi.fn(() => {
+      const result = startGate ?? (startError ? Promise.reject(startError) : Promise.resolve());
+      if (!connectOnStart) return result;
+      return result.then(() => {
+        conn.state = "Connected";
+      });
+    }),
     stop: vi.fn(() => Promise.resolve()),
+    send: vi.fn(() => sendGate ?? Promise.resolve()),
     onclose: vi.fn(),
     onreconnecting: vi.fn(),
     onreconnected: vi.fn(),
     state: "Disconnected",
   };
+  return conn;
 }
 
 let startError: unknown;
+let startGate: Promise<void> | undefined;
+let connectOnStart = false;
+let sendGate: Promise<void> | undefined;
 let fakeConnections: ReturnType<typeof makeFakeConnection>[];
 let protocolsApplied: unknown[];
 
@@ -101,6 +113,7 @@ function makeFakeStatusStore(): StatusStore<HubString> & {
 }
 
 beforeEach(() => {
+  connectOnStart = false;
   fakeConnections = [];
   protocolsApplied = [];
   startError = undefined;
@@ -1657,5 +1670,396 @@ describe("createSignalRSession: public API", () => {
     });
 
     expect(Object.keys(session).sort()).toEqual(["context", "publicContext", "stop", "update"]);
+  });
+});
+
+describe("stop() with a teardown call in flight", () => {
+  function makeSession() {
+    return createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+    });
+  }
+  type Contract = { [hub: string]: { methods: { Leave: MethodDef<[], void> } } };
+  const makeTeardown = (session: ReturnType<typeof makeSession>, timeout?: number) =>
+    createTeardownSender<Contract, HubString, "Leave">({
+      target: session.context,
+      hub: HUB_A,
+      method: "Leave",
+      getOptions: () => ({ timeout }),
+    });
+
+  beforeEach(() => {
+    connectOnStart = true;
+    startGate = undefined;
+    sendGate = undefined;
+  });
+
+  it("sends on a connected hub before it closes the connection", async () => {
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    const result = makeTeardown(session)();
+    session.stop();
+
+    await expect(result).resolves.toBe(true);
+    expect(connection.send).toHaveBeenCalledWith("Leave");
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+    expect(connection.send.mock.invocationCallOrder[0]).toBeLessThan(
+      connection.stop.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("closes the connection only after the send ends", async () => {
+    let finishSend: () => void = () => {};
+    sendGate = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    const result = makeTeardown(session)();
+    session.stop();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(connection.stop).not.toHaveBeenCalled();
+
+    finishSend();
+    await expect(result).resolves.toBe(true);
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the connection when the send does not end within the call timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      sendGate = new Promise<void>(() => {});
+      const session = makeSession();
+      session.update({ baseUrl: "https://example.test" });
+      await vi.advanceTimersByTimeAsync(0);
+      const connection = fakeConnections[0]!;
+      const result = makeTeardown(session, 1000)();
+      session.stop();
+      await vi.advanceTimersByTimeAsync(999);
+      expect(connection.stop).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(result).resolves.toBe(false);
+      expect(connection.stop).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends the wait for a hub that has not connected yet, and the call resolves false", async () => {
+    vi.useFakeTimers();
+    try {
+      startGate = new Promise<void>(() => {});
+      const session = makeSession();
+      session.update({ baseUrl: "https://example.test" });
+      await vi.advanceTimersByTimeAsync(0);
+      const result = makeTeardown(session, 5000)();
+      let settled: boolean | undefined;
+      void result.then((value) => {
+        settled = value;
+      });
+      session.stop();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(settled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports a failing close of a held connection, and survives an onError that throws", async () => {
+    let finishSend: () => void = () => {};
+    sendGate = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    const onError = vi.fn(() => {
+      throw new Error("handler broke");
+    });
+    const session = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+      onError,
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    connection.stop.mockImplementationOnce(() => Promise.reject(new Error("stop failed")));
+    const result = makeTeardown(session)();
+    session.stop();
+    finishSend();
+    await expect(result).resolves.toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onError).toHaveBeenCalledWith(HUB_A, expect.objectContaining({ message: "stop failed" }), {
+      source: "connection",
+    });
+  });
+
+  it("closes a new connection at the next stop even while an older teardown still sends", async () => {
+    let finishSend: () => void = () => {};
+    sendGate = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const first = fakeConnections[0]!;
+    const result = makeTeardown(session)();
+    session.stop();
+
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const second = fakeConnections[1]!;
+    session.stop();
+    expect(second.stop).toHaveBeenCalledTimes(1);
+    expect(first.stop).not.toHaveBeenCalled();
+
+    finishSend();
+    await expect(result).resolves.toBe(true);
+    expect(first.stop).toHaveBeenCalledTimes(1);
+    expect(second.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the new connection open for a teardown that waited through a rebuild and sends on it", async () => {
+    vi.useFakeTimers();
+    try {
+      startGate = new Promise<void>(() => {});
+      const session = makeSession();
+      session.update({ baseUrl: "https://example.test" });
+      await vi.advanceTimersByTimeAsync(0);
+      let finishSend: () => void = () => {};
+      sendGate = new Promise<void>((resolve) => {
+        finishSend = resolve;
+      });
+      const result = makeTeardown(session, 60_000)();
+
+      startGate = undefined;
+      session.update({ baseUrl: "https://example.test", connectionKey: 2 });
+      await vi.advanceTimersByTimeAsync(0);
+      const second = fakeConnections[fakeConnections.length - 1]!;
+      expect(second.send).toHaveBeenCalledWith("Leave");
+
+      session.stop();
+      expect(second.stop).not.toHaveBeenCalled();
+      finishSend();
+      await expect(result).resolves.toBe(true);
+      expect(second.stop).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("goes idle at once and hides the connection while a teardown is pending, and leaves other waits alone", async () => {
+    sendGate = new Promise<void>(() => {});
+    const statusStore = makeFakeStatusStore();
+    const session = createSignalRSession({
+      hubs: [HUB_A, HUB_B],
+      resolve: (hub) => baseResolved({ lazy: hub === HUB_B }),
+      statusStore,
+      getAccessToken: () => "token",
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    void makeTeardown(session, 1000)();
+    let otherSettled = false;
+    const other = session.context.waitForConnection(HUB_B, 60);
+    other.catch(() => {
+      otherSettled = true;
+    });
+    session.stop();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(statusStore.get(HUB_A)).toBe("idle");
+    expect(session.context.getConnection(HUB_A)).toBeNull();
+    expect(otherSettled).toBe(false);
+    await expect(other).rejects.toThrow("Timeout waiting");
+  });
+
+  it("does not deliver events of a connection that stop() left open", async () => {
+    sendGate = new Promise<void>(() => {});
+    const handler = vi.fn();
+    const session = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved({ events: ["Tick"] }),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+    });
+    session.context.subscribe(HUB_A, "Tick", handler);
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    void makeTeardown(session, 1000)();
+    session.stop();
+
+    const listener = connection.on.mock.calls.find((call) => call[0] === "Tick")?.[1] as
+      | ((...args: unknown[]) => void)
+      | undefined;
+    expect(listener).toBeDefined();
+    expect(connection.stop).not.toHaveBeenCalled();
+    listener!("late");
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("keeps a connection open for a teardown that starts while the session publishes connected, and stops inside that publish", async () => {
+    let openStart: () => void = () => {};
+    startGate = new Promise<void>((resolve) => {
+      openStart = resolve;
+    });
+    let finishSend: () => void = () => {};
+    sendGate = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    const session: ReturnType<typeof makeSession> = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+      onStatusChange: (_hub, status) => {
+        if (status === "connected") session.stop();
+      },
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const result = makeTeardown(session, 5000)();
+    openStart();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    expect(connection.send).toHaveBeenCalledWith("Leave");
+    expect(connection.stop).not.toHaveBeenCalled();
+
+    finishSend();
+    await expect(result).resolves.toBe(true);
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a connection open for a teardown that starts from an idle listener during stop()", async () => {
+    let finishSend: () => void = () => {};
+    sendGate = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    let result: Promise<boolean> | undefined;
+    const session: ReturnType<typeof makeSession> = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+      onStatusChange: (_hub, status) => {
+        if (status === "idle") result = makeTeardown(session)();
+      },
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    session.stop();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(connection.send).toHaveBeenCalledWith("Leave");
+    expect(connection.stop).not.toHaveBeenCalled();
+
+    finishSend();
+    await expect(result).resolves.toBe(true);
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes a connection only after the last of two teardown sends on it ends", async () => {
+    let finishFirst: () => void = () => {};
+    let finishSecond: () => void = () => {};
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    connection.send
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (finishFirst = resolve)))
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (finishSecond = resolve)));
+    const first = makeTeardown(session)();
+    const second = makeTeardown(session)();
+    session.stop();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    finishFirst();
+    await expect(first).resolves.toBe(true);
+    expect(connection.stop).not.toHaveBeenCalled();
+    finishSecond();
+    await expect(second).resolves.toBe(true);
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the connection at once when the teardown send ended before stop()", async () => {
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    await expect(makeTeardown(session)()).resolves.toBe(true);
+    expect(connection.stop).not.toHaveBeenCalled();
+
+    session.stop();
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops each connection once when stop() runs twice", async () => {
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    session.stop();
+    session.stop();
+    expect(fakeConnections[0]!.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("makes a teardown that begins after stop() wait for its timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const session = makeSession();
+      session.update({ baseUrl: "https://example.test" });
+      await vi.advanceTimersByTimeAsync(0);
+      session.stop();
+      const result = makeTeardown(session, 1000)();
+      let settled: boolean | undefined;
+      void result.then((value) => {
+        settled = value;
+      });
+      await vi.advanceTimersByTimeAsync(999);
+      expect(settled).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops at once when no teardown is pending", async () => {
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    session.stop();
+    expect(fakeConnections[0]!.stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("order after a reconnect", () => {
+  it("the status is already connected, and was not reconnecting, when the reconnect callback runs", async () => {
+    const session = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const seen: string[] = [];
+    session.context.registerReconnect(HUB_A, () => seen.push(session.context.getStatus(HUB_A)));
+
+    const connection = fakeConnections[0]!;
+    (connection.onreconnecting.mock.calls[0]![0] as () => void)();
+    expect(session.context.getStatus(HUB_A)).toBe("reconnecting");
+    (connection.onreconnected.mock.calls[0]![0] as () => void)();
+
+    expect(seen).toEqual(["connected"]);
+    session.stop();
   });
 });

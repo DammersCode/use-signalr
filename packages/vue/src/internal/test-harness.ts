@@ -45,6 +45,7 @@ export function makeHarness(options?: { connected?: boolean; failWaitOnce?: bool
         waiters.push(() => { clearTimeout(timer); resolve(connection); });
       });
     },
+    beginSend: () => ({ signal: new AbortController().signal, use: () => {}, end: () => {} }),
     acquire: () => { acquireCount += 1; },
     release: () => { releaseCount += 1; },
     registerReconnect: () => () => {},

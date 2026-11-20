@@ -65,6 +65,8 @@ The provider starts connections inside `createEffect`. Solid does not run this e
 In SolidStart, mount `SignalRProvider` in your root component. The import is safe on the server. Mount the provider above every `<Suspense>`: in SolidStart, wrap `<Router>` in `app.tsx`.
 
 Do not call <Api of="invoke" /> in a `createResource` or `createAsync` fetcher. Gate the call on `useHubStatus(hub)() === "connected"`.
+
+Solid 2 has no `<Suspense>` and no `createResource`. It uses `<Loading>` and async computations. The same two rules apply to them.
 </Only>
 <Only in="svelte">
 ## Svelte and SvelteKit
@@ -78,7 +80,7 @@ Svelte 5 does not allow `await` at the top level of a component script, unless y
 <Only in="vue">
 ## Vue and Nuxt
 
-Package imports do not access browser globals. During a server render, the plugin provides an inert context, so composables work and report `"idle"`.
+Package imports do not access browser globals. During a server render, the plugin provides a context that never connects, so composables work and report `"idle"`.
 
 The browser starts the session after `app.mount()`. This keeps the first client render equal to the server HTML.
 

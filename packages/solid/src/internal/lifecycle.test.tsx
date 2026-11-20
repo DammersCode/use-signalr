@@ -1,4 +1,5 @@
-import { createContext, createEffect, createRoot } from "solid-js";
+import { createContext, createRoot, createSignal, Show } from "solid-js";
+import { createEffect } from "./test-compat.js";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { resolveHubConfig } from "@dammers/use-signalr-core";
@@ -266,4 +267,41 @@ describe("useHubStatus accessor", () => {
 
     view.unmount();
   });
+});
+
+describe("reactivity diagnostics", () => {
+  it.each([false, true])("starting the provider and a consumer logs no Solid diagnostics (lazy %s)", async (lazy) => {
+    await run(lazy);
+  });
+
+  async function run(lazy: boolean) {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const Context = createContext<SignalRContextValue<any> | null>(null);
+    const resolved = resolveHubConfig({ hubs: { [HUB]: { lazy } } }, HUB);
+    const SignalRProvider = createSignalRProvider<any>(Context, [HUB], () => resolved);
+    const hooks = createSignalRHooks<any>(Context);
+
+    function Consumer() {
+      hooks.useHubStatus(HUB);
+      return null;
+    }
+
+    const [mounted, setMounted] = createSignal(false);
+    const view = render(() => (
+      <SignalRProvider baseUrl="https://example.test" accessTokenFactory={() => "token"}>
+        <Show when={mounted()}>
+          <Consumer />
+        </Show>
+      </SignalRProvider>
+    ));
+    await tick();
+    setMounted(true);
+    await tick();
+    await resolveStart();
+    view.unmount();
+
+    const logged = warn.mock.calls.map((call) => String(call[0])).join(" ");
+    warn.mockRestore();
+    expect(logged).not.toMatch(/STRICT_READ_UNTRACKED|REACTIVE_WRITE_IN_OWNED_SCOPE/);
+  }
 });

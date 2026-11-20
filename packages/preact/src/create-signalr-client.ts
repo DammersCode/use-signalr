@@ -19,19 +19,19 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(c
     /** Provider that builds, starts, retries, and reconnects every configured hub. Mount it once, near the root. */
     SignalRProvider,
     /**
-     * Escape hatch to the SignalR context (`getConnection`, `getStatus`, and
+     * Gives access to the SignalR context (`getConnection`, `getStatus`, and
      * `waitForConnection`). Prefer the typed hooks. Use this only for the
-     * underlying `HubConnection` or a point read.
+     * underlying `HubConnection` or a one-time read.
      */
     useSignalR: hooks.useSignalR,
     /**
-     * Keeps a (possibly lazy) hub connected for the component's lifetime,
+     * Keeps a hub, eager or lazy, connected for the component's lifetime,
      * without subscribing to events or status.
      */
     useHubConsumer: hooks.useHubConsumer,
     /**
      * Subscribes to a typed server event for the component's lifetime. Handler
-     * args are inferred from your contract. The subscription survives
+     * arguments are inferred from your contract. The subscription survives
      * reconnects and rebuilds.
      */
     useSignalREffect: hooks.useSignalREffect,
@@ -39,35 +39,38 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(c
      * Typed invoker that waits for the connection and resolves with the
      * method's return value. Fails fast by default. Opt in to retry for
      * idempotent methods only. When the component unmounts, a call that still
-     * waits rejects with `AbortError`, unless you set `keepAliveOnUnmount`.
+     * waits rejects with `AbortError`, unless `keepAliveOnUnmount` is `true`.
+     * With `keepAliveOnUnmount`, the call also holds a lazy hub open until it settles.
      */
     useSignalRInvoke: hooks.useSignalRInvoke,
     /**
      * Typed fire-and-forget sender. It does not wait for the connection. It
      * resolves `true` when it sends the call, and `false` when the hub is not
-     * connected and it drops the call. It never throws, so a cleanup can call
-     * it. For a call that must land in a cleanup, use `useSignalRTeardown`.
+     * connected and it drops the call. It also resolves `false` when the send
+     * fails. It never throws, so a cleanup can call it. For a call that must
+     * land in a cleanup, use `useSignalRTeardown`.
      */
     useSignalRSend: hooks.useSignalRSend,
     /**
-     * Typed teardown sender for a method invoked in a cleanup. Survives the
-     * calling component's disposal, queues while the hub is still connecting,
-     * and holds a lazy hub open until the flush completes.
-     * Resolves `true` if the call is sent.
+     * Typed teardown sender for a method invoked in an effect
+     * cleanup. Survives the calling component's unmount, queues while the hub
+     * is still connecting instead of dropping, and holds a lazy hub open
+     * until the send ends. Resolves `true` if the call is sent.
      * Resolves `false` if the hub does not connect in time,
-     * the session is disabled, the hub failed, or the send fails. Never
+     * the session stops while the call waits for the hub, the session is disabled, the hub failed, or the send fails or does not end in time. Never
      * throws.
+     * If the session stops while the call is pending on a connected hub, the call is sent before the connection closes.
      */
     useSignalRTeardown: hooks.useSignalRTeardown,
     /**
-     * Live connection status of a hub. Re-renders only when this hub's status
+     * Live connection status of a hub. Renders again only when this hub's status
      * changes. Also keeps a lazy hub connected while mounted.
      */
     useHubStatus: hooks.useHubStatus,
     /**
      * Runs a callback after each reconnect, not the first connect, to refetch
-     * state that went stale while offline. It also runs after a rebuild that a
-     * `connectionKey`, `baseUrl`, or `enabled` change causes.
+     * state that went stale while offline. It also runs after a rebuild, but
+     * only for a hub that was connected before.
      */
     useOnReconnected: hooks.useOnReconnected,
   };

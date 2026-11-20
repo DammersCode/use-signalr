@@ -1,4 +1,4 @@
-import { createApp, defineComponent, effectScope, h, nextTick, ref } from "vue";
+import { createApp, defineComponent, effectScope, h, nextTick, onUnmounted, ref, watch } from "vue";
 import type { Ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { event, method } from "@dammers/use-signalr-core";
@@ -18,6 +18,7 @@ function fakeConnection() {
     start: vi.fn(() => new Promise<void>((resolve) => { resolveStart = resolve; })),
     stop: vi.fn(() => { conn.state = "Disconnected"; return Promise.resolve(); }),
     invoke: vi.fn(() => Promise.resolve("pong")),
+    send: vi.fn(() => (conn.state === "Connected" ? Promise.resolve() : Promise.reject(new Error("not connected")))),
     on: vi.fn((name: string, cb: (...args: unknown[]) => void) => {
       listeners.set(name, [...(listeners.get(name) ?? []), cb]);
     }),
@@ -264,6 +265,34 @@ describe("Vue adapter with the real session", () => {
     app.unmount();
   });
 
+  it("a lazy hub reports connecting during the consumer's setup, so a watch without immediate never sees it", async () => {
+    const client = makeClient(true);
+    const plain: HubConnectionStatus[] = [];
+    const immediate: HubConnectionStatus[] = [];
+    const app = createApp({ render: () => null });
+    app.use(client, { baseUrl: "https://example.test", accessTokenFactory: () => "token" });
+    app.mount(document.createElement("div"));
+    await nextTick();
+
+    let atSetup: HubConnectionStatus | undefined;
+    const scope = effectScope();
+    scope.run(() =>
+      app.runWithContext(() => {
+        const status = client.useHubStatus(HUB);
+        atSetup = status.value;
+        watch(status, (value) => plain.push(value));
+        watch(status, (value) => immediate.push(value), { immediate: true });
+      }),
+    );
+    connections[0]?.connect();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(atSetup).toBe("connecting");
+    expect(plain).toEqual(["connected"]);
+    expect(immediate).toEqual(["connecting", "connected"]);
+    scope.stop();
+    app.unmount();
+  });
+
   it("S9: a lazy hub connects with the first consumer and stops after the grace period", async () => {
     const client = makeClient(true, 10);
     const app = createApp({ render: () => null });
@@ -280,5 +309,28 @@ describe("Vue adapter with the real session", () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(connections[0]?.stop).toHaveBeenCalledTimes(1);
     app.unmount();
+  });
+});
+
+describe("teardown with the provider (S12)", () => {
+  it("S12: a teardown call in onUnmounted lands when the app and its consumer unmount together", async () => {
+    const client = makeClient();
+    let result: Promise<boolean> | undefined;
+    const app = mountApp(client, () => {
+      const leave = client.useSignalRTeardown(HUB, "Ping");
+      onUnmounted(() => {
+        result = leave();
+      });
+    });
+    await nextTick();
+    connections[0]?.connect();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    app.unmount();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await expect(result).resolves.toBe(true);
+    expect(connections[0]?.send).toHaveBeenCalledWith("Ping");
+    expect(connections[0]?.stop).toHaveBeenCalledTimes(1);
   });
 });

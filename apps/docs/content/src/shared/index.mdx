@@ -13,8 +13,22 @@ Raw `@microsoft/signalr` gives you a `HubConnection`. You must build it, start i
 - **One connection for each hub.** All components that use a hub share one connection. A lazy hub connects when the first consumer uses it.
 - **Lifecycle bound to <Fw />.** The connection starts and stops with your app. A change of `baseUrl`, `enabled`, or `connectionKey` rebuilds the connections.
 - **Recovery.** A failed hub retries with a growing delay until it connects or gets an error that retries cannot fix.
-- **Teardown that lands.** A call in a cleanup, such as "leave room", waits for the connection and holds the hub open until it is sent.
+- **Teardown that waits for the hub.** A call in a cleanup, such as "leave room", waits for the connection and holds the hub open until the send ends. It gives up after a timeout.
 - **SSR-safe.** Nothing connects on the server. The status is `idle` there. See [Server rendering](./guides/ssr.mdx) for hydration.
+
+## Supported versions
+
+| Package | Framework | `@microsoft/signalr` | Node |
+| --- | --- | --- | --- |
+| `@dammers/use-signalr-react` | React 19 | 8, 9, 10, 11 | 20.19 or later |
+| `@dammers/use-signalr-preact` | Preact 10.20 or later, Preact 11 | 8, 9, 10, 11 | 20.19 or later |
+| `@dammers/use-signalr-solid` | Solid 1.7 or later, Solid 2 | 8, 9, 10, 11 | 20.19 or later |
+| `@dammers/use-signalr-svelte` | Svelte 5.15 or later | 8, 9, 10, 11 | 20.19 or later |
+| `@dammers/use-signalr-vue` | Vue 3.3 or later | 8, 9, 10, 11 | 20.19 or later |
+| `@dammers/use-signalr-angular` | Angular 20, 21, 22 | 8, 9, 10, 11 | 20.19 or later |
+| `@dammers/use-signalr-lit` | Lit 3 | 8, 9, 10, 11 | 20.19 or later |
+
+The test tools for Solid 2 (`@solidjs/testing-library` 1, `vite-plugin-solid` 3) are prereleases. Preact 11.2 or later needs `preact-render-to-string` 6.8.3 or later for server rendering.
 
 ## What is not supported
 

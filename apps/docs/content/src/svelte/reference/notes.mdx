@@ -5,7 +5,7 @@ description: Svelte-specific rules for the SignalR package. Svelte 5 only, store
 
 ## Requirements
 
-The package needs Svelte 5.15 or later, `@microsoft/signalr` 8, 9, or 10, and Node 20.19 or later. Svelte 4 is not supported.
+The package needs Svelte 5.15 or later, `@microsoft/signalr` 8, 9, 10, or 11, and Node 20.19 or later. Svelte 4 is not supported.
 
 ## Stores and runes
 
@@ -26,13 +26,16 @@ In a `.svelte` file, read a store with the `$` prefix. The `$` prefix works only
 <p>Status: {$status}</p>
 ```
 
-To read the status as a rune-style value in a `.svelte.ts` module, use `fromStore` from `svelte/store`. It returns an object with a reactive `current` property:
+To read the status as a rune-style value, use `fromStore` from `svelte/store`. Call it while a component initializes, for example in a function in a `.svelte.ts` module that the component script calls. It returns an object with a reactive `current` property:
 
 ```ts
 import { fromStore } from "svelte/store";
+import { hubStatus } from "./client";
 
-const status = fromStore(hubStatus("/hubs/rooms"));
-// status.current is "idle", "connecting", "connected", and so on
+export function roomsStatus() {
+  return fromStore(hubStatus("/hubs/rooms"));
+}
+// roomsStatus().current is "idle", "connecting", "connected", and so on
 ```
 
 To give a rune value to the provider, use `toStore`. A plain value that you read from `$state` or `$props()` is not reactive for the provider:
@@ -122,3 +125,7 @@ Put the client module, with `createSignalRClient`, in `$lib`. The module has no 
 A store that the library creates keeps the last status. A new subscriber gets the current value at once.
 
 `hubStatus` holds the hub, like every other function except `getSignalR` and `provideSignalR`. A lazy hub stays connected while a component uses its status.
+
+## Status and the reconnect callback
+
+Svelte runs effects in a batch after the callback returns. A `$effect` that reads the status therefore sees `connected` after the callback ran. The [recovery guide](/docs/svelte/concepts/recovery) describes the callback.

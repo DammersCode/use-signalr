@@ -126,7 +126,8 @@ function createTeardownSender<
   target: {
     acquire: (hub: H) => void;
     release: (hub: H) => void;
-    waitForConnection: (hub: H, timeoutMs: number) => Promise<HubConnection>;
+    waitForConnection: (hub: H, timeoutMs: number, signal?: AbortSignal) => Promise<HubConnection>;
+    beginSend?: (hub: H) => { signal: AbortSignal; use: (connection: HubConnection) => void; end: () => void };
   };
   hub: H;
   method: M;
@@ -134,7 +135,7 @@ function createTeardownSender<
 }): (...args: MethodArgs<T, H, M>) => Promise<boolean>;
 ```
 
-Builds a function for a call in a cleanup. It acquires the hub, so it works after its consumer is gone. It releases the hub when the call ends. It waits for the connection up to the timeout (default 10 000 ms). It resolves `true` when it sends the call. It resolves `false` when the hub did not connect in time, the session is disabled, the hub failed, or `send` rejects. It never rejects.
+Builds a function for a call in a cleanup. It acquires the hub, so it works after its consumer is gone. It releases the hub when the call ends. It waits for the connection and sends, and the timeout (default 10 000 ms) covers both. Pass `beginSend` from the session context. Then `stop()` keeps a connected hub open until the send ends and closes it after that. It ends the wait for a hub that has not connected yet. It resolves `true` when it sends the call. It resolves `false` when the hub did not connect in time, the session stopped while the call waited for the hub, the session is disabled, the hub failed, `send` rejects, or the send does not end in time. It never rejects.
 
 ### createAbortScope
 
@@ -214,8 +215,8 @@ Declares an invocable server method, for example `method<[roomId: string], boole
 | `HubString` | A hub path that starts with `/`, for example `/hubs/chat`. |
 | `HubContract` | The contract of one hub: optional `events` and `methods`. |
 | `SignalRContract` | The contract of an app: a map from hub path to `HubContract`. |
-| `EventDef<A>` | The phantom-typed declaration that `event()` returns. |
-| `MethodDef<A, R>` | The phantom-typed declaration that `method()` returns. |
+| `EventDef<A>` | The declaration that `event()` returns. It exists for its type only and has no runtime data. |
+| `MethodDef<A, R>` | The declaration that `method()` returns. It exists for its type only and has no runtime data. |
 | `HubDef` | The runtime definition of one hub: `PerHubConfig` plus `events` and `methods`. |
 | `InferContract<H>` | Derives the `SignalRContract` from a `hubs` config object. |
 | `EventName<T, H>` | The event names of hub `H`. |
@@ -244,7 +245,7 @@ See the [config reference](/docs/core/reference/config) for the options.
 | `HubProtocolConfig` | An `IHubProtocol`, or a function that returns one. |
 | `HttpOptions` | The SignalR `IHttpConnectionOptions` without `accessTokenFactory`. |
 | `ConfigureBuilder` | A function that receives the builder and a `BuilderContext`, and returns the builder. |
-| `BuilderContext` | `{ hub: string; baseUrl: string }`. |
+| `BuilderContext` | `{ hub: HubString; baseUrl: string }`. |
 
 ### Call option types
 

@@ -26,7 +26,7 @@ Declare your hubs once. Every event handler, call, and return value is typed fro
 - **Many hubs, one provider.** Each hub connects once, however many components use it.
 - **Lazy hubs.** A lazy hub connects when the first consumer needs it and stops after the last one leaves.
 - **Recovers by itself.** A lost connection comes back without app code. Reconnect callbacks let you refetch.
-- **Teardown that lands.** A leave call in a cleanup waits for the connection and is sent once.
+- **Teardown that waits for the hub.** A leave call in a cleanup waits for the connection and is sent once the hub connects. It gives up after a timeout.
 - **SSR-safe, zero runtime dependencies.** Nothing connects on the server. The framework and `@microsoft/signalr` are peers.
 
 ## Packages
@@ -38,15 +38,15 @@ Declare your hubs once. Every event handler, call, and return value is typed fro
 | [`@dammers/use-signalr-angular`](https://www.npmjs.com/package/@dammers/use-signalr-angular) | Angular ^20 \|\| ^21 \|\| ^22 | [Quick start](https://use-signalr.vercel.app/docs/angular/quick-start) |
 | [`@dammers/use-signalr-svelte`](https://www.npmjs.com/package/@dammers/use-signalr-svelte) | Svelte ^5.15 | [Quick start](https://use-signalr.vercel.app/docs/svelte/quick-start) |
 | [`@dammers/use-signalr-preact`](https://www.npmjs.com/package/@dammers/use-signalr-preact) | Preact ^10.20 \|\| ^11 | [Quick start](https://use-signalr.vercel.app/docs/preact/quick-start) |
-| [`@dammers/use-signalr-solid`](https://www.npmjs.com/package/@dammers/use-signalr-solid) | Solid ^1.7 | [Quick start](https://use-signalr.vercel.app/docs/solid/quick-start) |
+| [`@dammers/use-signalr-solid`](https://www.npmjs.com/package/@dammers/use-signalr-solid) | Solid ^1.7 \|\| ^2 | [Quick start](https://use-signalr.vercel.app/docs/solid/quick-start) |
 | [`@dammers/use-signalr-lit`](https://www.npmjs.com/package/@dammers/use-signalr-lit) | Lit ^3 | [Quick start](https://use-signalr.vercel.app/docs/lit/quick-start) |
 | [`@dammers/use-signalr-core`](https://www.npmjs.com/package/@dammers/use-signalr-core) | none | [Build an adapter](https://use-signalr.vercel.app/docs/core/build-an-adapter) |
 
-Every adapter has the same capabilities. All packages need `@microsoft/signalr` ^8 || ^9 || ^10 and Node 20.19 or later.
+Every adapter has the same capabilities. All packages need `@microsoft/signalr` ^8 || ^9 || ^10 || ^11 and Node 20.19 or later.
 
 ## Example
 
-This React file declares a hub, connects it, and reads a typed method result. The quick start of each framework shows the same example:
+This React file declares a hub, connects it, and reads a typed method result. The home page of the docs shows the same example for each framework:
 
 <!-- hero:react:start -->
 ```tsx

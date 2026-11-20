@@ -7,7 +7,11 @@ This page lists the parts of the Solid adapter that differ from the other framew
 
 ## Requirements
 
-The package needs Solid 1.7 or later.
+The package needs Solid 1.7 or later, or Solid 2, `@microsoft/signalr` ^8, ^9, ^10, or ^11, and Node 20.19 or later. One build works with both Solid versions.
+
+The test tools for Solid 2 are prereleases: `@solidjs/testing-library` 1 and `vite-plugin-solid` 3. Use `@solidjs/testing-library` 0.8 and `vite-plugin-solid` 2 with Solid 1.
+
+The samples in these docs use the Solid 1 API. On Solid 2, import `renderToString` and `isServer` from `@solidjs/web` instead of `solid-js/web`. Give `createEffect` a compute function and an effect function.
 
 ## Status is an accessor
 
@@ -58,3 +62,9 @@ The browser starts the session after hydration. The [SSR guide](/docs/solid/guid
 Mount `SignalRProvider` above every `<Suspense>`. In SolidStart, wrap the `<Router>` in `app.tsx` with the provider. A hook below a `<Suspense>` that mounts before the provider cannot find the context.
 
 Do not call an invoke in a `createResource` or `createAsync` fetcher. The fetcher runs on the server too, and no connection starts there. Gate the call on `useHubStatus(hub)() === "connected"` instead.
+
+Solid 2 has no `<Suspense>` and no `createResource`. It uses `<Loading>` and async computations. The same two rules apply to them.
+
+## Status and the reconnect callback
+
+On Solid 1, an effect that reads the status accessor runs as soon as the status changes. It therefore runs before the reconnect callback. On Solid 2, effects run after the current batch, so the callback runs first. The [recovery guide](/docs/solid/concepts/recovery) describes the callback.

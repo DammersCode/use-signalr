@@ -66,7 +66,7 @@ A helper throws when you call it in the wrong place:
 | Framework | Message | Fix |
 | --- | --- | --- |
 | React, Preact, Solid | `useSignalR must be used within a SignalRProvider` | Render the component below `SignalRProvider`. |
-| Svelte | `<function> must be called during component init, below provideSignalR` | Call the function in the script of a component, below the component that calls `provideSignalR`. Do not call it in an event handler. Outside component init, Svelte throws its own `lifecycle_outside_component` error. |
+| Svelte | `<function> must be called during component init, below provideSignalR` | Call the function in the script of a component, after `provideSignalR` ran in that component or in one above it. Do not call it in an event handler. Outside component init, Svelte throws its own `lifecycle_outside_component` error. |
 | Vue | `useSignalR must be used after app.use(signalR, options)` | Install the plugin before you use a composable. |
 | Vue | `<name> must be called inside setup() or app.runWithContext()` | Call the composable in `setup()`, or wrap the call in `app.runWithContext()` inside an effect scope. |
 | Vue | `<name> must be called inside setup() or an effectScope` | Call the composable in `setup()` or in an effect scope, not in an event handler. |

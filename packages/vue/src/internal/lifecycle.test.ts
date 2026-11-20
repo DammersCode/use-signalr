@@ -251,6 +251,7 @@ describe("Vue plugin lifecycle", () => {
     app.mount(document.createElement("div"));
 
     app.unmount();
+    await Promise.resolve();
 
     expect(connection.stop).toHaveBeenCalled();
   });

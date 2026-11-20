@@ -19,7 +19,7 @@ function makeConnection() {
     start: vi.fn(() => new Promise<void>((resolve) => { startResolvers.push(resolve); })),
     stop: vi.fn(() => { connection.state = "Disconnected"; return Promise.resolve(); }),
     invoke: vi.fn(() => Promise.resolve(42)),
-    send: vi.fn(() => Promise.resolve()),
+    send: vi.fn(() => (connection.state === "Connected" ? Promise.resolve() : Promise.reject(new Error("not connected")))),
     onclose: vi.fn(),
     onreconnecting: vi.fn(),
     onreconnected: vi.fn(),
@@ -349,5 +349,24 @@ describe("Preact adapter with the real session", () => {
     const before = renders;
     await connect();
     expect(renders).toBe(before);
+  });
+});
+
+describe("teardown with the provider (S10)", () => {
+  it("S10 a teardown call in a cleanup lands when the provider and its consumer unmount together", async () => {
+    let result: Promise<boolean> | undefined;
+    function Leaver() {
+      const leave = client.useSignalRTeardown(HUB, "Count");
+      useEffect(() => () => { result = leave(); }, [leave]);
+      return null;
+    }
+    act(() => render(h(Provider, {}, h(Leaver, {})), root));
+    await connect();
+    act(() => render(null, root));
+    await flush();
+    await flush();
+    await expect(result).resolves.toBe(true);
+    expect(connections[0]!.send).toHaveBeenCalledWith("Count");
+    expect(connections[0]!.stop).toHaveBeenCalledTimes(1);
   });
 });

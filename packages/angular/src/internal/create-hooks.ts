@@ -112,11 +112,11 @@ export function createSignalRHooks<T extends SignalRContract>(
     options?: TeardownOptions,
   ) {
     assertInInjectionContext(injectHubTeardown);
-    const { acquire, release, waitForConnection } = injectInternalContext();
+    const { acquire, release, waitForConnection, beginSend } = injectInternalContext();
     injectKeepHubAlive(hub);
 
     return createTeardownSender<T, H, M>({
-      target: { acquire, release, waitForConnection },
+      target: { acquire, release, waitForConnection, beginSend },
       hub,
       method,
       getOptions: () => options,

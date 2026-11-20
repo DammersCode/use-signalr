@@ -77,7 +77,8 @@ export interface ConnectionManager<Hub extends HubString> {
   reconcile: () => void;
   getConnection: (hub: Hub) => HubConnection | null;
   /** Stops all connections and cancels timers. */
-  dispose: () => void;
+  /** Stops all connections. A connected hub in `keep` stays open and is returned, so the caller closes it. */
+  dispose: (keep?: ReadonlySet<Hub>) => Map<Hub, HubConnection>;
 }
 
 /** Owns the hub connections of one provider: build, start with recovery, lazy ref-counted stop. */
@@ -316,7 +317,8 @@ export function createConnectionManager<Hub extends HubString>(
 
   const getConnection = (hub: Hub) => built.get(hub)?.connection ?? null;
 
-  const dispose = () => {
+  const dispose = (keep?: ReadonlySet<Hub>) => {
+    const left = new Map<Hub, HubConnection>();
     disposing = true;
     stopTimers.forEach((id) => clearTimeout(id));
     stopTimers.clear();
@@ -324,8 +326,12 @@ export function createConnectionManager<Hub extends HubString>(
     recoverTimers.clear();
     attempts.clear();
     misconfigured.clear();
-    built.forEach((e, hub) => stopConnection(hub, e.connection));
+    built.forEach((e, hub) => {
+      if (keep?.has(hub) && e.connection.state === HubConnectionState.Connected) left.set(hub, e.connection);
+      else stopConnection(hub, e.connection);
+    });
     // refCounts are kept across rebuilds on purpose.
+    return left;
   };
 
   return { reconcile, getConnection, dispose };

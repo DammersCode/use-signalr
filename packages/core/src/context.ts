@@ -28,7 +28,7 @@ export interface SignalRProviderPropsBase<THub extends string = HubString> {
 export interface SignalRPublicContext<T extends SignalRContract> {
   /** The live `HubConnection` of the hub, or `null` when none exists. */
   getConnection: (hub: keyof T & HubString) => HubConnection | null;
-  /** Point read of the hub's current status. In a reactive scope of a signal-based framework (Solid, Vue, Angular), the read tracks. */
+  /** One-time read of the hub's current status. In a reactive scope of a signal-based framework (Solid, Vue, Angular), the read tracks. */
   getStatus: (hub: keyof T & HubString) => HubConnectionStatus;
   /**
    * Resolves once the hub is connected. Waits across stop, start, and rebuilds.
@@ -54,6 +54,11 @@ export interface SignalRContextValueBase<T extends SignalRContract, TStore>
   acquire: (hub: keyof T & HubString) => void;
   /** Lowers the lazy reference count of a hub. */
   release: (hub: keyof T & HubString) => void;
+  /**
+   * Tells the session that a teardown send is in flight on a hub. `stop()` then sends first and closes that connection after `end()`.
+   * The signal aborts the wait for the connection when the session stops. Call `end()` once, when the send ends.
+   */
+  beginSend: (hub: keyof T & HubString) => { signal: AbortSignal; end: () => void };
   /** Registers a callback that runs after each reconnect, not after the first connect. Returns an unsubscribe function. */
   registerReconnect: (hub: keyof T & HubString, cb: () => void) => () => void;
   /** Registers an event handler. The handler survives rebuilds. Returns an unsubscribe function. */

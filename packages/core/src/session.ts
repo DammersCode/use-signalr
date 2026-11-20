@@ -85,6 +85,9 @@ export function createSignalRSession<
   const waiters = new Map<Hub, Set<Waiter>>();
   // Hubs that stopped after a non-retriable error, with the error. A wait on one can never succeed.
   const failed = new Map<Hub, Error>();
+  // Teardown sends in flight, and connections that stop() left open for them until they end.
+  const sendsInFlight = new Map<Hub, Set<AbortController>>();
+  const heldConnections = new Map<Hub, HubConnection>();
   let disabled = false;
   let current: ConnectionManager<Hub> | null = null;
   let applied: SignalRSessionValues | null = null;
@@ -192,7 +195,14 @@ export function createSignalRSession<
     manager.reconcile(); // build eager hubs plus already-referenced lazy hubs
   };
 
-  const teardown = () => {
+  const closeHeld = (hub: Hub) => {
+    const connection = heldConnections.get(hub);
+    if (!connection) return;
+    heldConnections.delete(hub);
+    void connection.stop().catch((err: unknown) => onError?.(hub, err, { source: "connection" }));
+  };
+
+  const teardown = (keep?: ReadonlySet<Hub>) => {
     // Publish before dispose, so listeners still see the live connection.
     hubs.forEach((h) => {
       const wasIdle = statusStore.get(h) === "idle";
@@ -200,7 +210,7 @@ export function createSignalRSession<
       if (wasIdle) return;
       runUserCallback(h, () => onStatusChange?.(h, "idle"), reportCallbackError);
     });
-    current?.dispose();
+    current?.dispose(keep)?.forEach((connection, hub) => heldConnections.set(hub, connection));
     hubs.forEach((h) => {
       if (resolve(h).lazy && !refCounts.get(h)) connectedBefore.delete(h); // a lazy hub with no consumer starts fresh
     });
@@ -210,8 +220,10 @@ export function createSignalRSession<
   };
 
   const stop = () => {
-    teardown();
+    const keep = new Set(hubs.filter((h) => (sendsInFlight.get(h)?.size ?? 0) > 0));
+    teardown(keep);
     connectedBefore.clear();
+    sendsInFlight.forEach((set) => set.forEach((controller) => controller.abort()));
   };
 
   const update = ({ baseUrl, enabled, connectionKey }: SignalRSessionValues) => {
@@ -254,6 +266,22 @@ export function createSignalRSession<
       const next = Math.max(0, (refCounts.get(hub) ?? 0) - 1);
       refCounts.set(hub, next);
       if (next === 0) current?.reconcile();
+    },
+    beginSend: (hub) => {
+      const controller = new AbortController();
+      let set = sendsInFlight.get(hub);
+      if (!set) sendsInFlight.set(hub, (set = new Set()));
+      set.add(controller);
+      let ended = false;
+      return {
+        signal: controller.signal,
+        end: () => {
+          if (ended) return;
+          ended = true;
+          set.delete(controller);
+          if (set.size === 0) closeHeld(hub);
+        },
+      };
     },
     registerReconnect: (hub, cb) => {
       let set = reconnectListeners.get(hub);

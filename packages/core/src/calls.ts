@@ -157,7 +157,7 @@ export function createTeardownSender<
   H extends keyof T & HubString,
   M extends MethodName<T, H>,
 >({
-  target: { acquire, release, waitForConnection },
+  target: { acquire, release, waitForConnection, beginSend },
   hub,
   method,
   getOptions,
@@ -165,7 +165,9 @@ export function createTeardownSender<
   target: {
     acquire: (hub: H) => void;
     release: (hub: H) => void;
-    waitForConnection: (hub: H, timeoutMs: number) => Promise<HubConnection>;
+    waitForConnection: (hub: H, timeoutMs: number, signal?: AbortSignal) => Promise<HubConnection>;
+    /** Tells the session that a send is in flight, so `stop()` can let it finish. Pass the one from the session context. */
+    beginSend?: (hub: H) => { signal: AbortSignal; end: () => void };
   };
   hub: H;
   method: M;
@@ -173,17 +175,29 @@ export function createTeardownSender<
 }): (...args: MethodArgs<T, H, M>) => Promise<boolean> {
   return (...args: MethodArgs<T, H, M>): Promise<boolean> => {
     const timeout = getOptions()?.timeout ?? DEFAULT_TEARDOWN_TIMEOUT;
+    const inFlight = beginSend?.(hub); // registered before any await, so a later stop() sees it
     acquire(hub); // hold the hub open past our own unmount, until flushed
-    return (async () => {
-      try {
-        const connection = await waitForConnection(hub, timeout);
-        await connection.send(method, ...(args as unknown[]));
-        return true;
-      } catch {
-        return false; // never connected in time, or the send failed: best-effort
-      } finally {
+    return new Promise<boolean>((resolve) => {
+      let finished = false;
+      const finish = (sent: boolean) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
         release(hub);
-      }
-    })();
+        inFlight?.end();
+        resolve(sent);
+      };
+      // The timeout also covers the send, so a stuck send cannot hold a stopped connection open.
+      const timer = setTimeout(() => finish(false), timeout);
+      void (async () => {
+        try {
+          const connection = await waitForConnection(hub, timeout, inFlight?.signal);
+          await connection.send(method, ...(args as unknown[]));
+          finish(true);
+        } catch {
+          finish(false); // never connected in time, the session stopped, or the send failed: best-effort
+        }
+      })();
+    });
   };
 }

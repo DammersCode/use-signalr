@@ -56,6 +56,7 @@ function setup(options?: { connected?: boolean; failWaitOnce?: boolean }) {
     statusStore,
     acquire,
     release,
+    beginSend: () => ({ signal: new AbortController().signal, end: () => {} }),
     registerReconnect: () => () => {},
     subscribe,
   } as unknown as SignalRContextValue<SignalRContract>;

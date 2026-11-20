@@ -66,10 +66,10 @@ export function createSignalRHooks<T extends SignalRContract>(Context: Context<S
     return useMemo(() => createSender<T, H, M>({ getConnection, hub, method }), [getConnection, hub, method]);
   }
   function useSignalRTeardown<H extends Hub, M extends MethodName<T, H>>(hub: H, method: M, options?: TeardownOptions) {
-    const { acquire, release, waitForConnection } = useInternalContext();
+    const { acquire, release, waitForConnection, beginSend } = useInternalContext();
     useHubConsumer(hub);
     const latest = useLatest(options);
-    return useMemo(() => createTeardownSender<T, H, M>({ target: { acquire, release, waitForConnection }, hub, method, getOptions: () => latest.current }), [acquire, release, waitForConnection, hub, method, latest]);
+    return useMemo(() => createTeardownSender<T, H, M>({ target: { acquire, release, waitForConnection, beginSend }, hub, method, getOptions: () => latest.current }), [acquire, release, waitForConnection, beginSend, hub, method, latest]);
   }
   return { useSignalR, useHubConsumer, useSignalREffect, useSignalRInvoke, useSignalRSend, useSignalRTeardown, useHubStatus, useOnReconnected };
 }

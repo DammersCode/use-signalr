@@ -12,7 +12,7 @@
     "typecheck": "node scripts/gen-content.mjs --strict && fumadocs-mdx && next typegen && tsc --noEmit && node scripts/check-snippets.mjs"
   },
   "dependencies": {
-    "@dammers/use-signalr-core": "1.0.0",
+    "@dammers/use-signalr-core": "1.1.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "fumadocs-core": "^16.15.17",

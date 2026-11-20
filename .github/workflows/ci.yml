@@ -131,3 +131,16 @@ jobs:
             npm run typecheck -w packages/$p
             npm test -w packages/$p
           done
+
+  # The ruleset on main requires this one check, so matrix entries can change without editing the ruleset.
+  ci:
+    name: ci
+    if: always()
+    needs: [test, floor, compat]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every job to pass
+        run: |
+          test "${{ needs.test.result }}" = success
+          test "${{ needs.floor.result }}" = success
+          test "${{ needs.compat.result }}" = success

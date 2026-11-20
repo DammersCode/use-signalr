@@ -189,7 +189,9 @@ export function createTeardownSender<
         resolve(sent);
       };
       // The timeout also covers the send, so a stuck send cannot hold a stopped connection open.
-      const timer = setTimeout(() => finish(false), Math.min(timeout, MAX_TIMER_MS));
+      const timer = Number.isFinite(timeout)
+        ? setTimeout(() => finish(false), Math.min(timeout, MAX_TIMER_MS))
+        : undefined;
       void (async () => {
         try {
           const connection = await waitForConnection(hub, timeout, inFlight?.signal);

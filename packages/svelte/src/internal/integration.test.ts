@@ -417,8 +417,8 @@ describe("svelte integration (real provider, real core session)", () => {
   });
 });
 
-describe("teardown with the provider (S10)", () => {
-  it("S10: a teardown call in onDestroy lands when the provider and its consumer unmount together", async () => {
+describe("teardown with the provider (S12)", () => {
+  it("S12: a teardown call in onDestroy lands when the provider and its consumer unmount together", async () => {
     const client = makeClient();
     let result: Promise<boolean> | undefined;
     const view = mountApp(client, () => {

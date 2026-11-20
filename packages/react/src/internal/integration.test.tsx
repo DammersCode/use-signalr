@@ -717,8 +717,8 @@ describe("hubProtocol and configureBuilder", () => {
   });
 });
 
-describe("teardown with the provider (S10)", () => {
-  it("S10 a teardown call in a cleanup lands when the provider and its consumer unmount together", async () => {
+describe("teardown with the provider (S12)", () => {
+  it("S12 a teardown call in a cleanup lands when the provider and its consumer unmount together", async () => {
     const { client, Provider } = setup();
     function Leaver() {
       const leave = client.useSignalRTeardown(HUB, "Join");

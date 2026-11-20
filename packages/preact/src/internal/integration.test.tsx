@@ -352,8 +352,8 @@ describe("Preact adapter with the real session", () => {
   });
 });
 
-describe("teardown with the provider (S10)", () => {
-  it("S10 a teardown call in a cleanup lands when the provider and its consumer unmount together", async () => {
+describe("teardown with the provider (S12)", () => {
+  it("S12 a teardown call in a cleanup lands when the provider and its consumer unmount together", async () => {
     let result: Promise<boolean> | undefined;
     function Leaver() {
       const leave = client.useSignalRTeardown(HUB, "Count");

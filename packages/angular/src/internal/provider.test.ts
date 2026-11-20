@@ -191,6 +191,33 @@ describe("default onError", () => {
     injector.destroy();
   });
 
+  it("reports an async onStatusChange that rejects to a user onError with source callback", async () => {
+    const { provideSignalR } = makeClient();
+    const onError = vi.fn();
+    const parent = TestBed.inject(EnvironmentInjector);
+    const injector = createEnvironmentInjector(
+      [
+        provideSignalR({
+          baseUrl: "https://example.test",
+          accessTokenFactory: () => "t",
+          onError,
+          onStatusChange: (async () => {
+            throw new Error("async boom");
+          }) as () => void,
+        }),
+      ],
+      parent,
+    );
+    await flush(TestBed.inject(ApplicationRef));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onError).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ message: "async boom" }),
+      { source: "callback" },
+    );
+    injector.destroy();
+  });
+
   it("prefers a user onError", async () => {
     const { provideSignalR } = makeClient();
     const handleError = vi.fn();

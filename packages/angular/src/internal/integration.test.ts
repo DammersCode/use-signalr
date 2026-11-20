@@ -268,7 +268,7 @@ describe("provider teardown", () => {
   });
 });
 
-describe("S10 teardown with the provider", () => {
+describe("S12 teardown with the provider", () => {
   it("lands a teardown call from a destroy hook when the injector and its consumer end together", async () => {
     const client = makeClient();
     let result: Promise<boolean> | undefined;

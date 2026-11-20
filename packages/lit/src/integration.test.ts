@@ -345,7 +345,7 @@ describe("Lit integration with the real session", () => {
     session.stop();
   });
 
-  it("S10: a teardown call in disconnectedCallback lands when the session stops right after", async () => {
+  it("S12: a teardown call in disconnectedCallback lands when the session stops right after", async () => {
     const client = createSignalRClient({
       hubs: { "/hub": { methods: { Count: method<[], number>() } } },
     });

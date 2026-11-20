@@ -30,7 +30,7 @@ The library has three ways to call a server method. They differ in waiting, retu
 
 ## teardown
 
-<Api of="teardown" /> returns a function that you can call in a cleanup. It does not depend on its consumer. It waits for the hub and sends the call. The `timeout` (default 10 000 ms) covers both. It holds a lazy hub open until it is done. It resolves `false` when the hub does not connect in time, when the session stops before the hub connects, when the session is disabled, when the hub failed, when `send` rejects, or when the send does not end in time. It never throws:
+<Api of="teardown" /> returns a function that you can call in a cleanup. It does not depend on its consumer. It waits for the hub and sends the call. The `timeout` (default 10 000 ms) covers both. It holds a lazy hub open until it is done. It resolves `false` when the hub does not connect in time, when the session stops while the call waits for the hub, when the session is disabled, when the hub failed, when `send` rejects, or when the send does not end in time. It never throws:
 
 <Snippet id="teardown" />
 

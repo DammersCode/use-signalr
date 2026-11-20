@@ -74,7 +74,7 @@ Returns a typed function that does not wait for the connection. The function res
 Returns a typed function for a call in a cleanup. The function waits for the hub, then sends. It resolves `true` when it sends the call. It resolves `false` when one of these happens:
 
 - The hub does not connect in time.
-- The session stops before the hub connects.
+- The session stops while the call waits for the hub.
 - The session is disabled.
 - The hub failed.
 - The send fails or does not end in time.

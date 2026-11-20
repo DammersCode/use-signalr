@@ -1,4 +1,5 @@
-import { createContext, createEffect, createRoot } from "solid-js";
+import { createContext, createRoot } from "solid-js";
+import { createEffect } from "./test-compat.js";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { resolveHubConfig } from "@dammers/use-signalr-core";

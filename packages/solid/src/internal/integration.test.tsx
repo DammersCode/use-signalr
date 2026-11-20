@@ -1,6 +1,7 @@
-import { createEffect, createSignal, onMount, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
+import { createEffect, onMount } from "./test-compat.js";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { JSX } from "solid-js";
+import type { SolidNode } from "../types.js";
 import { render } from "@solidjs/testing-library";
 import { createSignalRClient, event, method } from "../index.js";
 
@@ -108,7 +109,7 @@ function makeClient(hubOptions: { lazy?: boolean; graceMs?: number } = {}) {
 
 const mountProvider = (
   client: ReturnType<typeof makeClient>,
-  children: () => JSX.Element,
+  children: () => SolidNode,
   props: { connectionKey?: () => string; onError?: () => void } = {},
 ) =>
   render(() => (

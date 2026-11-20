@@ -1,5 +1,6 @@
 import { createContext } from "solid-js";
-import type { JSX } from "solid-js";
+import type { SolidNode } from "../types.js";
+import { providerOf } from "./test-compat.js";
 import type { HubConnection } from "@microsoft/signalr";
 import { createSignalRHooks } from "./create-hooks.js";
 import type { SignalRContextValue } from "../types.js";
@@ -51,7 +52,7 @@ function makeFakeConnection(): FakeConnection {
 
 /** Drives a controllable SignalRContextValue for the hooks under test. */
 export interface Harness {
-  Provider: (props: { children: JSX.Element }) => JSX.Element;
+  Provider: (props: { children: SolidNode }) => SolidNode;
   hooks: ReturnType<typeof createSignalRHooks<Hubs>>;
   fake: FakeConnection;
   acquireCount: number;
@@ -128,8 +129,9 @@ export function makeHarness(opts?: {
     }),
   };
 
-  harness.Provider = (props: { children: JSX.Element }) => (
-    <Context.Provider value={value}>{props.children}</Context.Provider>
+  const ContextProvider = providerOf<SignalRContextValue<Hubs> | null>(Context);
+  harness.Provider = (props: { children: SolidNode }) => (
+    <ContextProvider value={value}>{props.children}</ContextProvider>
   );
 
   return harness;

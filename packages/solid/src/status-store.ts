@@ -14,6 +14,8 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
     H,
     [Accessor<HubConnectionStatus>, Setter<HubConnectionStatus>]
   >();
+  // Solid 2 batches signal writes, so a read right after a write would see the old value.
+  const values = new Map<H, HubConnectionStatus>();
 
   const getOrCreate = (hub: H) => {
     let entry = signals.get(hub);
@@ -25,7 +27,13 @@ export function createStatusStore<H extends string>(): StatusStore<H> {
   };
 
   return {
-    get: (hub) => getOrCreate(hub)[0](),
-    set: (hub, status) => getOrCreate(hub)[1](status),
+    get: (hub) => {
+      getOrCreate(hub)[0]();
+      return values.get(hub) ?? "idle";
+    },
+    set: (hub, status) => {
+      values.set(hub, status);
+      getOrCreate(hub)[1](status);
+    },
   };
 }

@@ -6,6 +6,7 @@
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/**/*.type-test.ts",
-    "src/**/test-harness.tsx"
+    "src/**/test-harness.tsx",
+    "src/**/test-compat.ts"
   ]
 }

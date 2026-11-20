@@ -1,6 +1,7 @@
-import { createComponent, createEffect, onCleanup, untrack } from "solid-js";
+import { onCleanup } from "solid-js";
 import { createStatusStore } from "../status-store.js";
 import { createSignalRSession } from "@dammers/use-signalr-core";
+import { createPropsEffect, renderProvider } from "./solid-compat.js";
 import type { Context } from "solid-js";
 import type { HubString, ResolvedHubConfig, SignalRContract } from "@dammers/use-signalr-core";
 import type { SignalRContextValue, SignalRProviderProps } from "../types.js";
@@ -25,22 +26,17 @@ export function createSignalRProvider<T extends SignalRContract>(
       onError: (hub, err, info) => props.onError?.(hub, err, info),
     });
 
-    createEffect(() => {
-      const values = {
+    // Untracked apply: stop() reads status signals, and the effect must track only the props.
+    createPropsEffect(
+      () => ({
         baseUrl: props.baseUrl,
         enabled: props.enabled,
         connectionKey: props.connectionKey,
-      };
-      // Untracked: stop() reads status signals, and the effect must track only the props.
-      untrack(() => session.update(values));
-    });
+      }),
+      (values) => session.update(values),
+    );
     onCleanup(() => session.stop());
 
-    return createComponent(Context.Provider, {
-      value: session.context,
-      get children() {
-        return props.children;
-      },
-    });
+    return renderProvider(Context, session.context, () => props.children);
   };
 }

@@ -67,7 +67,7 @@ jobs:
         run: |
           node -e '
           const fs = require("fs");
-          const peers = ["@microsoft/signalr", "react", "react-dom", "preact", "solid-js", "svelte", "vue", "lit", "rxjs", "@angular/core", "@angular/common", "@angular/compiler", "@angular/platform-browser"];
+          const peers = ["@microsoft/signalr", "react", "react-dom", "preact", "solid-js", "@solidjs/web", "svelte", "vue", "lit", "rxjs", "@angular/core", "@angular/common", "@angular/compiler", "@angular/platform-browser"];
           const dir = "packages/${{ matrix.package }}/node_modules/";
           const nested = peers.filter((name) => fs.existsSync(dir + name));
           if (nested.length) { console.error("Nested copies:", nested); process.exit(1); }
@@ -90,12 +90,18 @@ jobs:
           - name: signalr 9
             packages: "core react preact solid svelte vue angular lit"
             deps: "@microsoft/signalr@^9"
+          - name: signalr 11
+            packages: "core react preact solid svelte vue angular lit"
+            deps: "@microsoft/signalr@^11"
           - name: angular 20
             packages: "angular"
             deps: "@angular/core@^20 @angular/compiler@^20 @angular/platform-browser@^20 @angular/common@^20"
           - name: angular 21
             packages: "angular"
             deps: "@angular/core@^21 @angular/compiler@^21 @angular/platform-browser@^21 @angular/common@^21"
+          - name: solid 2
+            packages: "solid"
+            deps: "solid-js@^2 @solidjs/web@^2 @solidjs/testing-library@1.0.0-rc.2 vite-plugin-solid@3.0.0-next.27"
           - name: preact 11
             packages: "preact"
             deps: "preact@^11"
@@ -114,7 +120,7 @@ jobs:
         run: |
           node -e '
           const fs = require("fs");
-          const peers = ["@microsoft/signalr", "react", "react-dom", "preact", "solid-js", "svelte", "vue", "lit", "rxjs", "@angular/core", "@angular/common", "@angular/compiler", "@angular/platform-browser"];
+          const peers = ["@microsoft/signalr", "react", "react-dom", "preact", "solid-js", "@solidjs/web", "svelte", "vue", "lit", "rxjs", "@angular/core", "@angular/common", "@angular/compiler", "@angular/platform-browser"];
           const nested = "${{ matrix.packages }}".split(" ").flatMap((p) => peers.filter((name) => fs.existsSync(`packages/${p}/node_modules/${name}`)).map((name) => `${p}: ${name}`));
           if (nested.length) { console.error("Nested copies:", nested); process.exit(1); }
           '

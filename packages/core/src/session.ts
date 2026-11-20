@@ -1,6 +1,7 @@
 import { HubConnectionState } from "@microsoft/signalr";
 import { createConnectionManager, runUserCallback } from "./connection-manager.js";
 import { SIGNALR_ERROR_NAMES, namedError } from "./errors.js";
+import { MAX_TIMER_MS } from "./timers.js";
 import type { HubConnection } from "@microsoft/signalr";
 import type { ConnectionManager } from "./connection-manager.js";
 import type { StatusStore } from "./status-store.js";
@@ -13,7 +14,6 @@ import type {
 } from "./types.js";
 import type { SignalRContextValueBase, SignalRPublicContext } from "./context.js";
 
-const MAX_TIMER_MS = 2 ** 31 - 1;
 
 export interface SignalRSessionDeps<
   T extends SignalRContract,

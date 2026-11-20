@@ -81,7 +81,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * is still connecting instead of dropping, and holds a lazy hub open
      * until the send ends. Resolves `true` if the call is sent.
      * Resolves `false` if the hub does not connect in time,
-     * the session is disabled, the hub failed, or the send fails. Never
+     * the session stops before the hub connects, the session is disabled, the hub failed, or the send fails or does not end in time. Never
      * throws.
      * If the session stops while the call is in flight on a connected hub, the call is sent before the connection closes.
      */

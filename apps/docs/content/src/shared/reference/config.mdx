@@ -54,7 +54,7 @@ A `HubException` that the server throws never retries by default.
 
 <AutoTypeTable path="../../packages/core/src/types.ts" name="TeardownOptions" />
 
-The teardown sender resolves `false` when the hub did not connect within the timeout, the session is disabled, the hub failed, or `send` rejected. The send helper resolves `false` when the hub is not connected, or when `send()` rejects.
+The teardown sender resolves `false` when the hub did not connect within the timeout, the session stopped before the hub connected, the session is disabled, the hub failed, `send` rejected, or the send did not end within the timeout. The send helper resolves `false` when the hub is not connected, or when `send()` rejects.
 
 <Only not="core">
 

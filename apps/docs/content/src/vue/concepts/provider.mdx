@@ -36,7 +36,7 @@ The plugin starts the session after `app.mount()` returns, not at `app.use()`. T
 | `app.use(signalR, options)` | The plugin builds the session and provides the context. No connection starts. |
 | `app.mount()` returns | If `app.mount()` finds no container, nothing starts. Otherwise the plugin reads the options and starts the session. Eager hubs connect. Lazy hubs wait for their first consumer. |
 | An option changes | The session updates. The statuses go to `"idle"` and then to `"connecting"` again. When `enabled` turns `false`, the statuses go to `"idle"` only. A lazy hub without a consumer stays `"idle"`. |
-| `app.unmount()` | The plugin stops the watcher. One microtask later, it stops the session and closes all connections. A teardown call in an `unmounted` hook still lands first. |
+| `app.unmount()` | The plugin stops the watcher. One microtask later, it stops the session and closes all connections. A teardown call in an `unmounted` hook on a connected hub is still sent first. |
 
 On the server, the plugin provides the session context but never starts watching the options. Nothing connects and every status is `"idle"`. A call that waits for a connection rejects when its timeout ends.
 

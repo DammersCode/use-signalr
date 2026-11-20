@@ -249,7 +249,7 @@ export interface InvokeOptions {
 /** Options for a teardown send. */
 export interface TeardownOptions {
   /**
-   * Maximum time in ms to wait for the hub to connect before the library gives up the send.
+   * Maximum time in ms for the whole call: the wait for the hub to connect and the send. After that the library gives up and the call resolves `false`.
    * @default 10000
    */
   timeout?: number;

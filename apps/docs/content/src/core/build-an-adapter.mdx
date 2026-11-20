@@ -180,7 +180,7 @@ Do not write your own invoke, send, or teardown logic. Use the helpers of core:
 
 - `createInvoker` builds a typed function. It waits for the connection, retries retriable failures if the caller opts in, and resolves with the return value of the method.
 - `createSender` builds a typed fire-and-forget function. It does not wait. It resolves `true` when it sends the call. It resolves `false` when the hub is not connected or the send fails.
-- `createTeardownSender` builds a typed function for a call in a cleanup. It acquires the hub itself, waits for the connection, sends, and releases the hub. Its timeout covers the wait and the send. It resolves `false` when the hub did not connect in time, the session stopped before the hub connected, or the send failed. Pass `beginSend` from the context: if `stop()` runs while the send is in flight on a connected hub, the session sends the call first and closes that connection after the send ends.
+- `createTeardownSender` builds a typed function for a call in a cleanup. It acquires the hub itself, waits for the connection, sends, and releases the hub. Its timeout covers the wait and the send. It resolves `false` when the hub did not connect in time, the session stopped before the hub connected, or the send failed. Pass `beginSend` from the context: if `stop()` runs while the send is in flight on a connected hub, the session keeps that connection open until the send ends, then closes it.
 
 The helpers read their options at call time. Pass `getOptions` functions that read the latest options of your framework.
 

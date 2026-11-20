@@ -7,6 +7,12 @@ export const isSolid2 = "createTrackedEffect" in solid;
 type ProviderElement = Node | string | number | boolean | null | undefined;
 type ProviderComponent<V> = (props: { value: V; children: SolidNode }) => ProviderElement;
 
+// Solid 2 rejects a write inside an owned scope unless `ownedWrite` is set; Solid 1 ignores the option.
+export const createOwnedWriteSignal = solid.createSignal as unknown as <T>(
+  value: T,
+  options: { ownedWrite: boolean },
+) => [() => T, (value: T) => void];
+
 // Solid 2 splits createEffect into a compute and an effect phase; Solid 1 takes one function.
 const createSplitEffect = solid.createEffect as unknown as <V>(
   compute: () => V,
@@ -22,7 +28,7 @@ const renderComponent = solid.createComponent as unknown as <V>(
 export function createPropsEffect<V>(read: () => V, apply: (value: V) => void): void {
   if (isSolid2) {
     createSplitEffect(read, (value) => {
-      apply(value);
+      solid.untrack(() => apply(value));
     });
     return;
   }

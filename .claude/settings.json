@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "npm run check --silent || exit 2" } ] }
+    ],
+    "TaskCompleted": [
+      { "hooks": [ { "type": "command", "command": "npm test --silent 1>&2 || exit 2" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "[ -z \"$(git status --porcelain)\" ] && exit 0; npm run check --silent && npm run typecheck --silent && npm test --silent 1>&2 || exit 2" } ] }
+    ]
+  }
+}

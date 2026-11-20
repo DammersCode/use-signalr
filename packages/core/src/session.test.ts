@@ -3,7 +3,7 @@ import { HttpError, TransferFormat } from "@microsoft/signalr";
 import type { IHubProtocol } from "@microsoft/signalr";
 import { createTeardownSender } from "./calls.js";
 import { createSignalRSession } from "./session.js";
-import type { HubConnectionStatus, HubString, ResolvedHubConfig } from "./types.js";
+import type { HubConnectionStatus, HubString, MethodDef, ResolvedHubConfig } from "./types.js";
 import type { StatusStore } from "./status-store.js";
 
 // --- Fake @microsoft/signalr ---
@@ -1682,8 +1682,9 @@ describe("stop() with a teardown call in flight", () => {
       getAccessToken: () => "token",
     });
   }
+  type Contract = { [hub: string]: { methods: { Leave: MethodDef<[], void> } } };
   const makeTeardown = (session: ReturnType<typeof makeSession>, timeout?: number) =>
-    createTeardownSender<any, any, any>({
+    createTeardownSender<Contract, HubString, "Leave">({
       target: session.context,
       hub: HUB_A,
       method: "Leave",
@@ -1904,6 +1905,131 @@ describe("stop() with a teardown call in flight", () => {
     expect(connection.stop).not.toHaveBeenCalled();
     listener!("late");
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("keeps a connection open for a teardown that starts while the session publishes connected, and stops inside that publish", async () => {
+    let openStart: () => void = () => {};
+    startGate = new Promise<void>((resolve) => {
+      openStart = resolve;
+    });
+    let finishSend: () => void = () => {};
+    sendGate = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    const session: ReturnType<typeof makeSession> = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+      onStatusChange: (_hub, status) => {
+        if (status === "connected") session.stop();
+      },
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const result = makeTeardown(session, 5000)();
+    openStart();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    expect(connection.send).toHaveBeenCalledWith("Leave");
+    expect(connection.stop).not.toHaveBeenCalled();
+
+    finishSend();
+    await expect(result).resolves.toBe(true);
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a connection open for a teardown that starts from an idle listener during stop()", async () => {
+    let finishSend: () => void = () => {};
+    sendGate = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    let result: Promise<boolean> | undefined;
+    const session: ReturnType<typeof makeSession> = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+      onStatusChange: (_hub, status) => {
+        if (status === "idle") result = makeTeardown(session)();
+      },
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    session.stop();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(connection.send).toHaveBeenCalledWith("Leave");
+    expect(connection.stop).not.toHaveBeenCalled();
+
+    finishSend();
+    await expect(result).resolves.toBe(true);
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes a connection only after the last of two teardown sends on it ends", async () => {
+    let finishFirst: () => void = () => {};
+    let finishSecond: () => void = () => {};
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    connection.send
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (finishFirst = resolve)))
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (finishSecond = resolve)));
+    const first = makeTeardown(session)();
+    const second = makeTeardown(session)();
+    session.stop();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    finishFirst();
+    await expect(first).resolves.toBe(true);
+    expect(connection.stop).not.toHaveBeenCalled();
+    finishSecond();
+    await expect(second).resolves.toBe(true);
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the connection at once when the teardown send ended before stop()", async () => {
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    await expect(makeTeardown(session)()).resolves.toBe(true);
+    expect(connection.stop).not.toHaveBeenCalled();
+
+    session.stop();
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops each connection once when stop() runs twice", async () => {
+    const session = makeSession();
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    session.stop();
+    session.stop();
+    expect(fakeConnections[0]!.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("makes a teardown that begins after stop() wait for its timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const session = makeSession();
+      session.update({ baseUrl: "https://example.test" });
+      await vi.advanceTimersByTimeAsync(0);
+      session.stop();
+      const result = makeTeardown(session, 1000)();
+      let settled: boolean | undefined;
+      void result.then((value) => {
+        settled = value;
+      });
+      await vi.advanceTimersByTimeAsync(999);
+      expect(settled).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stops at once when no teardown is pending", async () => {

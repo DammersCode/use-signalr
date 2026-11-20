@@ -53,7 +53,7 @@ export interface SignalRSession<
   T extends SignalRContract,
   TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,
 > {
-  /** Sets every hub to `"idle"`, closes the live connections, and forgets which hubs connected before. A connected hub with a pending teardown call stays open until the send ends. Calling it again leaves the hubs stopped. */
+  /** Sets every hub to `"idle"`, closes the live connections, and forgets which hubs connected before. A connected hub with a pending teardown call stays open until the send ends. Calling it again leaves the hubs stopped. It also ends the waits of teardown calls that began after the first call. */
   stop: () => void;
   /** Does nothing if the values equal the last applied values. Otherwise it disposes the live connections and, if `enabled` is true and `baseUrl` is not empty, builds new ones. A rebuild keeps which hubs connected, so their reconnect callbacks run. */
   update: (values: SignalRSessionValues) => void;
@@ -213,7 +213,21 @@ export function createSignalRSession<
     });
   };
 
-  const teardown = (keep?: ReadonlyMap<Hub, ReadonlySet<PendingSend>>) => {
+  // A send that is not bound yet counts as bound to a connected hub: its wait has resolved, and `use()` runs a microtask later.
+  const sendsOnLiveConnections = () => {
+    const keep = new Map<Hub, Set<PendingSend>>();
+    hubs.forEach((h) => {
+      const connection = current?.getConnection(h);
+      if (connection?.state !== HubConnectionState.Connected) return;
+      const live = [...(pendingSends.get(h) ?? [])].filter(
+        (send) => send.connection === connection || send.connection === undefined,
+      );
+      if (live.length > 0) keep.set(h, new Set(live));
+    });
+    return keep;
+  };
+
+  const teardown = (keepPendingSends = false) => {
     // Publish before dispose, so listeners still see the live connection.
     hubs.forEach((h) => {
       const wasIdle = statusStore.get(h) === "idle";
@@ -221,6 +235,8 @@ export function createSignalRSession<
       if (wasIdle) return;
       runUserCallback(h, () => onStatusChange?.(h, "idle"), reportCallbackError);
     });
+    // Read after the publish: a listener may begin a teardown during it.
+    const keep = keepPendingSends ? sendsOnLiveConnections() : undefined;
     current
       ?.dispose(keep && new Set(keep.keys()))
       .forEach((connection, hub) =>
@@ -235,13 +251,7 @@ export function createSignalRSession<
   };
 
   const stop = () => {
-    const keep = new Map<Hub, Set<PendingSend>>();
-    hubs.forEach((h) => {
-      const connection = current?.getConnection(h);
-      const live = [...(pendingSends.get(h) ?? [])].filter((send) => send.connection === connection);
-      if (connection && live.length > 0) keep.set(h, new Set(live));
-    });
-    teardown(keep);
+    teardown(true);
     connectedBefore.clear();
     pendingSends.forEach((set) => set.forEach((send) => send.controller.abort()));
   };

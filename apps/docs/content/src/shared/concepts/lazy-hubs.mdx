@@ -40,7 +40,7 @@ The consumer ends when the effect scope of the helper stops, for example when th
 
 </Only>
 <Only in="angular">
-The consumer ends when the injection context is destroyed.
+The consumer ends when the component or injector is destroyed.
 
 </Only>
 <Only in="svelte">
@@ -55,4 +55,4 @@ Here, a component keeps the lazy presence hub alive and shows its online count:
 <Snippet id="lazy" />
 
 </Only>
-A teardown call holds a lazy hub open until it is sent, even after its own consumer leaves.
+A teardown call holds a lazy hub open until its send ends, even after its own consumer leaves.

@@ -82,7 +82,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * Typed teardown sender for a method that you call in `onDestroy`. Call
      * it during component init. It survives the destroy of the component,
      * queues while the hub is still connecting instead of dropping, and holds
-     * a lazy hub open until the call is sent. It resolves `true` if the call
+     * a lazy hub open until the send ends. It resolves `true` if the call
      * is sent. It resolves `false` if the hub does not connect in time, the
      * session is disabled, the hub failed, or the send fails. It never throws.
      */

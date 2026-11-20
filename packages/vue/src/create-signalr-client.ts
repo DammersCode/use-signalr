@@ -75,7 +75,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Gives a typed teardown sender for a method that a cleanup invokes. It
      * survives the end of the calling scope, queues while the hub connects,
-     * and holds a lazy hub open until the call is sent. It resolves `true`
+     * and holds a lazy hub open until the send ends. It resolves `true`
      * if the call is sent. It resolves `false` if the hub does not connect in
      * time, the session is disabled, the hub failed, or the send fails. It
      * never throws. Call it in `setup()`, or inside an effect scope that runs

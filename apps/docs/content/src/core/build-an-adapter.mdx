@@ -272,7 +272,7 @@ The contract, config, status, and call types have the same names in every adapte
 4. Put `session.context` into the context mechanism of the framework. Build it once.
 5. In a client-only lifecycle hook, call `session.update({ baseUrl, enabled, connectionKey })` when a value changes.
 6. Call `session.stop()` on teardown.
-7. Map the public surface onto the primitives of the framework, and delegate to core: the raw context, the keep-alive, the status, the event, the reconnect callback, and the invoke, send, and teardown calls.
+7. Map the public surface onto the primitives of the framework. Delegate to core for each member: the raw context, the keep-alive, the status, the event, the reconnect callback, and the invoke, send, and teardown calls.
 8. Call `acquire` and `release` for each consumer. When an invoking consumer ends, call `abort()` on its abort scope, unless its `keepAliveOnUnmount` option is `true`.
 9. Name the public surface in the vocabulary of the framework. See the table above.
 10. Add a type test that proves the inference from a sample contract to every hook.

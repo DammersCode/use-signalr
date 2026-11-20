@@ -44,7 +44,7 @@ Returns the context object, typed to your contract:
 | --- | --- | --- |
 | `getConnection` | `(hub) => HubConnection \| null` | The raw connection, or `null` when there is none. Use it as a last resort. |
 | `getStatus` | `(hub) => HubConnectionStatus` | A one-time read. Inside a `computed` or a watcher, the read also tracks the status. |
-| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` | Resolves when the hub is connected. It rejects on timeout, on abort, when the session is disabled, and when the hub stopped after a final error. |
+| `waitForConnection` | `(hub, timeoutMs, signal?) => Promise<HubConnection>` | Resolves when the hub is connected. It rejects on timeout, on abort, when the session is disabled, and when the hub stopped after a non-retriable error. |
 
 ### Calls
 

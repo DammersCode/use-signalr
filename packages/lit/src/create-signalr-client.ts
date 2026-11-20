@@ -249,7 +249,7 @@ export class HubController<
     });
   }
 
-  /** Typed teardown sender for a method invoked in a cleanup. Survives the host disconnect, queues while the hub is still connecting instead of dropping, and holds a lazy hub open until the call is sent. Resolves `true` if the call is sent. Resolves `false` if the hub does not connect in time, the session is disabled, the hub failed, or the send fails. Never throws. */
+  /** Typed teardown sender for a method invoked in a cleanup. Survives the host disconnect, queues while the hub is still connecting instead of dropping, and holds a lazy hub open until the send ends. Resolves `true` if the call is sent. Resolves `false` if the hub does not connect in time, the session is disabled, the hub failed, or the send fails. Never throws. */
   teardown<M extends MethodName<T, H>>(
     method: M,
     options?: TeardownOptions,

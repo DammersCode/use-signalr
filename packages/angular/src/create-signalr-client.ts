@@ -54,13 +54,13 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     injectSignalR: hooks.injectSignalR,
     /**
-     * Keeps a hub, eager or lazy, connected for the injection scope's
-     * lifetime, without subscribing to events or status. Acquires
+     * Keeps a hub, eager or lazy, connected for the lifetime of the calling
+     * component or injector, without subscribing to events or status. Acquires
      * immediately, releases on `DestroyRef.onDestroy`.
      */
     injectKeepHubAlive: hooks.injectKeepHubAlive,
     /**
-     * Subscribes to a typed server event for the injection scope's lifetime.
+     * Subscribes to a typed server event for the lifetime of the calling component or injector.
      * Handler arguments are inferred from your contract. The subscription survives
      * reconnects and rebuilds.
      */
@@ -69,7 +69,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * Typed invoker that waits for the connection and resolves with the
      * method's return value. Fails fast by default. Opt in to retry for
      * idempotent methods only. Pending calls reject with an `AbortError` when
-     * the injection scope is destroyed, unless `keepAliveOnUnmount` is set.
+     * the calling component or injector is destroyed, unless `keepAliveOnUnmount` is set.
      * With `keepAliveOnUnmount`, the call also keeps a lazy hub connected
      * until it ends.
      */
@@ -85,7 +85,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Typed teardown sender for a method invoked in a teardown. Survives the
      * calling scope's disposal, queues while the hub is still connecting
-     * instead of dropping, and holds a lazy hub open until the call is sent.
+     * instead of dropping, and holds a lazy hub open until the send ends.
      * Resolves `true` if the call is sent. Resolves `false` if the hub does
      * not connect in time, the session is disabled, the hub failed, or the
      * send fails. Never throws.
@@ -94,7 +94,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Live connection status of a hub, as a granular `Signal`. Reading it in
      * a `computed()`/effect/template runs again only when this hub's status
-     * changes. Also keeps a lazy hub connected while the injection scope is
+     * changes. Also keeps a lazy hub connected while the calling component or injector is
      * alive.
      */
     injectHubStatus: hooks.injectHubStatus,

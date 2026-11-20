@@ -19,13 +19,13 @@ In the signatures below, `hub` is a hub path from your contract. `event` and `me
 | --- | --- | --- | --- | --- |
 | `provideSignalR` | `(options \| factory)` | `EnvironmentProviders` | The injector that holds the providers. A route injector lives as long as the app. | n/a |
 | `injectSignalR` | `()` | `SignalRPublicContext` | None. It reads the context. | no |
-| `injectKeepHubAlive` | `(hub)` | `void` | The injection scope. | yes |
-| `injectHubEvent` | `(hub, event, handler)` | `void` | The injection scope. | yes |
-| `injectHubInvoke` | `(hub, method, options?)` | `(...args) => Promise<Return>` | The injection scope. A pending call aborts on destroy. | yes |
-| `injectHubSend` | `(hub, method)` | `(...args) => Promise<boolean>` | The injection scope. | yes |
-| `injectHubTeardown` | `(hub, method, options?)` | `(...args) => Promise<boolean>` | The injection scope. A call survives destroy. | the injection scope, and each call until the send ends |
-| `injectHubStatus` | `(hub)` | `Signal<HubConnectionStatus>` | The injection scope. | yes |
-| `injectOnReconnected` | `(hub, callback)` | `void` | The injection scope. | yes |
+| `injectKeepHubAlive` | `(hub)` | `void` | The component or injector that calls it. | yes |
+| `injectHubEvent` | `(hub, event, handler)` | `void` | The component or injector that calls it. | yes |
+| `injectHubInvoke` | `(hub, method, options?)` | `(...args) => Promise<Return>` | The component or injector that calls it. A pending call aborts on destroy. | yes |
+| `injectHubSend` | `(hub, method)` | `(...args) => Promise<boolean>` | The component or injector that calls it. | yes |
+| `injectHubTeardown` | `(hub, method, options?)` | `(...args) => Promise<boolean>` | The component or injector that calls it. A call survives destroy. | the calling component or injector, and each call until the send ends |
+| `injectHubStatus` | `(hub)` | `Signal<HubConnectionStatus>` | The component or injector that calls it. | yes |
+| `injectOnReconnected` | `(hub, callback)` | `void` | The component or injector that calls it. | yes |
 | `event` | `event<Args>()` | `EventDef` | none | n/a |
 | `method` | `method<Args, Return>()` | `MethodDef` | none | n/a |
 

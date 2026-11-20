@@ -170,6 +170,27 @@ describe("default onError", () => {
     injector.destroy();
   });
 
+  it("reports a rejecting onStatusChange to ErrorHandler when no onError is given", async () => {
+    const { provideSignalR } = makeClient();
+    const handleError = vi.fn();
+    const parent = TestBed.inject(EnvironmentInjector);
+    const injector = createEnvironmentInjector(
+      [
+        { provide: ErrorHandler, useValue: { handleError } },
+        provideSignalR({
+          baseUrl: "https://example.test",
+          accessTokenFactory: () => "t",
+          onStatusChange: () => Promise.reject(new Error("async boom")) as unknown as void,
+        }),
+      ],
+      parent,
+    );
+    await flush(TestBed.inject(ApplicationRef));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(handleError).toHaveBeenCalledWith(expect.objectContaining({ message: "async boom" }));
+    injector.destroy();
+  });
+
   it("prefers a user onError", async () => {
     const { provideSignalR } = makeClient();
     const handleError = vi.fn();

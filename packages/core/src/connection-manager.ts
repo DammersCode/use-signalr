@@ -76,8 +76,7 @@ export interface ConnectionManager<Hub extends HubString> {
   /** Builds/starts desired hubs and stops undesired ones. Safe to call repeatedly. */
   reconcile: () => void;
   getConnection: (hub: Hub) => HubConnection | null;
-  /** Stops all connections and cancels timers. */
-  /** Stops all connections. A connected hub in `keep` stays open and is returned, so the caller closes it. */
+  /** Stops all connections and cancels timers. A connected hub in `keep` stays open and is returned, so the caller closes it. */
   dispose: (keep?: ReadonlySet<Hub>) => Map<Hub, HubConnection>;
 }
 

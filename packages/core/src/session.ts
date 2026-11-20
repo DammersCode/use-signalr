@@ -86,8 +86,12 @@ export function createSignalRSession<
   // Hubs that stopped after a non-retriable error, with the error. A wait on one can never succeed.
   const failed = new Map<Hub, Error>();
   // Teardown sends pending, and connections that stop() left open for them until they end.
-  const sendsInFlight = new Map<Hub, Set<AbortController>>();
-  const heldConnections = new Map<Hub, HubConnection>();
+  // A send belongs to the connections that exist when it begins. `epoch` counts the disposed ones.
+  type PendingSend = { controller: AbortController; epoch: number };
+  type HeldConnection = { hub: Hub; connection: HubConnection; sends: Set<PendingSend> };
+  const pendingSends = new Map<Hub, Set<PendingSend>>();
+  const heldConnections = new Set<HeldConnection>();
+  let epoch = 0;
   let disabled = false;
   let current: ConnectionManager<Hub> | null = null;
   let applied: SignalRSessionValues | null = null;
@@ -195,14 +199,18 @@ export function createSignalRSession<
     manager.reconcile(); // build eager hubs plus already-referenced lazy hubs
   };
 
-  const closeHeld = (hub: Hub) => {
-    const connection = heldConnections.get(hub);
-    if (!connection) return;
-    heldConnections.delete(hub);
-    void connection.stop().catch((err: unknown) => onError?.(hub, err, { source: "connection" }));
+  const closeHeldWithout = (send: PendingSend) => {
+    heldConnections.forEach((held) => {
+      held.sends.delete(send);
+      if (held.sends.size > 0) return;
+      heldConnections.delete(held);
+      void held.connection
+        .stop()
+        .catch((err: unknown) => onError?.(held.hub, err, { source: "connection" }));
+    });
   };
 
-  const teardown = (keep?: ReadonlySet<Hub>) => {
+  const teardown = (keep?: ReadonlyMap<Hub, ReadonlySet<PendingSend>>) => {
     // Publish before dispose, so listeners still see the live connection.
     hubs.forEach((h) => {
       const wasIdle = statusStore.get(h) === "idle";
@@ -210,7 +218,12 @@ export function createSignalRSession<
       if (wasIdle) return;
       runUserCallback(h, () => onStatusChange?.(h, "idle"), reportCallbackError);
     });
-    current?.dispose(keep)?.forEach((connection, hub) => heldConnections.set(hub, connection));
+    current
+      ?.dispose(keep && new Set(keep.keys()))
+      .forEach((connection, hub) =>
+        heldConnections.add({ hub, connection, sends: new Set(keep?.get(hub)) }),
+      );
+    epoch += 1;
     hubs.forEach((h) => {
       if (resolve(h).lazy && !refCounts.get(h)) connectedBefore.delete(h); // a lazy hub with no consumer starts fresh
     });
@@ -220,10 +233,14 @@ export function createSignalRSession<
   };
 
   const stop = () => {
-    const keep = new Set(hubs.filter((h) => (sendsInFlight.get(h)?.size ?? 0) > 0));
+    const keep = new Map<Hub, Set<PendingSend>>();
+    hubs.forEach((h) => {
+      const live = [...(pendingSends.get(h) ?? [])].filter((send) => send.epoch === epoch);
+      if (live.length > 0) keep.set(h, new Set(live));
+    });
     teardown(keep);
     connectedBefore.clear();
-    sendsInFlight.forEach((set) => set.forEach((controller) => controller.abort()));
+    pendingSends.forEach((set) => set.forEach((send) => send.controller.abort()));
   };
 
   const update = ({ baseUrl, enabled, connectionKey }: SignalRSessionValues) => {
@@ -268,18 +285,18 @@ export function createSignalRSession<
       if (next === 0) current?.reconcile();
     },
     beginSend: (hub) => {
-      const controller = new AbortController();
-      let set = sendsInFlight.get(hub);
-      if (!set) sendsInFlight.set(hub, (set = new Set()));
-      set.add(controller);
+      const send: PendingSend = { controller: new AbortController(), epoch };
+      let set = pendingSends.get(hub);
+      if (!set) pendingSends.set(hub, (set = new Set()));
+      set.add(send);
       let ended = false;
       return {
-        signal: controller.signal,
+        signal: send.controller.signal,
         end: () => {
           if (ended) return;
           ended = true;
-          set.delete(controller);
-          if (set.size === 0) closeHeld(hub);
+          set.delete(send);
+          closeHeldWithout(send);
         },
       };
     },

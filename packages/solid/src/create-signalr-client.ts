@@ -38,7 +38,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Provider that builds, starts, retries, and auto-reconnects every
      * configured hub. Pass `baseUrl` and `accessTokenFactory`, and gate them
-     * with `enabled`. Mount it once, above every `<Suspense>`. It reads `baseUrl`, `enabled`, and `connectionKey` as reactive props.
+     * with `enabled`. Mount it once, above every `<Suspense>`, or `<Loading>` on Solid 2. It reads `baseUrl`, `enabled`, and `connectionKey` as reactive props.
      */
     SignalRProvider,
     /**
@@ -76,11 +76,12 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     useSignalRSend: hooks.useSignalRSend,
     /**
-     * Typed teardown sender for a method invoked in a cleanup.
-     * Survives the disposal of the calling component, queues while the hub is
-     * still connecting instead of dropping, and holds a lazy hub open until
-     * the flush completes. Best-effort: resolves `true` if dispatched,
-     * `false` if the hub never connected in time or the send fails. Never throws.
+     * Typed teardown sender for a method invoked in a cleanup. Survives the
+     * disposal of the calling component, queues while the hub is still
+     * connecting instead of dropping, and holds a lazy hub open until the call
+     * is sent. Resolves `true` if the call is sent. Resolves `false` if the hub
+     * does not connect in time, the session is disabled, the hub failed, or
+     * the send fails. Never throws.
      */
     useSignalRTeardown: hooks.useSignalRTeardown,
     /**

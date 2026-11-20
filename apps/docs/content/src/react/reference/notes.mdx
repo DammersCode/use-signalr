@@ -7,7 +7,7 @@ This page lists the parts of the React adapter that differ from the other framew
 
 ## Requirements
 
-The package needs React 19. It reads the client context with `use`.
+The package needs React 19, `@microsoft/signalr` ^8, ^9, ^10, or ^11, and Node 20.19 or later. It reads the client context with `use`.
 
 ## StrictMode
 
@@ -58,3 +58,7 @@ The library does not depend on React Query. Both work with the same hooks.
 ## Status in render
 
 <Api of="status" /> uses `useSyncExternalStore`. The component renders again only when the status of its own hub changes. A change of a different hub does not render it. On the server, the hook returns `idle`.
+
+## Status and the reconnect callback
+
+A component renders after the reconnect callback returns. An effect that reads the status therefore sees `connected` after the callback ran. The [recovery guide](/docs/react/concepts/recovery) describes the callback.

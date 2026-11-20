@@ -90,3 +90,7 @@ A component that hydrates shows `"idle"` until it mounts, then the live status. 
 Package imports do not touch browser globals, and they start no connection. On the server, the plugin gives the composables an inert context. Use one universal Nuxt plugin, without the `.client` suffix. For the plugin sample and the SSR rules, see [Server rendering](/docs/vue/guides/ssr#vue-and-nuxt).
 
 A hub call that runs during a server render waits until its timeout, because no connection starts there. Start such calls from `onMounted`.
+
+## Status and the reconnect callback
+
+A watcher runs once per flush, after the reconnect callback returns. It sees the settled status of the flush. When a status such as `connecting` changes and settles within one flush, the watcher does not run for it. The [recovery guide](/docs/vue/concepts/recovery) describes the callback.

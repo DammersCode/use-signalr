@@ -37,14 +37,14 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
   return {
     /**
      * Builds, starts, retries, and auto-reconnects every configured hub.
-     * Returns `EnvironmentProviders` — add it to `ApplicationConfig.providers`
-     * (or a route's `providers` array). Pass an options object, or a factory
-     * that can call `inject()`. Give `baseUrl` and `accessTokenFactory`, and
-     * gate with `enabled`. Each can be a plain value or a zero-arg
-     * getter/`Signal`, so token rotation and enable/disable stay reactive.
-     * Without `onError`, errors go to Angular's `ErrorHandler`. All
-     * connection work happens client-side only (inside `afterNextRender`), so
-     * this is safe to provide during SSR.
+     * Returns `EnvironmentProviders`. Add it to `ApplicationConfig.providers`
+     * or to the `providers` array of a route. Pass an options object, or a
+     * factory function that can call `inject()`. Give `baseUrl`, and gate the
+     * hubs with `enabled`. Each of these can be a plain value, a getter, or a
+     * `Signal`. `accessTokenFactory` is a plain function or a `Signal` of one.
+     * A getter does not work there. Without `onError`, errors go to Angular's
+     * `ErrorHandler`. The connection starts in the browser only, after
+     * `afterNextRender`, so the provider is safe during server rendering.
      */
     provideSignalR,
     /**
@@ -75,19 +75,20 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     injectHubInvoke: hooks.injectHubInvoke,
     /**
-     * Typed fire-and-forget sender. It does not wait for the connection. It resolves
-     * `true` when it sends the call, and `false` when the hub is not connected and
-     * it drops the call. It never throws, so a cleanup can call it. For a call that
-     * must land in a cleanup, use
-     * `injectHubTeardown`.
+     * Typed fire-and-forget sender. It does not wait for the connection. It
+     * resolves `true` when it sends the call, and `false` when the hub is not
+     * connected and it drops the call. It also resolves `false` when the send
+     * fails. It never throws, so a cleanup can call it. For a call that must
+     * land in a cleanup, use `injectHubTeardown`.
      */
     injectHubSend: hooks.injectHubSend,
     /**
-     * Typed teardown sender for a method invoked in a teardown.
-     * Survives the calling scope's disposal, queues while the hub is still
-     * connecting instead of dropping, and holds a lazy hub open until the
-     * flush completes. Best-effort: resolves `true` if dispatched, `false`
-     * if the hub never connected in time. Never throws.
+     * Typed teardown sender for a method invoked in a teardown. Survives the
+     * calling scope's disposal, queues while the hub is still connecting
+     * instead of dropping, and holds a lazy hub open until the call is sent.
+     * Resolves `true` if the call is sent. Resolves `false` if the hub does
+     * not connect in time, the session is disabled, the hub failed, or the
+     * send fails. Never throws.
      */
     injectHubTeardown: hooks.injectHubTeardown,
     /**
@@ -98,8 +99,9 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     injectHubStatus: hooks.injectHubStatus,
     /**
-     * Runs a callback after each reconnect and after each rebuild, not the
-     * first connect, to refetch state that went stale while offline.
+     * Runs a callback after each reconnect, not the first connect, to refetch
+     * state that went stale while offline. It also runs after a rebuild, but
+     * only for a hub that was connected before.
      */
     injectOnReconnected: hooks.injectOnReconnected,
   };

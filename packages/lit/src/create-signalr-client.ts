@@ -229,7 +229,7 @@ export class HubController<
     };
   }
 
-  /** Typed invoker that waits for the connection and resolves with the method's return value. Fails fast by default. Opt in to retry for idempotent methods only. */
+  /** Typed invoker that waits for the connection and resolves with the method's return value. Fails fast by default. Opt in to retry for idempotent methods only. A pending call rejects with an `AbortError` when the host disconnects, unless `keepAliveOnUnmount` is true. With `keepAliveOnUnmount`, the call also holds a lazy hub open until it settles. */
   invoke<M extends MethodName<T, H>>(method: M, options?: InvokeOptions) {
     return createInvoker<T, H, M>({
       target: this.context,
@@ -240,7 +240,7 @@ export class HubController<
     });
   }
 
-  /** Typed fire-and-forget sender. It does not wait for the connection. It resolves `true` when it sends the call, and `false` when the hub is not connected and it drops the call. It never throws, so a cleanup can call it. For a call that must land in a cleanup, use `teardown`. */
+  /** Typed fire-and-forget sender. It does not wait for the connection. It resolves `true` when it sends the call, and `false` when the hub is not connected and it drops the call. It also resolves `false` when the send fails. It never throws, so a cleanup can call it. For a call that must land in a cleanup, use `teardown`. */
   send<M extends MethodName<T, H>>(method: M) {
     return createSender<T, H, M>({
       getConnection: this.context.getConnection,
@@ -249,7 +249,7 @@ export class HubController<
     });
   }
 
-  /** Typed teardown sender for a method invoked in a cleanup. Survives host disconnect, queues while the hub is still connecting, and holds a lazy hub open until the flush completes. Never throws. */
+  /** Typed teardown sender for a method invoked in a cleanup. Survives the host disconnect, queues while the hub is still connecting instead of dropping, and holds a lazy hub open until the call is sent. Resolves `true` if the call is sent. Resolves `false` if the hub does not connect in time, the session is disabled, the hub failed, or the send fails. Never throws. */
   teardown<M extends MethodName<T, H>>(
     method: M,
     options?: TeardownOptions,

@@ -60,20 +60,20 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     useSignalRInvoke: composables.useSignalRInvoke,
     /**
      * Gives a typed fire-and-forget sender. It does not wait for the
-     * connection. It resolves `true` when it sends the call. It resolves
-     * `false` when the hub is not connected and it drops the call, or when
-     * the send fails. It never throws, so a cleanup can call it. For a call
-     * that must land in a cleanup, use `useSignalRTeardown`. Call it in
+     * connection. It resolves `true` when it sends the call, and `false` when
+     * the hub is not connected and it drops the call. It also resolves `false`
+     * when the send fails. It never throws, so a cleanup can call it. For a
+     * call that must land in a cleanup, use `useSignalRTeardown`. Call it in
      * `setup()` or an effect scope.
      */
     useSignalRSend: composables.useSignalRSend,
     /**
      * Gives a typed teardown sender for a method that a cleanup invokes. It
      * survives the end of the calling scope, queues while the hub connects,
-     * and holds a lazy hub open until the flush completes. It resolves `true`
-     * when it dispatches the call. It resolves `false` when the hub does not
-     * connect in time, the session is disabled, the hub failed, or the send
-     * fails. It never throws. Call it in `setup()` or an effect scope.
+     * and holds a lazy hub open until the call is sent. It resolves `true`
+     * if the call is sent. It resolves `false` if the hub does not connect in
+     * time, the session is disabled, the hub failed, or the send fails. It
+     * never throws. Call it in `setup()` or an effect scope.
      */
     useSignalRTeardown: composables.useSignalRTeardown,
     /**

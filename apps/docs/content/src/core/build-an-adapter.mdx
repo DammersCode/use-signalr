@@ -200,7 +200,7 @@ A hub with `lazy: true` connects when a consumer first acquires it. It disconnec
 - When the stop runs, it reads the count again. If a consumer acquired the hub during the grace period, the hub stays connected.
 - A stopped lazy hub has the status `"idle"`.
 
-The reference counts, the stop timers, the reconnect listeners, and the event registry belong to the session. A rebuild does not reset them. A consumer that acquired a hub before a `baseUrl` change keeps the hub wanted in the new generation without acquiring it again. A consumer can also acquire a hub before the first `update`. The session remembers the count.
+The reference counts, the stop timers, the reconnect listeners, and the event registry belong to the session. A rebuild does not reset them. A consumer that acquired a hub before a `baseUrl` change keeps the hub wanted after the rebuild without acquiring it again. A consumer can also acquire a hub before the first `update`. The session remembers the count.
 
 ## SSR requirements
 

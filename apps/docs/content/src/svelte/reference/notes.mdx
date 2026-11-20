@@ -122,3 +122,7 @@ Put the client module, with `createSignalRClient`, in `$lib`. The module has no 
 A store that the library creates keeps the last status. A new subscriber gets the current value at once.
 
 `hubStatus` holds the hub, like every other function except `getSignalR` and `provideSignalR`. A lazy hub stays connected while a component uses its status.
+
+## Status and the reconnect callback
+
+Svelte runs effects in a batch after the callback returns. A `$effect` that reads the status therefore sees `connected` after the callback ran. The [recovery guide](/docs/svelte/concepts/recovery) describes the callback.

@@ -34,7 +34,7 @@ You pass these options to the invoke helper of a method.
 <AutoTypeTable path="../../packages/core/src/types.ts" name="InvokeOptions" />
 
 <Only in="core">
-The adapter applies `keepAliveOnUnmount`. `createInvoker` does not read it.
+The adapter passes `keepAliveOnUnmount` in the options. With `acquire` and `release` in `target`, `createInvoker` then holds a lazy hub open until the call settles.
 </Only>
 
 <Only not="core">

@@ -26,7 +26,7 @@ In the signatures below, `event` and `method` are names from the contract of the
 | `controller.status` | getter | `HubConnectionStatus` | The controller. | n/a |
 | `controller.on` | `(event, handler)` | An unsubscribe function. | The host connection. | no |
 | `controller.onReconnected` | `(callback)` | An unsubscribe function. | The host connection. | no |
-| `controller.invoke` | `(method, options?)` | `(...args) => Promise<Return>` | The host connection. A pending call aborts on disconnect. | no |
+| `controller.invoke` | `(method, options?)` | `(...args) => Promise<Return>` | The host connection. A pending call aborts on disconnect. | only with `keepAliveOnUnmount` |
 | `controller.send` | `(method)` | `(...args) => Promise<boolean>` | none | no |
 | `controller.teardown` | `(method, options?)` | `(...args) => Promise<boolean>` | A call survives the disconnect of the host. | each call, until the send ends |
 | `controller.dispose` | `()` | `void` | none | n/a |

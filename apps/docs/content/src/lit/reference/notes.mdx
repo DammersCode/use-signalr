@@ -3,9 +3,9 @@ title: Lit notes
 description: Reactive controllers, status updates, decorators, sharing a session, and server rendering in the Lit package.
 ---
 
-## Versions
+## Requirements
 
-The package needs Lit ^3, `@microsoft/signalr` ^8, ^9, or ^10, and Node 20.19 or later. It does not need `@lit/context`.
+The package needs Lit ^3, `@microsoft/signalr` ^8, ^9, ^10, or ^11, and Node 20.19 or later. It does not need `@lit/context`.
 
 ## Reactive controllers
 
@@ -51,3 +51,7 @@ In the browser, the first client render shows `"connecting"`, because the contro
 An invoke that runs during a server render waits for its timeout, because no connection starts.
 
 When you move a host in the DOM, Lit calls `disconnectedCallback()` and then `connectedCallback()` in the same task. The connection stays, and pending calls keep running. Code in your own `disconnectedCallback()` runs on a move too. Check `isConnected` in a microtask before you send a leave message.
+
+## Status and the reconnect callback
+
+A status observer in your code runs as soon as the status changes. It therefore runs before the reconnect callback. The [recovery guide](/docs/lit/concepts/recovery) describes the callback.

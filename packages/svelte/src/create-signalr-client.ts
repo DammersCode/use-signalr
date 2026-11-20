@@ -73,18 +73,18 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Typed fire-and-forget sender. Call it during component init. It does
      * not wait for the connection. It resolves `true` when it sends the call,
-     * and `false` when the hub is not connected or the send fails. It never
-     * throws, so a cleanup can call it. For a call that must land in a
-     * cleanup, use `hubTeardown`.
+     * and `false` when the hub is not connected and it drops the call. It also
+     * resolves `false` when the send fails. It never throws, so a cleanup can
+     * call it. For a call that must land in a cleanup, use `hubTeardown`.
      */
     hubSend: hooks.hubSend,
     /**
      * Typed teardown sender for a method that you call in `onDestroy`. Call
      * it during component init. It survives the destroy of the component,
      * queues while the hub is still connecting instead of dropping, and holds
-     * a lazy hub open until the flush completes. It resolves `true` if it
-     * sends the call. It resolves `false` when the hub does not connect in
-     * time, when the session is disabled, or when the send fails. It never throws.
+     * a lazy hub open until the call is sent. It resolves `true` if the call
+     * is sent. It resolves `false` if the hub does not connect in time, the
+     * session is disabled, the hub failed, or the send fails. It never throws.
      */
     hubTeardown: hooks.hubTeardown,
     /**

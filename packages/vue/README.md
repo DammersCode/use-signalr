@@ -11,7 +11,7 @@ Plugin and composables for typed [SignalR](https://learn.microsoft.com/aspnet/co
 npm install @dammers/use-signalr-vue @microsoft/signalr
 ```
 
-It needs Vue ^3.3, `@microsoft/signalr` ^8 || ^9 || ^10, and Node 20.19 or later.
+It needs Vue ^3.3, `@microsoft/signalr` ^8 || ^9 || ^10 || ^11, and Node 20.19 or later.
 
 ## Example
 

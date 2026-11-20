@@ -11,7 +11,7 @@ Context and stores for typed [SignalR](https://learn.microsoft.com/aspnet/core/s
 npm install @dammers/use-signalr-svelte @microsoft/signalr
 ```
 
-It needs Svelte ^5.15, `@microsoft/signalr` ^8 || ^9 || ^10, and Node 20.19 or later.
+It needs Svelte ^5.15, `@microsoft/signalr` ^8 || ^9 || ^10 || ^11, and Node 20.19 or later.
 
 ## Example
 

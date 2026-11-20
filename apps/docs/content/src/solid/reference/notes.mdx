@@ -9,7 +9,9 @@ This page lists the parts of the Solid adapter that differ from the other framew
 
 The package needs Solid 1.7 or later, or Solid 2. One build works with both.
 
-On Solid 2, you also need `@solidjs/web`, which Solid 2 apps already use. The test tools for Solid 2 are still prereleases: `@solidjs/testing-library` 1 and `vite-plugin-solid` 3. Use `@solidjs/testing-library` 0.8 and `vite-plugin-solid` 2 with Solid 1.
+The test tools for Solid 2 are prereleases: `@solidjs/testing-library` 1 and `vite-plugin-solid` 3. Use `@solidjs/testing-library` 0.8 and `vite-plugin-solid` 2 with Solid 1.
+
+The samples in these docs use the Solid 1 API. On Solid 2, import `renderToString` and `isServer` from `@solidjs/web` instead of `solid-js/web`. Give `createEffect` a compute function and an effect function.
 
 ## Status is an accessor
 

@@ -11,7 +11,7 @@ Providers and inject functions with signals for typed [SignalR](https://learn.mi
 npm install @dammers/use-signalr-angular @microsoft/signalr
 ```
 
-It needs `@angular/core` ^20 || ^21 || ^22 (the optional `rxjs-interop` entry point also needs `rxjs` ^7.6), `@microsoft/signalr` ^8 || ^9 || ^10, and Node 20.19 or later.
+It needs `@angular/core` ^20 || ^21 || ^22 (the optional `rxjs-interop` entry point also needs `rxjs` ^7.6), `@microsoft/signalr` ^8 || ^9 || ^10 || ^11, and Node 20.19 or later.
 
 ## Example
 

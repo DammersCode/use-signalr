@@ -85,6 +85,7 @@ Every adapter keeps these scenarios in its `integration.test.*`. The tests use t
 | S7 | Unmount while an invoke waits for the connection | It rejects with `AbortError`. The server gets no invoke. |
 | S8 | First connect | The status goes through `"connecting"` to `"connected"`. |
 | S9 | Lazy hub | It connects with the first consumer. It stops after the last consumer plus `graceMs`. |
+| S10 | The provider and a consumer end together, and the consumer cleanup calls a teardown on a connected hub | The call lands, and the connection closes after the send. |
 
 ## Example apps
 

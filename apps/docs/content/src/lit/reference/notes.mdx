@@ -12,7 +12,7 @@ The package needs Lit ^3, `@microsoft/signalr` ^8, ^9, ^10, or ^11, and Node 20.
 `session.hub(this, "/hubs/rooms")` creates a `HubController`. The controller implements the Lit `ReactiveController` interface and adds itself to the host.
 
 - `hostConnected()` acquires the hub, subscribes to the status, and attaches the event handlers and reconnect callbacks.
-- `hostDisconnected()` releases the hub, detaches the handlers, and aborts pending invokes.
+- `hostDisconnected()` releases the hub, detaches the handlers, and aborts pending invokes a moment later, unless the host connects again first.
 
 If a host moves in the DOM, it disconnects and connects again. The controller attaches its handlers again. A handler that you add with `on()` stays registered.
 

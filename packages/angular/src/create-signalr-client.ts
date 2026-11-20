@@ -69,7 +69,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * Typed invoker that waits for the connection and resolves with the
      * method's return value. Fails fast by default. Opt in to retry for
      * idempotent methods only. Pending calls reject with an `AbortError` when
-     * the calling component or injector is destroyed, unless `keepAliveOnUnmount` is set.
+     * the calling component or injector is destroyed, unless `keepAliveOnUnmount` is `true`.
      * With `keepAliveOnUnmount`, the call also keeps a lazy hub connected
      * until it ends.
      */
@@ -89,6 +89,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * Resolves `true` if the call is sent. Resolves `false` if the hub does
      * not connect in time, the session is disabled, the hub failed, or the
      * send fails. Never throws.
+     * If the session stops while the call is in flight on a connected hub, the call is sent before the connection closes.
      */
     injectHubTeardown: hooks.injectHubTeardown,
     /**

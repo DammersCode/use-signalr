@@ -93,4 +93,4 @@ A hub call that runs during a server render waits until its timeout, because no 
 
 ## Status and the reconnect callback
 
-A watcher with the default `flush` runs once per flush, after the reconnect callback returns. It sees the settled status of the flush. A watcher with `flush: "sync"` runs as soon as the status changes, before the callback. When a status such as `connecting` changes and settles within one flush, the watcher does not run for it. The [recovery guide](/docs/vue/concepts/recovery) describes the callback.
+A watcher with the default `flush` runs after the reconnect callback returns. A watcher with `flush: "sync"` runs as soon as the status changes, before the callback. A `watch` without `immediate` does not report the status that exists when you create it. A lazy hub is already `"connecting"` during the setup of its consumer, so add `{ immediate: true }` to see it. The [recovery guide](/docs/vue/concepts/recovery) describes the callback.

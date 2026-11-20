@@ -34,7 +34,7 @@ The library has three ways to call a server method. They differ in waiting, retu
 
 <Snippet id="teardown" />
 
-A teardown cannot land when the session stops at the same time. The call then resolves `false`. If the hub has not connected yet, it first waits until its timeout.
+When the session stops while a teardown is in flight on a connected hub, the library sends the call first and then closes the connection. If the hub has not connected yet, the stop ends the wait and the call resolves `false`. A change of `enabled`, `baseUrl`, or `connectionKey` closes the connections at once, so a teardown in flight then cannot land.
 
 </Only>
 

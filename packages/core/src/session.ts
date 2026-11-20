@@ -63,7 +63,7 @@ export interface SignalRSession<
   publicContext: SignalRPublicContext<T>;
 }
 
-/** Owns the connection manager, lazy ref-counts, reconnect listeners, and the context value. Adapters add only framework binding. */
+/** Owns the live connections, the lazy reference counts, the reconnect listeners, and the context value. Adapters add only framework binding. */
 export function createSignalRSession<
   T extends SignalRContract,
   TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,

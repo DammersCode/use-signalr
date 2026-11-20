@@ -16,7 +16,7 @@ StrictMode mounts, unmounts, and mounts every component again in development. Th
 - The provider opens no second connection. On unmount it waits one microtask before it stops the session. The second mount cancels the stop.
 - `useSignalRInvoke` aborts its pending calls on the simulated unmount. A call that you started in an effect can reject with an `AbortError`. Ignore it, as the samples do.
 
-A leave call in a cleanup can run before the connection is up. Send it with <Api of="teardown" />. It waits for the hub, so the call lands while the provider stays mounted. If the whole provider unmounts before the hub connects, the stop does not end the wait. The call waits until its timeout, then resolves `false` and does not land.
+A leave call in a cleanup can run before the connection is up. Send it with <Api of="teardown" />. It waits for the hub, so the call lands while the provider stays mounted. If the whole provider unmounts with the component and the hub is connected, the stop sends the call first and then closes the connection. If the hub has not connected yet, the stop ends the wait, and the call resolves `false` and does not land.
 
 ## Next.js
 

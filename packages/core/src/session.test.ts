@@ -1780,8 +1780,8 @@ describe("stop() with a teardown call in flight", () => {
   });
 });
 
-describe("order after a reconnect (S11)", () => {
-  it("S11: the status is already connected, and was not reconnecting, when the reconnect callback runs", async () => {
+describe("order after a reconnect", () => {
+  it("the status is already connected, and was not reconnecting, when the reconnect callback runs", async () => {
     const session = createSignalRSession({
       hubs: [HUB_A],
       resolve: () => baseResolved(),

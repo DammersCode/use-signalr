@@ -82,6 +82,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      * ends. Resolves `true` if the call is sent. Resolves `false` if the hub
      * does not connect in time, the session is disabled, the hub failed, or
      * the send fails. Never throws.
+     * If the session stops while the call is in flight on a connected hub, the call is sent before the connection closes.
      */
     useSignalRTeardown: hooks.useSignalRTeardown,
     /**

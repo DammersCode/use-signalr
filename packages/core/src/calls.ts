@@ -69,7 +69,7 @@ export interface InvokerOptions<
   method: M;
   /** Called at call time. Returns the `InvokeOptions` for this call. */
   getOptions: () => InvokeOptions | undefined;
-  /** Called at call time. Aborting the returned signal aborts the call. */
+  /** Called at call time. Aborting the returned signal aborts a call that still waits. A call that is already sent finishes. */
   getSignal?: () => AbortSignal | undefined;
 }
 

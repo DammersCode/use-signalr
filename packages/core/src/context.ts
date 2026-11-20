@@ -55,7 +55,7 @@ export interface SignalRContextValueBase<T extends SignalRContract, TStore>
   /** Lowers the lazy reference count of a hub. */
   release: (hub: keyof T & HubString) => void;
   /**
-   * Tells the session that a teardown send is in flight on a hub. `stop()` then keeps that connection open until `end()`, so the send can finish.
+   * Tells the session that a teardown send is pending on a hub. `stop()` then keeps that connection open until `end()`, so the send can finish.
    * The signal aborts the wait for the connection when the session stops. Call `end()` once, when the send ends.
    */
   beginSend: (hub: keyof T & HubString) => { signal: AbortSignal; end: () => void };

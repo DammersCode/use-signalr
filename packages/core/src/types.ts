@@ -240,7 +240,7 @@ export interface InvokeOptions {
   /** `true` retries, `false` throws at once, `undefined` uses the default rule. */
   isRetriable?: (error: unknown) => boolean | undefined;
   /**
-   * If `true`, a teardown does not abort the wait or the retry delays, and the call holds a lazy hub open until it settles. If `false`, a teardown aborts them with an `AbortError`. A call that was already sent finishes in both cases.
+   * If `true`, ending the consumer does not abort the wait or the retry delays, and the call holds a lazy hub open until it settles. If `false`, ending the consumer aborts them with an `AbortError`. A call that was already sent finishes in both cases.
    * @default false
    */
   keepAliveOnUnmount?: boolean;

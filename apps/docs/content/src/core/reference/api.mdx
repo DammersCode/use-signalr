@@ -135,7 +135,7 @@ function createTeardownSender<
 }): (...args: MethodArgs<T, H, M>) => Promise<boolean>;
 ```
 
-Builds a function for a call in a cleanup. It acquires the hub, so it works after its consumer is gone. It releases the hub when the call ends. It waits for the connection and sends, and the timeout (default 10 000 ms) covers both. Pass `beginSend` from the session context. Then `stop()` keeps a connected hub open until the send ends and closes it after that. It ends the wait for a hub that has not connected yet. It resolves `true` when it sends the call. It resolves `false` when the hub did not connect in time, the session is disabled, the hub failed, or `send` rejects. It never rejects.
+Builds a function for a call in a cleanup. It acquires the hub, so it works after its consumer is gone. It releases the hub when the call ends. It waits for the connection and sends, and the timeout (default 10 000 ms) covers both. Pass `beginSend` from the session context. Then `stop()` keeps a connected hub open until the send ends and closes it after that. It ends the wait for a hub that has not connected yet. It resolves `true` when it sends the call. It resolves `false` when the hub did not connect in time, the session stopped before the hub connected, the session is disabled, the hub failed, `send` rejects, or the send does not end in time. It never rejects.
 
 ### createAbortScope
 

@@ -107,7 +107,7 @@ function createRuntime<T extends SignalRContract>(
       stopped = false;
       if (hasHost) sync();
     },
-    /** Stops every hub and releases the connections. The session stays stopped until the next `update()`. */
+    /** Stops every hub and closes the connections. A connection with a pending teardown call stays open until the send ends. The session stays stopped until the next `update()`. */
     stop: () => {
       stopped = true;
       session.stop();
@@ -249,7 +249,7 @@ export class HubController<
     });
   }
 
-  /** Typed teardown sender for a method invoked in a cleanup. Survives the host disconnect, queues while the hub is still connecting instead of dropping, and holds a lazy hub open until the send ends. Resolves `true` if the call is sent. Resolves `false` if the hub does not connect in time, the session stops before the hub connects, the session is disabled, the hub failed, or the send fails or does not end in time. Never throws. If the session stops while the call is in flight on a connected hub, the call is sent before the connection closes. */
+  /** Typed teardown sender for a method invoked in a cleanup. Survives the host disconnect, queues while the hub is still connecting instead of dropping, and holds a lazy hub open until the send ends. Resolves `true` if the call is sent. Resolves `false` if the hub does not connect in time, the session stops before the hub connects, the session is disabled, the hub failed, or the send fails or does not end in time. Never throws. If the session stops while the call is pending on a connected hub, the call is sent before the connection closes. */
   teardown<M extends MethodName<T, H>>(
     method: M,
     options?: TeardownOptions,

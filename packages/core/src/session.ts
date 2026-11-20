@@ -53,7 +53,7 @@ export interface SignalRSession<
   T extends SignalRContract,
   TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,
 > {
-  /** Disposes the live connections, sets every hub to `"idle"`, and forgets which hubs connected before. Calling it again does nothing. */
+  /** Sets every hub to `"idle"`, closes the live connections, and forgets which hubs connected before. A connected hub with a pending teardown call stays open until the send ends. Calling it again does nothing. */
   stop: () => void;
   /** Does nothing if the values equal the last applied values. Otherwise it disposes the live connections and, if `enabled` is true and `baseUrl` is not empty, builds new ones. A rebuild keeps which hubs connected, so their reconnect callbacks run. */
   update: (values: SignalRSessionValues) => void;
@@ -85,7 +85,7 @@ export function createSignalRSession<
   const waiters = new Map<Hub, Set<Waiter>>();
   // Hubs that stopped after a non-retriable error, with the error. A wait on one can never succeed.
   const failed = new Map<Hub, Error>();
-  // Teardown sends in flight, and connections that stop() left open for them until they end.
+  // Teardown sends pending, and connections that stop() left open for them until they end.
   const sendsInFlight = new Map<Hub, Set<AbortController>>();
   const heldConnections = new Map<Hub, HubConnection>();
   let disabled = false;

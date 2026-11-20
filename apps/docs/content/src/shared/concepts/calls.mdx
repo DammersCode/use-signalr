@@ -30,11 +30,11 @@ The library has three ways to call a server method. They differ in waiting, retu
 
 ## teardown
 
-<Api of="teardown" /> returns a function that you can call in a cleanup. It does not depend on its consumer. It waits up to `timeout` (default 10 000 ms) for the hub, sends the call, and holds a lazy hub open until it is done. It resolves `false` when the hub does not connect in time, when the session is disabled, when the hub failed, or when `send` rejects. It never throws:
+<Api of="teardown" /> returns a function that you can call in a cleanup. It does not depend on its consumer. It waits for the hub and sends the call. The `timeout` (default 10 000 ms) covers both. It holds a lazy hub open until it is done. It resolves `false` when the hub does not connect in time, when the session stops before the hub connects, when the session is disabled, when the hub failed, when `send` rejects, or when the send does not end in time. It never throws:
 
 <Snippet id="teardown" />
 
-When the session stops while a teardown is in flight on a connected hub, the library keeps that connection open until the send ends, then closes it. If the hub has not connected yet, the stop ends the wait and the call resolves `false`. A change of `enabled`, `baseUrl`, or `connectionKey` closes the old connections at once. A teardown that already holds an old connection then cannot land.
+A teardown is pending from the moment you call it until its send ends. When the session stops while a teardown is pending on a connected hub, the library keeps that connection open until the send ends, then closes it. If the hub has not connected yet, the stop ends the wait and the call resolves `false`. A change of `enabled`, `baseUrl`, or `connectionKey` closes the old connections at once. A teardown that already holds an old connection then cannot land.
 
 </Only>
 

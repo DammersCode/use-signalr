@@ -42,3 +42,5 @@ An effect releases its event handlers and its lazy hub reference when the compon
 ## Server rendering
 
 The import is safe on the server. The provider starts connections in `useEffect`, and Preact does not run effects during a server render. Every hub reports `idle` until the effect runs in the browser. The [SSR guide](/docs/preact/guides/ssr) has the rest of the rules.
+
+With Preact 11.2 or later, use `preact-render-to-string` 6.8.3 or later. Version 6.7 returns an empty string for a Preact 11.2 tree.

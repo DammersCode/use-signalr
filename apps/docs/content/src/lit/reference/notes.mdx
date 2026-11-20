@@ -54,4 +54,4 @@ When you move a host in the DOM, Lit calls `disconnectedCallback()` and then `co
 
 ## Status and the reconnect callback
 
-A status observer in your code runs as soon as the status changes. It therefore runs before the reconnect callback. The [recovery guide](/docs/lit/concepts/recovery) describes the callback.
+The `onStatusChange` option runs as soon as the status changes. It therefore runs before the reconnect callback. A host render that reads `controller.status` runs after the callback, because the controller only requests an update. The [recovery guide](/docs/lit/concepts/recovery) describes the callback.

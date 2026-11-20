@@ -30,6 +30,7 @@ To read the status as a rune-style value, use `fromStore` from `svelte/store`. C
 
 ```ts
 import { fromStore } from "svelte/store";
+import { hubStatus } from "./client";
 
 export function roomsStatus() {
   return fromStore(hubStatus("/hubs/rooms"));

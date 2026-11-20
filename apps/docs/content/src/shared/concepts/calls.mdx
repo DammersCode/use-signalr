@@ -11,7 +11,7 @@ The library has three ways to call a server method. They differ in waiting, retu
 | Hub not connected yet | waits, then calls | drops the call and resolves `false` | waits, then sends |
 | Returns | the typed result of the method | `boolean`: was the call sent | `boolean`: was the call sent |
 | When its consumer ends | aborts a pending wait or retry delay | not affected | survives, runs on its own |
-| Holds a lazy hub open | while its consumer exists, or until the call settles with `keepAliveOnUnmount` | while its consumer exists | until the call is sent |
+| Holds a lazy hub open | while its consumer exists, or until the call settles with `keepAliveOnUnmount` | while its consumer exists | while its consumer exists, and until the call is sent |
 | Use for | a request when you need the result | a signal that can get lost, for example a typing hint | a one-shot call that must land, for example "leave room" |
 
 <Only not="core">
@@ -34,7 +34,7 @@ The library has three ways to call a server method. They differ in waiting, retu
 
 <Snippet id="teardown" />
 
-A teardown cannot land when the session stops at the same time. The call then resolves `false`.
+A teardown cannot land when the session stops at the same time. The call waits until its timeout and then resolves `false`.
 
 </Only>
 

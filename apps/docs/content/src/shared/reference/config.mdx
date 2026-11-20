@@ -11,7 +11,7 @@ You pass these options to `createSignalRClient`. They are the global defaults fo
 
 <AutoTypeTable path="../../packages/core/src/types.ts" name="SignalRClientConfig" />
 
-`BuilderContext` is `{ hub: string; baseUrl: string }`.
+`BuilderContext` is `{ hub: HubString; baseUrl: string }`.
 
 The options `transport`, `skipNegotiation`, and `maxConnectRetries` do not exist at the top level or per hub. `transport` and `skipNegotiation` belong in `httpOptions`. `maxConnectRetries` does not exist, because the library retries until the hub stops. `createSignalRClient` throws an error when it finds one of them.
 

@@ -57,4 +57,4 @@ The provider lives as long as the component that calls it. For one session in th
 
 ## Placement error
 
-Every function of the client reads the context that `provideSignalR` set. If the context is missing, the function throws. Call `provideSignalR` first, in the same component or in a parent component, and call the other functions while a component initializes, not in an event handler or after an `await`. For the message, see [Troubleshooting](/docs/svelte/reference/troubleshooting#placement-errors).
+Every function of the client reads the context that `provideSignalR` set. If the context is missing, the function throws. Call `provideSignalR` first, in the same component or in a parent component. Then call the other functions while a component initializes. Do not call them in an event handler or after an `await`. For the message, see [Troubleshooting](/docs/svelte/reference/troubleshooting#placement-errors).

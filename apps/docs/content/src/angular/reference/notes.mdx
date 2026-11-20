@@ -48,10 +48,12 @@ Signals are the main API. The entry point `@dammers/use-signalr-angular/rxjs-int
 import { hubStatus$ } from "@dammers/use-signalr-angular/rxjs-interop";
 import { injectHubStatus } from "./client";
 
-const status$ = hubStatus$(injectHubStatus("/hubs/rooms"));
+export function roomsStatus$() {
+  return hubStatus$(injectHubStatus("/hubs/rooms"));
+}
 ```
 
-Call `hubStatus$` in an injection context. To call it elsewhere, pass `{ injector }`.
+Call the function that wraps `hubStatus$` in an injection context, for example in a component constructor or a service. To call `hubStatus$` elsewhere, pass `{ injector }`.
 
 ## Server rendering
 

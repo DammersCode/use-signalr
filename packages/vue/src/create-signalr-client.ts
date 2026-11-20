@@ -28,7 +28,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Gives the SignalR context (`getConnection`, `getStatus`, and
      * `waitForConnection`). Use it for the underlying `HubConnection` or a
-     * point read. Prefer the typed composables. Call it in `setup()` or inside
+     * one-time read. Prefer the typed composables. Call it in `setup()` or inside
      * `app.runWithContext()`.
      */
     useSignalR: composables.useSignalR,

@@ -26,7 +26,7 @@ Declare your hubs once. Every event handler, call, and return value is typed fro
 - **Many hubs, one provider.** Each hub connects once, however many components use it.
 - **Lazy hubs.** A lazy hub connects when the first consumer needs it and stops after the last one leaves.
 - **Recovers by itself.** A lost connection comes back without app code. Reconnect callbacks let you refetch.
-- **Teardown that lands.** A leave call in a cleanup waits for the connection and is sent once.
+- **Teardown that waits for the hub.** A leave call in a cleanup waits for the connection and is sent once the hub connects. It gives up after a timeout.
 - **SSR-safe, zero runtime dependencies.** Nothing connects on the server. The framework and `@microsoft/signalr` are peers.
 
 ## Packages

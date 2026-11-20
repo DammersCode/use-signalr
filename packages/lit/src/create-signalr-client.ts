@@ -112,7 +112,7 @@ function createRuntime<T extends SignalRContract>(
       stopped = true;
       session.stop();
     },
-    /** Gives access to the SignalR context (`getConnection`, `getStatus`, and `waitForConnection`). Use this only for the underlying `HubConnection` or a point read. */
+    /** Gives access to the SignalR context (`getConnection`, `getStatus`, and `waitForConnection`). Use this only for the underlying `HubConnection` or a one-time read. */
     context: session.publicContext,
   };
 }
@@ -176,7 +176,7 @@ export class HubController<
     });
   }
 
-  /** Lit calls this when the host disconnects. Pending calls abort at the end of the task, unless the host connects again first. */
+  /** Lit calls this when the host disconnects. Pending calls abort a moment later, unless the host connects again first. */
   hostDisconnected() {
     if (!this.connected) return;
     this.connected = false;

@@ -44,7 +44,7 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
     /**
      * Gives access to the SignalR context (`getConnection`, `getStatus`,
      * and `waitForConnection`). Prefer the typed hooks below. Use this only
-     * for the underlying `HubConnection` or a point read.
+     * for the underlying `HubConnection` or a one-time read.
      */
     useSignalR: hooks.useSignalR,
     /**

@@ -63,7 +63,7 @@ Runs `callback` after each reconnect, not after the first connect. Use it to loa
 
 ### controller.invoke
 
-Returns a typed function. The function waits for the connection and resolves with the return value of the server method. When the host disconnects and does not connect again in the same task, a pending call rejects with an `AbortError`, unless `options.keepAliveOnUnmount` is `true`.
+Returns a typed function. The function waits for the connection and resolves with the return value of the server method. When the host disconnects and does not connect again right after, a pending call rejects with an `AbortError`, unless `options.keepAliveOnUnmount` is `true`.
 
 ### controller.send
 

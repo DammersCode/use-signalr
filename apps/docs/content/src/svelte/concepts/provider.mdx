@@ -50,7 +50,7 @@ The provider starts the session in `onMount`. Svelte never runs `onMount` on the
 | --- | --- |
 | `provideSignalR(options)` runs | The provider builds the session and sets the context. No connection starts. |
 | The component mounts | The provider subscribes to `baseUrl`, `enabled`, and `connectionKey` and starts the session. Eager hubs connect. Lazy hubs wait for their first consumer. |
-| An option changes | The session updates. The statuses go to `"idle"`. They go to `"connecting"` again when `enabled` is true and `baseUrl` is set. |
+| An option changes | The session updates. The statuses go to `"idle"`. They go to `"connecting"` again when `enabled` is true and `baseUrl` is set. A lazy hub without a consumer stays `"idle"`. |
 | The component is destroyed | The provider unsubscribes and closes all connections. |
 
 The provider lives as long as the component that calls it. For one session in the whole app, call it in the root layout.

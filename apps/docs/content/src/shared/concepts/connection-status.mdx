@@ -37,7 +37,7 @@ The helper counts as a consumer, so it also starts a lazy hub. In Lit, the contr
 | Auto-reconnect gives up | `reconnecting`, `connecting`, a library rebuild, `connected` | yes |
 | The connection drops with `reconnect: false` | `connected`, `connecting`, `connected` after 2.5 s | yes |
 | A non-retriable error | `connecting`, `disconnected` | no |
-| `baseUrl`, `enabled`, or `connectionKey` changes | `idle`, `connecting`, `connected` | yes, if the hub was connected before |
+| `baseUrl`, `enabled`, or `connectionKey` changes | `idle`, `connecting`, `connected` | yes, if the hub was connected before. A lazy hub without a consumer stays `idle`. |
 | A lazy hub loses its last consumer | `connected`, `idle` after `graceMs` | no |
 | A lazy hub gets a consumer again | `idle`, `connecting`, `connected` | no |
 | The session stops and starts again | `idle`, `connecting`, `connected` | no |

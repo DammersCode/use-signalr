@@ -13,7 +13,7 @@ Raw `@microsoft/signalr` gives you a `HubConnection`. You must build it, start i
 - **One connection for each hub.** All components that use a hub share one connection. A lazy hub connects when the first consumer uses it.
 - **Lifecycle bound to <Fw />.** The connection starts and stops with your app. A change of `baseUrl`, `enabled`, or `connectionKey` rebuilds the connections.
 - **Recovery.** A failed hub retries with a growing delay until it connects or gets an error that retries cannot fix.
-- **Teardown that lands.** A call in a cleanup, such as "leave room", waits for the connection and holds the hub open until it is sent.
+- **Teardown that waits for the hub.** A call in a cleanup, such as "leave room", waits for the connection and holds the hub open until it is sent. It gives up after a timeout.
 - **SSR-safe.** Nothing connects on the server. The status is `idle` there. See [Server rendering](./guides/ssr.mdx) for hydration.
 
 ## Supported versions

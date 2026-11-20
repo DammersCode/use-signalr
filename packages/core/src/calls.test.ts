@@ -350,6 +350,31 @@ describe("createTeardownSender", () => {
     }
   });
 
+  it("still resolves when release or the session hook throws", async () => {
+    const connection = { send: vi.fn().mockResolvedValue(undefined) } as unknown as HubConnection;
+    const send = createTeardownSender<Contract, "/hub", "Count">({
+      target: {
+        acquire: vi.fn(),
+        release: () => {
+          throw new Error("release broke");
+        },
+        waitForConnection: () => Promise.resolve(connection),
+        beginSend: () => ({
+          signal: new AbortController().signal,
+          use: () => {},
+          end: () => {
+            throw new Error("end broke");
+          },
+        }),
+      },
+      hub: "/hub",
+      method: "Count",
+      getOptions: () => undefined,
+    });
+
+    await expect(send()).resolves.toBe(true);
+  });
+
   it("has no time limit when the timeout is not finite", async () => {
     vi.useFakeTimers();
     try {

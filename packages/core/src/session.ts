@@ -203,9 +203,13 @@ export function createSignalRSession<
       held.sends.delete(send);
       if (held.sends.size > 0) return;
       heldConnections.delete(held);
-      void held.connection
-        .stop()
-        .catch((err: unknown) => onError?.(held.hub, err, { source: "connection" }));
+      void held.connection.stop().catch((err: unknown) =>
+        runUserCallback(
+          held.hub,
+          () => onError?.(held.hub, err, { source: "connection" }),
+          () => {},
+        ),
+      );
     });
   };
 

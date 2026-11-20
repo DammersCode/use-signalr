@@ -152,6 +152,14 @@ export function createSender<
   };
 }
 
+function ignoreErrors(fn: () => void) {
+  try {
+    fn();
+  } catch {
+    // Nothing is left to report to.
+  }
+}
+
 /** Teardown sender. It acquires the hub itself, so it still works after its consumer is gone. */
 export function createTeardownSender<
   T extends SignalRContract,
@@ -184,9 +192,10 @@ export function createTeardownSender<
         if (finished) return;
         finished = true;
         clearTimeout(timer);
-        release(hub);
-        inFlight?.end();
         resolve(sent);
+        // A failing cleanup must not leave the call pending or throw from a timer.
+        ignoreErrors(() => release(hub));
+        ignoreErrors(() => inFlight?.end());
       };
       // The timeout also covers the send, so a stuck send cannot hold a stopped connection open.
       const timer = Number.isFinite(timeout)

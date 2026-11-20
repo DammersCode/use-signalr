@@ -1771,6 +1771,36 @@ describe("stop() with a teardown call in flight", () => {
     }
   });
 
+  it("reports a failing close of a held connection, and survives an onError that throws", async () => {
+    let finishSend: () => void = () => {};
+    sendGate = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    const onError = vi.fn(() => {
+      throw new Error("handler broke");
+    });
+    const session = createSignalRSession({
+      hubs: [HUB_A],
+      resolve: () => baseResolved(),
+      statusStore: makeFakeStatusStore(),
+      getAccessToken: () => "token",
+      onError,
+    });
+    session.update({ baseUrl: "https://example.test" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const connection = fakeConnections[0]!;
+    connection.stop.mockImplementationOnce(() => Promise.reject(new Error("stop failed")));
+    const result = makeTeardown(session)();
+    session.stop();
+    finishSend();
+    await expect(result).resolves.toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onError).toHaveBeenCalledWith(HUB_A, expect.objectContaining({ message: "stop failed" }), {
+      source: "connection",
+    });
+  });
+
   it("closes a new connection at the next stop even while an older teardown still sends", async () => {
     let finishSend: () => void = () => {};
     sendGate = new Promise<void>((resolve) => {

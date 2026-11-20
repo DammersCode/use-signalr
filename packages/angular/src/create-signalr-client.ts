@@ -83,8 +83,8 @@ export function createSignalRClient<const H extends Record<HubString, HubDef>>(
      */
     injectHubSend: hooks.injectHubSend,
     /**
-     * Typed teardown sender for a method invoked in a teardown. Survives the
-     * calling scope's disposal, queues while the hub is still connecting
+     * Typed teardown sender for a method invoked when a component or injector
+     * is destroyed. Survives the destroy, queues while the hub is still connecting
      * instead of dropping, and holds a lazy hub open until the send ends.
      * Resolves `true` if the call is sent. Resolves `false` if the hub does
      * not connect in time, the session is disabled, the hub failed, or the

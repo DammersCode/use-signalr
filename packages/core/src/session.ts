@@ -53,9 +53,9 @@ export interface SignalRSession<
   T extends SignalRContract,
   TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,
 > {
-  /** Disposes the live generation, sets every hub to `"idle"`, and forgets which hubs connected before. Calling it again does nothing. */
+  /** Disposes the live connections, sets every hub to `"idle"`, and forgets which hubs connected before. Calling it again does nothing. */
   stop: () => void;
-  /** Does nothing if the values equal the last applied values. Otherwise it disposes the live generation and, if `enabled` is true and `baseUrl` is not empty, builds a new one. A rebuild keeps which hubs connected, so their reconnect callbacks run. */
+  /** Does nothing if the values equal the last applied values. Otherwise it disposes the live connections and, if `enabled` is true and `baseUrl` is not empty, builds new ones. A rebuild keeps which hubs connected, so their reconnect callbacks run. */
   update: (values: SignalRSessionValues) => void;
   /** The value that an adapter puts into its framework context. Its identity is stable. */
   context: SignalRContextValueBase<T, TStore>;
@@ -63,7 +63,7 @@ export interface SignalRSession<
   publicContext: SignalRPublicContext<T>;
 }
 
-/** Owns the manager generation, lazy ref-counts, reconnect listeners, and the context value. Adapters add only framework binding. */
+/** Owns the connection manager, lazy ref-counts, reconnect listeners, and the context value. Adapters add only framework binding. */
 export function createSignalRSession<
   T extends SignalRContract,
   TStore extends StatusStore<keyof T & HubString> = StatusStore<keyof T & HubString>,

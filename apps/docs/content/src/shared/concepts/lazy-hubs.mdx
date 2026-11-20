@@ -24,7 +24,7 @@ Each of these counts as a consumer for the hub that you pass:
 
 </Only>
 <Only in="lit">
-A controller from <Api of="keepAlive" /> is one consumer. It counts while its host is connected to the DOM. <Api of="event" />, <Api of="invoke" />, <Api of="send" />, <Api of="teardown" />, <Api of="status" />, and <Api of="reconnected" /> are methods of this controller. They use this one consumer.
+A controller from <Api of="keepAlive" /> is one consumer. It counts while its host is connected to the DOM. <Api of="event" />, <Api of="send" />, <Api of="status" />, and <Api of="reconnected" /> are members of this controller. They use this one consumer. <Api of="invoke" /> with `keepAliveOnUnmount` and <Api of="teardown" /> acquire the hub on their own, for the length of each call.
 
 </Only>
 <Only in="react,preact">

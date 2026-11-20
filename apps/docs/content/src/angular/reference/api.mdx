@@ -45,7 +45,7 @@ Returns the context of the session. Use it only when you need the underlying `Hu
 
 ### injectHubInvoke
 
-Returns a typed function. The function waits for the connection and resolves with the return value of the server method. When the scope is destroyed and `keepAliveOnUnmount` is `false`, a pending call rejects with an `AbortError`.
+Returns a typed function. The function waits for the connection and resolves with the return value of the server method. When the component or injector is destroyed and `keepAliveOnUnmount` is `false`, a pending call rejects with an `AbortError`.
 
 ### injectHubSend
 
@@ -60,7 +60,7 @@ Returns a typed function for a call in a cleanup. The function waits for the hub
 - The hub failed.
 - The send fails.
 
-It never rejects. The call is not aborted when the scope is destroyed. Each call also acquires the hub until its send ends, so it holds a lazy hub open after the scope is destroyed.
+It never rejects. The call is not aborted when the component or injector is destroyed. Each call also acquires the hub until its send ends, so it holds a lazy hub open after that.
 
 ### injectHubStatus
 

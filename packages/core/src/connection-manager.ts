@@ -68,7 +68,7 @@ export interface ConnectionManagerDeps<Hub extends HubString> {
   onStatus: (hub: Hub, status: HubConnectionStatus, error?: unknown) => void;
   /** Reports once per outage: the first failed attempt of a retriable outage, or a non-retriable error. */
   onError: (hub: Hub, error: unknown, info: SignalRErrorInfo) => void;
-  /** True while this manager's generation is the live one. Guards stale rebuilds. */
+  /** True while this manager is the live one. Guards stale rebuilds. */
   isCurrent: () => boolean;
 }
 
@@ -80,7 +80,7 @@ export interface ConnectionManager<Hub extends HubString> {
   dispose: () => void;
 }
 
-/** Owns the hub connections of one provider generation: build, start with recovery, lazy ref-counted stop. */
+/** Owns the hub connections of one provider: build, start with recovery, lazy ref-counted stop. */
 export function createConnectionManager<Hub extends HubString>(
   deps: ConnectionManagerDeps<Hub>,
 ): ConnectionManager<Hub> {

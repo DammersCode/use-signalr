@@ -79,7 +79,7 @@ function createLoader(injector: Injector) {
 }
 ```
 
-The scope of the injector sets the lifetime. When the component or the injector is destroyed, the library removes event handlers, aborts waiting invokes, and releases lazy hubs.
+The component or injector that calls a function sets its lifetime. When the component or the injector is destroyed, the library removes event handlers, aborts waiting invokes, and releases lazy hubs.
 
 ## Errors from wrong placement
 
